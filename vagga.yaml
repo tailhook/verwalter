@@ -1,0 +1,53 @@
+commands:
+
+  make: !Command
+    description: Build library and binaries
+    container: ubuntu
+    run: [cargo, build]
+
+  test: !Command
+    description: Run tests
+    container: ubuntu
+    run: [cargo, test]
+
+  benchmark: !Command
+    description: Run benchmarks
+    container: ubuntu-bench
+    run: [cargo, bench]
+
+  cargo: !Command
+    description: Run any cargo command
+    container: ubuntu
+    run: [cargo]
+
+containers:
+
+  ubuntu:
+    # The container to build lithos ubuntu package
+    setup:
+    - !Ubuntu trusty
+    - !UbuntuUniverse ~
+    - !Install [make, checkinstall, wget, ca-certificates,
+                libssl-dev, build-essential]
+
+    - !TarInstall
+      url: "http://static.rust-lang.org/dist/rust-1.1.0-x86_64-unknown-linux-gnu.tar.gz"
+      script: "./install.sh --prefix=/usr --components=rustc,cargo"
+
+    environ:
+      HOME: /work/target
+
+  ubuntu-bench:
+    # The container to build lithos ubuntu package
+    setup:
+    - !Ubuntu trusty
+    - !UbuntuUniverse ~
+    - !Install [make, checkinstall, wget, ca-certificates,
+                libssl-dev, build-essential]
+
+    - !TarInstall
+      url: "http://static.rust-lang.org/dist/rust-nightly-x86_64-unknown-linux-gnu.tar.gz"
+      script: "./install.sh --prefix=/usr --components=rustc,cargo"
+
+    environ:
+      HOME: /work/target
