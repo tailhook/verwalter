@@ -14,7 +14,7 @@ service discovery too.
 Features:
 
 * Decentralized distribution of configuration
-* Includes scriptable automated resource management
+* Includes scriptable automated resource management (scripting via lua)
 * Allows resource management even in minority partitions
 * May provide discovery of only same-partition services in case of partitioning
 * Liquid templates for configuration files
@@ -27,7 +27,7 @@ Assumptions:
   a "shutdown this service in minority partition", which can't be done if
   configuration is stored in zookeeper/consul/etcd)
 * Need service discovery in minority partition, better if we could provide
-  "only theases instances are available in current partition"
+  "only thease instances are available in current partition"
 
 How it works:
 
@@ -35,7 +35,7 @@ How it works:
 * Makes decisions in 10 second rounds
 * Takes into account from 0.5 to 60 minutes of historical metrics
 * Checks reachable nodes at each round
-* Uses two phase commit (2PC) to distribute configuration and avoid collisions
+* Uses three phase commit (3PC) to distribute configuration and avoid collisions
 
 
 .. _cantal: http://cantal.readthedocs.org
