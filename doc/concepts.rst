@@ -103,11 +103,14 @@ In particular it does the following:
 4. At every node the configuration is rendered to local configuration files
    (most importantly ``/etc/lithos/processes``, but other types of
    configuration are supported too), and respective processes are notified.
+5. All nodes display web frontend to review configuration. Frontend also has
+   actionable buttons for common maintainance tasks like software upgrade or
+   remove node from cluster
 
 Unlike popular combinations of etcd_ + confd_, consul_ + consul-template_, or
 mesos_ with whatever framework, verwalter can do scheduling decisions in
 split-brain scenario even in minority partition. Verwalter is not a database so
-having two leaders is not a problem most of the time.
+having two leaders is not a problem when used wisely.
 
 .. note:: Yes you can control how small cluster must be for cluster model to
    work and you can configure different reactions in majority and minority
