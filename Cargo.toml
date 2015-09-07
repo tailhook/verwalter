@@ -1,4 +1,11 @@
 [package]
 name = "verwalter"
+description = """
+    Decentralized resource and configuration management daemon
+"""
+readme = "README.rst"
+keywords = ["cluster", "linux", "resource", "configuration", "management"]
 version = "0.1.0"
-authors = ["pc"]
+homepage = "http://github.com/tailhook/verwalter"
+documentation = "http://verwalter.readthedocs.org"
+authors = ["Paul Colomiets <paul@colomiets.name>"]

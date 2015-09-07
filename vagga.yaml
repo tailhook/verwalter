@@ -15,6 +15,11 @@ commands:
     container: ubuntu
     run: [cargo]
 
+  run: !Command
+    description: Run verwalter
+    container: ubuntu
+    run: [./target/debug/verwalter]
+
   docs: !Command
     description: Build docs
     container: docs

@@ -1,13 +1,15 @@
 =========
-Vervalter
+Verwalter
 =========
 
+:Status: Proof of Concept
+:Documentation: http://verwalter.readthedocs.org
 
-Vervalter manages local configuration data and signals processes for reload.
+Verwalter manages local configuration data and signals processes for reload.
 It's similar in spirit to confd_ or consul-template_ but has very different
 feature set.
 
-Vervalter also has optional resource management facility and may provide
+Verwalter also has optional resource management facility and may provide
 service discovery too.
 
 
@@ -35,10 +37,9 @@ How it works:
 * Makes decisions in 10 second rounds
 * Takes into account from 0.5 to 60 minutes of historical metrics
 * Checks reachable nodes at each round
-* Uses three phase commit (3PC) to distribute configuration and avoid collisions
+* Uses raft-like algorithm with weaker consistency guarantees
 
 
 .. _cantal: http://cantal.readthedocs.org
 .. _confd: https://github.com/kelseyhightower/confd
 .. _consul-template: https://github.com/hashicorp/consul-template
-
