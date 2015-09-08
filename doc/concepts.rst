@@ -10,7 +10,8 @@ Briefly verwalter provides the following:
 * Limited service discovery
 
 It builds on top of lithos_ (which is isolation, containarization and
-supervising service) and cantal_ (which is sub-real-time monitoring service).
+supervising service) and cantal_ (which is sub-real-time monitoring and node
+discovery service).
 
 Verwalter is a framework for long-running services. It has abstractions to
 configure running 10 instances of service X or use 7% of capacity for service
@@ -123,7 +124,7 @@ having two leaders is not a problem when used wisely.
 The Missing Parts
 -----------------
 
-In current implementation the missing part is delivering file to node, in
+In current implementation the missing part is delivering files to node, in
 particular:
 
 1. Lithos configs ``/etc/lithos/master.yaml``, ``/etc/lithos/sandboxes``
@@ -134,6 +135,41 @@ We use ansible_ and good old rsync_ for these things for now
 
 The Big Picture
 ===============
+
+.. figure:: pic/boxes.svg
+   :width: 300px
+   :figwidth: 300px
+   :align: right
+   :alt: organization of proccesses on boxes
+
+   All three processes [C]antal,
+   [L]ithos and [V]erwalter on every machine
+
+The cluster setup is simple. We have only one type of node and that node
+runs three lightweight processes: lithos_, cantal_ and verwalter.
+
+As outlined above cantal_ does node discovery by UDP. When the node first time
+becomes up, it needs to join the cluster. Joining the cluster is done
+by issuing a request::
+
+    curl http://some.known.host:22682/add_host.json -d '{"addr": "1.2.3.4:22682"}'
+
+.. warning:: This is not a stable API, so it may change at any time.
+
+.. figure:: pic/cantal-gossip.svg
+   :width: 300px
+   :figwidth: 310px
+   :align: left
+   :alt: cantal gossip protocol
+
+   Propagation of cluster join message
+
+As the nodes are all equal you can issue a request to any node, or you can add
+any existing node of a cluster to the new node, it doesn't matter. All the
+info will quickly propagate to other nodes via gossip protocol.
+
+As illustrated on the picture the discovery is random. But it tuned well to
+efficiently cover whole network.
 
 
 .. _lithos: http://github.com/tailhook/lithos
