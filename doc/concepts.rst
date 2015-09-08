@@ -171,6 +171,38 @@ info will quickly propagate to other nodes via gossip protocol.
 As illustrated on the picture the discovery is random. But it tuned well to
 efficiently cover whole network.
 
+.. figure:: pic/cantal-init.svg
+   :width: 300px
+   :figwidth: 310px
+   :align: right
+   :alt: cantal supplies cluster information on verwalter's request
+
+   Initial request of cluster info
+
+When starting up, verwalter requests cluster information **from local cantal
+instance**. The information consists of:
+
+* list of peers in the cluster
+* availability of the nodes (i.e. time of last successful ping)
+
+Verwalter delegates all the work of joining cluster to cantal. As described
+above, verwalter operates in one of the two modes: leader and follower. It
+starts as follower and waits until it will be reached by leader. Leader in
+turn discovers followers through cantal. I.e. it assumes that every cantal that
+joins the cluster has verwalter instance.
+
+While cantal is joining cluster and verwalter does it's own boostrapping and
+possible leader election, the lithos continues to run. I.e. if there was any
+configuration for lithos before reboot of the system or before you do any
+maintainance of the verwalter/consul, the processes are started and supervised.
+Any processes that crash are restarted and so on.
+
+.. note:: In case you don't want for processes to start on boot, you may
+   configure system to clean lithos configs on reboot (for example by putting
+   them on ``tmpfs`` filesystem). This is occassionally useful, but we consider
+   the default behaviour to start all processes that was previously run more
+   useful in most cases.
+
 
 .. _lithos: http://github.com/tailhook/lithos
 .. _cantal: http://cantal.readthedocs.org
