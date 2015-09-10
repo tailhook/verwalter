@@ -6,7 +6,7 @@ Verwalter is a tool that manages cluster of services.
 
 Briefly verwalter provides the following:
 
-* Cluster-wide management that is scriptable by lua_
+* Cluster-wide resource management that is scriptable by lua_
 * Limited service discovery
 
 It builds on top of lithos_ (which is isolation, containarization and
@@ -124,11 +124,12 @@ having two leaders is not a problem when used wisely.
 The Missing Parts
 -----------------
 
-In current implementation the missing part is delivering files to node, in
-particular:
+In current implementation the missing part of the puzzle is a means to deliver
+files to each box. In particular the following files might need to be
+distributed between nodes:
 
-1. Lithos configs ``/etc/lithos/master.yaml``, ``/etc/lithos/sandboxes``
-2. Images of systems for lithos
+1. Images of containers for lithos
+2. Vervalter's configs and configuration templates
 
 We use ansible_ and good old rsync_ for these things for now
 
@@ -184,35 +185,178 @@ instance**. The information consists of:
 
 * list of peers in the cluster
 * availability of the nodes (i.e. time of last successful ping)
+* some minor useful info like round trip time (RTT) between nodes
 
-Verwalter delegates all the work of joining cluster to cantal. As described
-above, verwalter operates in one of the two modes: leader and follower. It
-starts as follower and waits until it will be reached by leader. Leader in
-turn discovers followers through cantal. I.e. it assumes that every cantal that
-joins the cluster has verwalter instance.
+Verwalter delegates all the work of joining cluster to cantal.
 
-While cantal is joining cluster and verwalter does it's own boostrapping and
-possible leader election, the lithos continues to run. I.e. if there was any
-configuration for lithos before reboot of the system or before you do any
-maintainance of the verwalter/consul, the processes are started and supervised.
-Any processes that crash are restarted and so on.
+As described above, verwalter operates in one of the two modes: leader and
+follower. It starts as follower and waits until it will be reached by leader.
+Leader in turn discovers followers through cantal. I.e. it assumes that every
+cantal that joins the cluster has verwalter instance.
 
-.. note:: In case you don't want for processes to start on boot, you may
-   configure system to clean lithos configs on reboot (for example by putting
-   them on ``tmpfs`` filesystem). This is occassionally useful, but we consider
-   the default behaviour to start all processes that was previously run more
-   useful in most cases.
+.. note::
+
+    While cantal is joining cluster and verwalter does it's own boostrapping
+    and possible leader election, the lithos continues to run. This means if
+    there was any configuration for lithos before reboot of the system or
+    before you do any maintainance of the verwalter/consul, the processes are
+    started and supervised.  Any processes that crash are restarted and so on.
+
+    In case you don't want for processes to start on boot, you may configure
+    system to clean lithos configs on reboot (for example by putting them on
+    ``tmpfs`` filesystem). This is occassionally useful, but we consider the
+    default behaviour to start all processes that was previously run more
+    useful in most cases.
+
+
+Leader's Job
+------------
 
 When verwalter follower is not reached by a leader for predefined time (don't
-matter whether it's on startup or when it had leader), it starts an election
+matter whether it's on startup or after it had leader), it starts an election
 process. Election process is not described in detail here, because it's work
-in progress. It will be described in detail later on other parts of
+in progress. It will be described in detail later in other parts of
 documentation.
 
 When verwalter elected as a leader:
 
 1. It connects to every node, and ensures that every follower knows the leader
-2. After establishing connections
+2. After establishing connections it gathers the configuration of all currently
+   running processes on every node
+3. It connects to local cantal and requests statistics for all the nodes
+4. Then it runs scheduling algorithm which produces new configuration for every
+   node
+5. At next step it delivers configuration to respective nodes
+6. Repeat at step 3 at regular intervals (~10 sec)
+
+In fact steps 1-3 are done simultaneously. As outlined in
+`cantal documentation`_ it gathers and aggregates metrics by itself, easing
+the work for verwalter.
+
+Note that at the moment when new leader is elected the previous one is probably
+not accesible (or there were two of them so no shared consistent configuration
+exists). So it's important to gather all current node configurations to keep
+number of reallocations/movements of processes between machines at minimum. It
+also allows to have persistent processes (i.e. processes which store data on
+local filesystem or in local memory, for example database shards).
+
+Having not only old configuration but also statistics is very important, we can
+use it for the following things:
+
+1. Detect failing processes
+2. Find out the number of requests that are processed per second
+3. Predict trends, i.e. whether traffic is going up or down
+
+All this info is gathered continuously and asyncrhonously. Nodes come and leave
+at every occassion. So it's too complex to reason about them in reactive
+manner. So from SysOp's point of view  the scheduler is a pure function from a
+{*set of currently running processes*; *set of metrics*} to the new
+configuration. The verwalter itself does all heavy lifting of keeping all nodes
+in contact, synchronizing changes, etc.
+
+The input to the function in simplified human-readable form looks like the
+following::
+
+    box1 django: 3 running, 10 requests per second and growing; 80% CPU usage
+    box2 flask: 1 running, 7 RPS and declining; django: 2 starting; 20 %CPU
+
+In lua code function looks like this (simplified):
+
+.. code-block:: lua
+
+    function scheduler (processes, metrics)
+        ...
+        return config
+    end
+
+
+Furthermore we have a helper utilities to actually keep matching processes
+running. So in many simple cases scheduler may just return the number of
+processes it wants to run. In simplified form it looks like this:
+
+.. code-block:: lua
+
+    function schedule_simple(metrics)
+        cfg = {
+            django_workers = metrics.django.rps / DJANGO_WORKER_CAPACITY,
+            flask_workers = metrics.flask.rps / FLASK_WORKER_CAPACITY,
+        }
+        total = cfg.django_workers + cfg.flask_workers
+        if total > MAX_WORKERS then
+            -- not enough capacity, but do our best
+            cfg = distribute_fairly(cfg)
+        else
+            -- have some spare capacity for background tasks
+            cfg.background_workers = MAX_WORKERS - total
+        end
+        return cfg
+    end
+
+    make_scheduler(schedule_simple, {
+        worker_grow_rate: '5 processes per second',  -- start processes quickly
+        worker_decline_rate: '1 process per second', -- but stop at slower rate
+    })
+
+Of course example is oversimplified, it's only here to get some spirit of what
+scheduling might look like.
+
+By using proper lua sandbox we ensure that function is *pure* (have no side
+effects), so if you need some external data it must be provided to cantal or
+verwalter by implementing their API. In lua script we do our best to ensure
+that function is idempotent, so we can log all the data and resulting
+configuration for **post mortem debugging**.
+
+Also this allows us to make "shadow" schedulers. I.e. ones that have no real
+scheduling abilities, but are evaluated on every occasion. This might be useful
+to evaluate new scheduling algorithm before putting one in production.
+
+.. _`cantal documentation`: http://cantal.readthedocs.org/en/latest/concepts.html#aggregated-metrics
+
+Follower's Job
+--------------
+
+The follower is much simpler. When leadership is established, it receives
+configuration updates from the leader. Configuration may consist of:
+
+1. Application name and number of processes to run
+2. Host name to IP address mapping to provide for an application
+3. Arbitrary key-value pairs that are needed for configuring application
+4. (Parts of) configurations of other nodes
+
+Note the items (1), (4) and partially (3) do provide the **limited form of
+service discovery** that was declared at start of this guide. The (2) is there
+mostly for legacy applications which does not support service discovery. The
+(4) is mostly for proxy servers that need a list of backends, instead of having
+backends discover them by host name.
+
+
+.. note:: We use extremely ignorant description of "legacy" here. Because even
+   in 2015 most services don't support service discovery out of the box and
+   most proxies have a list of backends in the config. I mean not just old
+   services that are still widely used. But also services that are created in
+   recent years. Which is problem on it's own but not the one verwalter is
+   aimed to solve. It's just designed to work both with good and old-style
+   services.
+
+Every configuration update is applied by verwalter locally. In the simplest
+form it means:
+
+1. Render textual templates into temporary file(s)
+2. Run configuration checker for application
+3. Atomically move configuration file or directory to the right place
+4. Signal the application to reload configuration
+
+For some applications it might be more complex. For lithos which is the most
+common configuration target for verwalter it's just a matter of writing
+YAML/JSON config to temporary location and calling ``lithos_switch`` utility.
+
+.. note:: We're still evaluating whether it's good idea to support plugins for
+    verwalter for complicated configuration scenarios. Or whether the files are
+    universal transport and you just want to implement daemon on it's own if
+    you want some out of scope stuff. The common case might be making API calls
+    instead of reloading configuration like you might need for docker or any
+    cloud provider. Lua scripting at this stage is also an option being
+    considered.
 
 
 Cross Data Center
@@ -228,24 +372,23 @@ Cross Data Center
    The cross data center connection scheme
 
 
-When crossing data center line things start to be more complicated. In
+When crossing data center things start to be more complicated. In
 particular verwalter assumes:
 
 1. Links between Data Center are order of magnitude slower than inside
    (normal RTT between nodes inside datacenter is 1ms; whereas between DC even
    on the same continent 40ms and sometimes may be up to 120-500 ms). In some
-   cases traffic is more expensive.
+   cases traffic is expensive.
 2. The connection between datacenters is less reliable and when it's down
    clients might be serviced by single data center too. It should be possible
    to configure partial degradation.
-3. There are only few data centers (i.e. it's normal to have 100-1000 nodes,
+3. There are few data centers (i.e. it's normal to have 100-1000 nodes,
    but almost nobody has more than a dozen of DCs)
 
 So verwalter establishes a leader inside every datacenter. On the
 cross-data-center boundary all verwalter leaders treated equally. They form
 full mesh of connections. And when one of them experiences peak load it just
-requests some resources from other (i.e. its scriptable so requesting resources
-may take place on different conditions).
+requests some resources from other.
 
 Let's repeat that again: because verwalter is not a database, consistency is
 not important here. I.e. if some resources are provided by DC1 for DC2 and for
@@ -256,6 +399,15 @@ appropriate metrics. So dialog between data centers looks like the following:
 .. image:: pic/cross-dc-dialog.svg
    :alt: a dialog between DC1 and DC2 where DC1 requests resources from DC2
    :width: 800px
+
+All things here are scriptable. So your logic may only move background tasks
+across data-centers or use cloud API's to request more virtual machines
+
+.. note:: A quick note to last sentence. You can't access cloud API directly
+   because of sandboxing. But you may produce a configuration for some
+   imaginary *cloud provider management daemon* that includes bigger value in
+   the setting *number of virtual machines to provision*.
+
 
 .. _lithos: http://github.com/tailhook/lithos
 .. _cantal: http://cantal.readthedocs.org
