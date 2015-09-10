@@ -203,6 +203,59 @@ Any processes that crash are restarted and so on.
    the default behaviour to start all processes that was previously run more
    useful in most cases.
 
+When verwalter follower is not reached by a leader for predefined time (don't
+matter whether it's on startup or when it had leader), it starts an election
+process. Election process is not described in detail here, because it's work
+in progress. It will be described in detail later on other parts of
+documentation.
+
+When verwalter elected as a leader:
+
+1. It connects to every node, and ensures that every follower knows the leader
+2. After establishing connections
+
+
+Cross Data Center
+=================
+
+.. figure:: pic/cross-data-center.svg
+   :width: 500px
+   :figwidth: 510px
+   :align: right
+   :alt: a leader per data center is elected and full mesh of connections
+    between leaders
+
+   The cross data center connection scheme
+
+
+When crossing data center line things start to be more complicated. In
+particular verwalter assumes:
+
+1. Links between Data Center are order of magnitude slower than inside
+   (normal RTT between nodes inside datacenter is 1ms; whereas between DC even
+   on the same continent 40ms and sometimes may be up to 120-500 ms). In some
+   cases traffic is more expensive.
+2. The connection between datacenters is less reliable and when it's down
+   clients might be serviced by single data center too. It should be possible
+   to configure partial degradation.
+3. There are only few data centers (i.e. it's normal to have 100-1000 nodes,
+   but almost nobody has more than a dozen of DCs)
+
+So verwalter establishes a leader inside every datacenter. On the
+cross-data-center boundary all verwalter leaders treated equally. They form
+full mesh of connections. And when one of them experiences peak load it just
+requests some resources from other (i.e. its scriptable so requesting resources
+may take place on different conditions).
+
+Let's repeat that again: because verwalter is not a database, consistency is
+not important here. I.e. if some resources are provided by DC1 for DC2 and for
+some reason latter lost connectivity or has some other reason to not use
+requested resources, we just release them on a timeout by looking at
+appropriate metrics. So dialog between data centers looks like the following:
+
+.. image:: pic/cross-dc-dialog.svg
+   :alt: a dialog between DC1 and DC2 where DC1 requests resources from DC2
+   :width: 800px
 
 .. _lithos: http://github.com/tailhook/lithos
 .. _cantal: http://cantal.readthedocs.org
