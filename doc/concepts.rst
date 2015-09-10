@@ -23,10 +23,10 @@ abstraction. (However, Verwalter can run and scale Mesos or Yarn cluster).
 Components
 ==========
 
-Let's look through each component of the system first, to understand what it
-does before we can describe fully conceptual system.
+Let's look through each component of the system first. This is very helpful
+to understand the big picture outlined below.
 
-Note the setup of the cluster is flat, you need all three components
+Note the setup of the cluster is flat: you need all three components
 ``verwalter``, ``lithos`` and ``cantal`` on all nodes.
 
 Lithos
@@ -41,29 +41,29 @@ Lithos_ is esentially a process supervisor. It's workflow is following:
 5. Add/remove process if configuration changed
 
 Lithos provides all necessary isolation for running processes (except it does
-not handle network yet at the moment of writing), but it's super-simple
+not handle network at the moment of writing), but it's super-simple
 comparing to docker_ and mesos_ (i.e. mesos-slave) and even systemd_:
 
 * Lithos reads configuration from files, no network calls needed (note the
   security impact)
 * Lithos can restart itself in-place, keeping track of proccesses, so it's
   mostly crash-proof
-* On ``SIGHUP`` signal for configuration change it just restarts itself
+* On ``SIGHUP`` signal (configuration change) it just restarts itself
 
 The **security model** of lithos_ is the ground for security of whole
 verwalter-based cluster, so let's take a look:
 
-* It's expected that *sandboxes* configs are predefined by administrators, and
-  are not dynamically changed (either by verwalter or any other tool)
-* Sandbox config limits folders, users, and few other system limits that
+* It's expected that configs for ``sandboxes`` are predefined by
+  administrators, and are not dynamically changed (either by verwalter or any
+  other tool)
+* Sandbox config constrains folders, users, and few other things that
   application can't escape
-* The command-line to run in sandbox is determined by configuration in image
-  for that application
+* The command-line to run in sandbox is defined in image for the application
 
 All this means that verwalter can only change the following things:
 
 * Image (i.e. version of image) to run command from
-* The name of the command to run from possible for that image
+* The name of the command to run from limited set of options
 * Number of processes to run
 
 I.e. whatever evil would be in verwalter's script it can't run arbitrary
@@ -85,7 +85,7 @@ We use it:
 * For looking at current metrics of started application in nearly real-time
 * As a liveness check for applications (mostly by looking at metrics)
 * For collecting metrics from all nodes and aggregating
-* Limited amount of historical data (~1 hour) is also used
+* For fetching limited amount of historical data (~1 hour)
 
 
 Verwalter
@@ -106,7 +106,7 @@ In particular it does the following:
    configuration are supported too), and respective processes are notified.
 5. All nodes display web frontend to review configuration. Frontend also has
    actionable buttons for common maintainance tasks like software upgrade or
-   remove node from cluster
+   remove node from a cluster
 
 Unlike popular combinations of etcd_ + confd_, consul_ + consul-template_, or
 mesos_ with whatever framework, verwalter can do scheduling decisions in
@@ -192,7 +192,7 @@ Verwalter delegates all the work of joining cluster to cantal.
 As described above, verwalter operates in one of the two modes: leader and
 follower. It starts as follower and waits until it will be reached by leader.
 Leader in turn discovers followers through cantal. I.e. it assumes that every
-cantal that joins the cluster has verwalter instance.
+cantal that joins the cluster has a verwalter instance.
 
 .. note::
 
@@ -227,7 +227,7 @@ When verwalter elected as a leader:
 4. Then it runs scheduling algorithm which produces new configuration for every
    node
 5. At next step it delivers configuration to respective nodes
-6. Repeat at step 3 at regular intervals (~10 sec)
+6. Repeat from step 3 at regular intervals (~10 sec)
 
 In fact steps 1-3 are done simultaneously. As outlined in
 `cantal documentation`_ it gathers and aggregates metrics by itself, easing
@@ -272,7 +272,8 @@ In lua code function looks like this (simplified):
 
 Furthermore we have a helper utilities to actually keep matching processes
 running. So in many simple cases scheduler may just return the number of
-processes it wants to run. In simplified form it looks like this:
+processes it wants to run or keep running. In simplified form it looks like
+this:
 
 .. code-block:: lua
 
@@ -351,12 +352,11 @@ common configuration target for verwalter it's just a matter of writing
 YAML/JSON config to temporary location and calling ``lithos_switch`` utility.
 
 .. note:: We're still evaluating whether it's good idea to support plugins for
-    verwalter for complicated configuration scenarios. Or whether the files are
-    universal transport and you just want to implement daemon on it's own if
-    you want some out of scope stuff. The common case might be making API calls
-    instead of reloading configuration like you might need for docker or any
-    cloud provider. Lua scripting at this stage is also an option being
-    considered.
+   complicated configuration scenarios. Or whether the files are universal
+   transport and you just want to implement daemon on it's own if you want some
+   out of scope stuff. The common case might be making API calls instead of
+   reloading configuration like you might need for docker or any cloud
+   provider. Lua scripting at this stage is also an option being considered.
 
 
 Cross Data Center
@@ -375,15 +375,17 @@ Cross Data Center
 When crossing data center things start to be more complicated. In
 particular verwalter assumes:
 
-1. Links between Data Center are order of magnitude slower than inside
+1. Links between data centers are order of magnitude slower than inside
    (normal RTT between nodes inside datacenter is 1ms; whereas between DC even
-   on the same continent 40ms and sometimes may be up to 120-500 ms). In some
-   cases traffic is expensive.
+   on the same continent 40ms is expected value and sometimes may be up to
+   120-500 ms). In some cases traffic is expensive.
 2. The connection between datacenters is less reliable and when it's down
    clients might be serviced by single data center too. It should be possible
    to configure partial degradation.
-3. There are few data centers (i.e. it's normal to have 100-1000 nodes,
-   but almost nobody has more than a dozen of DCs)
+3. Each DC has some spare capacity on it's own. So moving resources between
+   data centers might be more gradual.
+4. There are few data centers (i.e. it's normal to have 100-1000 nodes,
+   but almost nobody has more than a dozen of DCs).
 
 So verwalter establishes a leader inside every datacenter. On the
 cross-data-center boundary all verwalter leaders treated equally. They form
@@ -394,7 +396,8 @@ Let's repeat that again: because verwalter is not a database, consistency is
 not important here. I.e. if some resources are provided by DC1 for DC2 and for
 some reason latter lost connectivity or has some other reason to not use
 requested resources, we just release them on a timeout by looking at
-appropriate metrics. So dialog between data centers looks like the following:
+appropriate metrics. So dialog between data centers leaders translated to
+the human language may look like the following:
 
 .. image:: pic/cross-dc-dialog.svg
    :alt: a dialog between DC1 and DC2 where DC1 requests resources from DC2
