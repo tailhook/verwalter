@@ -4,10 +4,14 @@ Concepts
 
 Verwalter is a tool that manages cluster of services.
 
-Briefly verwalter provides the following:
+Briefly verwalter does the following:
 
-* Cluster-wide resource management that is scriptable by lua_
-* Limited service discovery
+* Starts configured set of services
+* Monitors cluster load and changes number of workers on demand
+* Does gradual software update of supervised services triggered by operator
+* Provides limited form of service discovery
+* All the features are scriptable by clean an simple lua_ code fragments
+
 
 It builds on top of lithos_ (which is isolation, containarization and
 supervising service) and cantal_ (which is sub-real-time monitoring and node
@@ -396,7 +400,7 @@ Let's repeat that again: because verwalter is not a database, consistency is
 not important here. I.e. if some resources are provided by DC1 for DC2 and for
 some reason latter lost connectivity or has some other reason to not use
 requested resources, we just release them on a timeout by looking at
-appropriate metrics. So dialog between data centers leaders translated to
+appropriate metrics. So dialog between data center leaders translated to
 the human language may look like the following:
 
 .. image:: pic/cross-dc-dialog.svg
