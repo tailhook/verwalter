@@ -2,7 +2,7 @@
 Concepts
 ========
 
-Verwalter is a tool that manages cluster of services.
+Verwalter is a cluster orchestration tool
 
 Briefly verwalter does the following:
 
@@ -10,17 +10,17 @@ Briefly verwalter does the following:
 * Monitors cluster load and changes number of workers on demand
 * Does gradual software update of supervised services triggered by operator
 * Provides limited form of service discovery
-* All the features are scriptable by clean an simple lua_ code fragments
+* All the features are scriptable by clean and simple Lua_ code fragments
 
 
-It builds on top of lithos_ (which is isolation, containarization and
+It builds on top of lithos_ (which is isolation, containerization, and
 supervising service) and cantal_ (which is sub-real-time monitoring and node
 discovery service).
 
 Verwalter is a framework for long-running services. It has abstractions to
 configure running 10 instances of service X or use 7% of capacity for service
-Y. And this resources will be consumed until configuration changed. This is
-in contrast with Mesos_ or Yarn_ which has "start task A until it completes"
+Y. The resources are consumed until configuration changed. Contrast this
+approach with Mesos_ or Yarn_ which has "start task A until it completes"
 abstraction. (However, Verwalter can run and scale Mesos or Yarn cluster).
 
 
@@ -36,7 +36,7 @@ Note the setup of the cluster is flat: you need all three components
 Lithos
 ------
 
-Lithos_ is esentially a process supervisor. It's workflow is following:
+Lithos_ is essentially a process supervisor. Here is the basic workflow:
 
 1. Read configuration at ``/etc/lithos/sandboxes``
 2. For each sandbox read configuration in ``/etc/lithos/processes``
@@ -50,18 +50,18 @@ comparing to docker_ and mesos_ (i.e. mesos-slave) and even systemd_:
 
 * Lithos reads configuration from files, no network calls needed (note the
   security impact)
-* Lithos can restart itself in-place, keeping track of proccesses, so it's
+* Lithos can restart itself in place, keeping track of processes, so it's
   mostly crash-proof
 * On ``SIGHUP`` signal (configuration change) it just restarts itself
 
-The **security model** of lithos_ is the ground for security of whole
-verwalter-based cluster, so let's take a look:
+The **security model** of lithos_ is the ground for the security of whole
+verwalter-based cluster. So let's take a look:
 
 * It's expected that configs for ``sandboxes`` are predefined by
-  administrators, and are not dynamically changed (either by verwalter or any
+  administrators and are not dynamically changed (either by verwalter or any
   other tool)
 * Sandbox config constrains folders, users, and few other things that
-  application can't escape
+  an application can't escape
 * The command-line to run in sandbox is defined in image for the application
 
 All this means that verwalter can only change the following things:
@@ -70,11 +70,11 @@ All this means that verwalter can only change the following things:
 * The name of the command to run from limited set of options
 * Number of processes to run
 
-I.e. whatever evil would be in verwalter's script it can't run arbitrary
-command line on any host. So can't install rootkit, steal users' passwords and
-do any other harm except taking down the cluster (which is an expected
-permission for resource scheduler). This is in contrast to docker_/swarm
-and mesos_ which allow to run anything.
+I.e. whatever evil would be in verwalter's script it can't run an arbitrary
+command line on any host. So can't install a rootkit, steal users' passwords
+and do any other harm except taking down the cluster (which is an expected
+permission for resource scheduler). This is in contrast to docker_/swarm and
+mesos_ that allow to run anything.
 
 
 Cantal
@@ -102,10 +102,10 @@ In particular it does the following:
 
 1. Establishes leader of the cluster (or a subcluster in case of split-brain)
 2. Leader runs model of the cluster defined by sysadmin and augmented with lua
-   scripts, to get number of processes run at each machine (and other
+   scripts, to get a number of processes run at each machine (and other
    important pieces of configuration).
 3. Leader delivers configuration to every other node
-4. At every node the configuration is rendered to local configuration files
+4. At every node, the configuration is rendered to local configuration files
    (most importantly ``/etc/lithos/processes``, but other types of
    configuration are supported too), and respective processes are notified.
 5. All nodes display web frontend to review configuration. Frontend also has
@@ -118,18 +118,18 @@ split-brain scenario even in minority partition. Verwalter is not a database so
 having two leaders is not a problem when used wisely.
 
 .. note:: Yes you can control how small cluster must be for cluster model to
-   work and you can configure different reactions in majority and minority
+   work, and you can configure different reactions in majority and minority
    partition. I.e. doing any decisions on a single node isolated from 1000
-   other nodes is useless. But switching off external `memcache` instance for
-   the sake of running local one may be super-useful if you have a
+   other nodes is useless. But switching off external `memcache` instance
+   for the sake of running local one may be super-useful if you have a
    micro-service running on just two nodes.
 
 
 The Missing Parts
 -----------------
 
-In current implementation the missing part of the puzzle is a means to deliver
-files to each box. In particular the following files might need to be
+In the current implementation, the missing part of the puzzle is a means to
+deliver files to each box. In particular the following files might need to be
 distributed between nodes:
 
 1. Images of containers for lithos
@@ -174,7 +174,7 @@ any existing node of a cluster to the new node, it doesn't matter. All the
 info will quickly propagate to other nodes via gossip protocol.
 
 As illustrated on the picture the discovery is random. But it tuned well to
-efficiently cover whole network.
+efficiently cover the whole network.
 
 .. figure:: pic/cantal-init.svg
    :width: 300px
@@ -194,65 +194,65 @@ instance**. The information consists of:
 Verwalter delegates all the work of joining cluster to cantal.
 
 As described above, verwalter operates in one of the two modes: leader and
-follower. It starts as follower and waits until it will be reached by leader.
-Leader in turn discovers followers through cantal. I.e. it assumes that every
-cantal that joins the cluster has a verwalter instance.
+follower. It starts as follower and waits until it will be reached by a leader.
+The Leader in turn discovers followers through cantal. I.e. it assumes that
+every cantal that joins the cluster has a verwalter instance.
 
 .. note::
 
-    While cantal is joining cluster and verwalter does it's own boostrapping
-    and possible leader election, the lithos continues to run. This means if
-    there was any configuration for lithos before reboot of the system or
-    before you do any maintainance of the verwalter/consul, the processes are
-    started and supervised.  Any processes that crash are restarted and so on.
+    While cantal is joining cluster and verwalter does its own bootrapping
+    and possible leader election, the lithos continues to run. The above means
+    if there was any configuration for lithos before a reboot of the system or
+    before you do any maintenance of the verwalter/consul, the processes are
+    started and supervised. Any processes that crash are restarted and so on.
 
-    In case you don't want for processes to start on boot, you may configure
+    In case you don't want processes to start on boot, you may configure the
     system to clean lithos configs on reboot (for example by putting them on
-    ``tmpfs`` filesystem). This is occassionally useful, but we consider the
-    default behaviour to start all processes that was previously run more
-    useful in most cases.
+    ``tmpfs`` filesystem). Such configuration is occasionally useful, but we
+    consider the default behaviour to start all processes that were previously
+    run more useful in most cases.
 
 
 Leader's Job
 ------------
 
-When verwalter follower is not reached by a leader for predefined time (don't
-matter whether it's on startup or after it had leader), it starts an election
-process. Election process is not described in detail here, because it's work
+When verwalter follower is not reached by a leader for the predefined time (don't
+matter whether it is on startup or after it had a leader), it starts an election
+process. The election process is not described in detail here because it's work
 in progress. It will be described in detail later in other parts of
 documentation.
 
 When verwalter elected as a leader:
 
-1. It connects to every node, and ensures that every follower knows the leader
-2. After establishing connections it gathers the configuration of all currently
-   running processes on every node
+1. It connects to every node and ensures that every follower knows the leader
+2. After establishing connections, it gathers the configuration of all
+   currently running processes on every node
 3. It connects to local cantal and requests statistics for all the nodes
-4. Then it runs scheduling algorithm which produces new configuration for every
+4. Then it runs scheduling algorithm that produces new configuration for every
    node
 5. At next step it delivers configuration to respective nodes
 6. Repeat from step 3 at regular intervals (~10 sec)
 
-In fact steps 1-3 are done simultaneously. As outlined in
+In fact, steps 1-3 are done simultaneously. As outlined in
 `cantal documentation`_ it gathers and aggregates metrics by itself, easing
 the work for verwalter.
 
-Note that at the moment when new leader is elected the previous one is probably
-not accesible (or there were two of them so no shared consistent configuration
-exists). So it's important to gather all current node configurations to keep
-number of reallocations/movements of processes between machines at minimum. It
-also allows to have persistent processes (i.e. processes which store data on
-local filesystem or in local memory, for example database shards).
+Note that at the moment when a new leader is elected the previous one is probably
+not accessible (or there were two of them, so no shared consistent configuration
+exists). So it is important to gather all current node configurations to keep
+number of reallocations/movements of processes between machines at a minimum. It
+also allows to have persistent processes (i.e. processes that store data on the
+local filesystem or in local memory, for example, database shards).
 
-Having not only old configuration but also statistics is very important, we can
+Having not only old configuration but also statistics is crucial, we can
 use it for the following things:
 
 1. Detect failing processes
 2. Find out the number of requests that are processed per second
 3. Predict trends, i.e. whether traffic is going up or down
 
-All this info is gathered continuously and asyncrhonously. Nodes come and leave
-at every occassion. So it's too complex to reason about them in reactive
+All this info is gathered continuously and asynchronously. Nodes come and leave
+at every occasion, so it is too complex to reason about them in a reactive
 manner. So from SysOp's point of view  the scheduler is a pure function from a
 {*set of currently running processes*; *set of metrics*} to the new
 configuration. The verwalter itself does all heavy lifting of keeping all nodes
@@ -274,7 +274,7 @@ In lua code function looks like this (simplified):
     end
 
 
-Furthermore we have a helper utilities to actually keep matching processes
+Furthermore, we have helper utilities to actually keep matching processes
 running. So in many simple cases scheduler may just return the number of
 processes it wants to run or keep running. In simplified form it looks like
 this:
@@ -302,18 +302,18 @@ this:
         worker_decline_rate: '1 process per second', -- but stop at slower rate
     })
 
-Of course example is oversimplified, it's only here to get some spirit of what
-scheduling might look like.
+Of course the example is oversimplified, it is only here to get some spirit of
+what scheduling might look like.
 
-By using proper lua sandbox we ensure that function is *pure* (have no side
-effects), so if you need some external data it must be provided to cantal or
-verwalter by implementing their API. In lua script we do our best to ensure
+By using proper lua sandbox, we ensure that function is *pure* (have no side
+effects), so if you need some external data, it must be provided to cantal or
+verwalter by implementing their API. In lua script, we do our best to ensure
 that function is idempotent, so we can log all the data and resulting
 configuration for **post mortem debugging**.
 
-Also this allows us to make "shadow" schedulers. I.e. ones that have no real
-scheduling abilities, but are evaluated on every occasion. This might be useful
-to evaluate new scheduling algorithm before putting one in production.
+Also this allows us to make "shadow" schedulers. I. e. ones that have no real
+scheduling abilities, but are run on every occasion. The feature might be
+useful to evaluate new scheduling algorithm before putting one in production.
 
 .. _`cantal documentation`: http://cantal.readthedocs.org/en/latest/concepts.html#aggregated-metrics
 
