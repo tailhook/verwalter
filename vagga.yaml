@@ -18,6 +18,8 @@ commands:
   run: !Command
     description: Run verwalter
     container: ubuntu
+    environ:
+      RUST_LOG: debug
     run: [./target/debug/verwalter]
 
   docs: !Command
@@ -36,7 +38,7 @@ containers:
                 libssl-dev, build-essential]
 
     - !TarInstall
-      url: "http://static.rust-lang.org/dist/rust-1.1.0-x86_64-unknown-linux-gnu.tar.gz"
+      url: "http://static.rust-lang.org/dist/rust-1.2.0-x86_64-unknown-linux-gnu.tar.gz"
       script: "./install.sh --prefix=/usr --components=rustc,cargo"
 
     environ:
