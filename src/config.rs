@@ -4,7 +4,7 @@ use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 
-use hlua::Lua;
+use hlua::{Lua, LuaError};
 use quire::validate as V;
 use quire::sky::parse_config;
 use walker::Walker;
@@ -16,11 +16,17 @@ use Options;
 quick_error! {
     #[derive(Debug)]
     pub enum Error {
-        Io(err: io::Error) {
-            from() cause(err)
-            display("I/O error: {}", err)
+        DirScan(err: io::Error, path: PathBuf) {
+            display("error scanning dir {:?}: {}", path, err)
         }
-        Template(path: PathBuf, err: ParseError, descr: Option<String>) {
+        CantReadLua(err: LuaError, path: PathBuf) {
+            display("error reading lua script {:?}: {:?}", path, err)
+        }
+        ReadTemplate(err: io::Error, path: PathBuf) {
+            cause(err)
+            display("error reading {:?}: {}", path, err)
+        }
+        ParseTemplate(path: PathBuf, err: ParseError, descr: Option<String>) {
             display("error compiling {:?}: {:?} {}",
                 path, err, descr.as_ref().unwrap_or(&String::from("")))
         }
@@ -89,8 +95,11 @@ fn read_meta(base: &Path)
 {
     let cfgv = meta_validator();
     let mut dirvars = HashMap::new();
-    for entry in try!(Walker::new(base)) {
-        let entry = try!(entry);
+    for entry in try!(Walker::new(base)
+                      .map_err(|e| Error::DirScan(e, base.to_path_buf())))
+    {
+        let entry = try!(entry
+            .map_err(|e| Error::DirScan(e, base.to_path_buf())));
         if entry.file_name().to_str() == Some("meta.yaml") {
             let piece: Meta = try!(parse_config(&entry.path(),
                                                 &cfgv, Default::default())
@@ -101,6 +110,15 @@ fn read_meta(base: &Path)
         }
     }
     Ok(dirvars)
+}
+
+fn read_scheduler(options: &Options, lua: &mut Lua) -> Result<(), Error> {
+    let path = &options.config_dir.join("scheduler/main.lua");
+    let f = try!(File::open(&path)
+        .map_err(|e| Error::CantReadLua(LuaError::ReadError(e), path.clone())));
+    try!(lua.execute_from_reader(f)
+        .map_err(|e| Error::CantReadLua(e, path.clone())));
+    Ok(())
 }
 
 fn update_missing<'x, I>(target: &mut HashMap<String, String>, src: I)
@@ -126,8 +144,12 @@ pub fn read_configs<'lua>(options: Options) -> Result<ConfigSet<'lua>, Error>
         let dirvars = try!(read_meta(&cfgdir));
         let cfgv = config_validator();
         debug!("Configuration directory: {:?}", cfgdir);
-        for entry in try!(Walker::new(cfgdir)) {
-            let epath = try!(entry).path();
+        for entry in try!(Walker::new(cfgdir)
+                          .map_err(|e| Error::DirScan(e, cfgdir.to_path_buf())))
+        {
+            let epath = try!(entry
+                .map_err(|e| Error::DirScan(e, cfgdir.to_path_buf())))
+                .path();
             let hidden = epath.file_name().and_then(|x| x.to_str())
                 .map(|x| x.starts_with(".")).unwrap_or(false);
             if hidden {
@@ -139,11 +161,12 @@ pub fn read_configs<'lua>(options: Options) -> Result<ConfigSet<'lua>, Error>
                 Some("hbs") | Some("handlebars") => {
                     let mut buf = String::with_capacity(4096);
                     try!(File::open(&epath)
-                         .and_then(|mut x| x.read_to_string(&mut buf)));
+                         .and_then(|mut x| x.read_to_string(&mut buf))
+                         .map_err(|e| Error::ReadTemplate(e, epath.to_path_buf())));
                     debug!("Adding template {:?}", epath);
                     cfg.templates.insert(rpath.to_path_buf(),
                         try!(buf.parse().map_err(|(e, txt)|
-                            Error::Template(epath.clone(), e, txt))));
+                            Error::ParseTemplate(epath.clone(), e, txt))));
                 }
                 _ => {}
             }
@@ -186,6 +209,7 @@ pub fn read_configs<'lua>(options: Options) -> Result<ConfigSet<'lua>, Error>
                 _ => {}
             }
         }
+        try!(read_scheduler(&cfg.options, &mut cfg.lua))
     }
     Ok(cfg)
 }
