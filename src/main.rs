@@ -10,6 +10,7 @@ extern crate rustc_serialize;
 use std::path::PathBuf;
 use std::process::exit;
 
+mod path_util;
 mod config;
 
 use argparse::{ArgumentParser, Parse};
@@ -32,4 +33,7 @@ fn main() {
             exit(2);
         }
     };
+    debug!("Configuration read with, templates: {}, renderers: {}",
+        configs.templates.len(), configs.renderers.len());
+
 }

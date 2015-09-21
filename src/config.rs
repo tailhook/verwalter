@@ -8,6 +8,7 @@ use quire::validate as V;
 use quire::sky::parse_config;
 use walker::Walker;
 use rumblebars::{Template, ParseError};
+use path_util::relative;
 
 
 quick_error! {
@@ -29,14 +30,14 @@ quick_error! {
 
 
 #[derive(RustcDecodable, Debug, Clone)]
-enum Command {
+pub enum Command {
     RootCommand(Vec<String>),
 }
 
 #[derive(RustcDecodable, Debug, Clone)]
-struct Renderer {
-    source: PathBuf,
-    apply: Command,
+pub struct Renderer {
+    pub source: PathBuf,
+    pub apply: Command,
 }
 
 #[derive(RustcDecodable, Debug)]
@@ -58,14 +59,15 @@ fn validator<'x>() -> V::Structure<'x> {
 }
 
 pub struct ConfigSet {
-    templates: HashMap<PathBuf, Template>,
+    pub templates: HashMap<PathBuf, Template>,
+    pub renderers: Vec<Renderer>,
 }
-
 
 pub fn read_configs(path: &Path) -> Result<ConfigSet, Error>
 {
     let mut cfg = ConfigSet {
         templates: HashMap::new(),
+        renderers: Vec::new(),
     };
     let cfgv = validator();
     debug!("Configuration directory: {:?}", path);
@@ -76,26 +78,39 @@ pub fn read_configs(path: &Path) -> Result<ConfigSet, Error>
         if hidden {
             continue;
         }
-        if let Some(spath) = epath.to_str() {
-            match epath.to_str().and_then(|x| x.splitn(2, ".").nth(1)) {
-                Some("hbs") | Some("handlebars") => {
-                    let mut buf = String::with_capacity(4096);
-                    try!(File::open(&epath)
-                         .and_then(|mut x| x.read_to_string(&mut buf)));
-                    debug!("Adding template {:?}", epath);
-                    cfg.templates.insert(epath.clone(),
-                        try!(buf.parse().map_err(|(e, txt)|
-                            Error::Template(epath.clone(), e, txt))));
-                }
-                Some("vw.yaml") => {
-                    // read config
-                    let cfg: Config = try!(parse_config(&epath,
-                                                &cfgv, Default::default())
-                        .map_err(|e| Error::Config(epath.clone(), e)));
-                    debug!("Reading config {:?}", epath);
-                }
-                _ => {}
+        let rpath = relative(&epath, path).unwrap();
+        // The last (shortest) extension
+        match epath.extension().and_then(|x| x.to_str()) {
+            Some("hbs") | Some("handlebars") => {
+                let mut buf = String::with_capacity(4096);
+                try!(File::open(&epath)
+                     .and_then(|mut x| x.read_to_string(&mut buf)));
+                debug!("Adding template {:?}", epath);
+                cfg.templates.insert(rpath.to_path_buf(),
+                    try!(buf.parse().map_err(|(e, txt)|
+                        Error::Template(epath.clone(), e, txt))));
             }
+            _ => {}
+        }
+        // The longest extension
+        match epath.to_str().and_then(|x| x.splitn(2, ".").nth(1)) {
+            Some("vw.yaml") => {
+                // read config
+                debug!("Reading config {:?}", epath);
+                let piece: Config = try!(parse_config(&epath,
+                                            &cfgv, Default::default())
+                    .map_err(|e| Error::Config(epath.clone(), e)));
+                cfg.renderers.extend(piece.render.into_iter()
+                .map(|r| Renderer {
+                    // Normalize path to be relative to config root rather
+                    // than relative to current subdir
+                    source: relative(
+                        &epath.parent().unwrap().join(r.source),
+                        path).unwrap().to_path_buf(),
+                    apply: r.apply,
+                }));
+            }
+            _ => {}
         }
     }
     Ok(cfg)
