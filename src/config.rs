@@ -1,7 +1,7 @@
 use std::io;
 use std::io::Read;
 use std::fs::File;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::collections::HashMap;
 
 use quire::validate as V;
@@ -9,6 +9,7 @@ use quire::sky::parse_config;
 use walker::Walker;
 use rumblebars::{Template, ParseError};
 use path_util::relative;
+use Options;
 
 
 quick_error! {
@@ -43,6 +44,7 @@ pub struct Renderer {
 #[derive(RustcDecodable, Debug)]
 struct Config {
     render: Vec<Renderer>,
+    variables: HashMap<String, String>,
 }
 
 fn validator<'x>() -> V::Structure<'x> {
@@ -56,61 +58,67 @@ fn validator<'x>() -> V::Structure<'x> {
                 //.from_scalar(..)
             ))
         ))
+    .member("variables", V::Mapping::new(V::Scalar::new(), V::Scalar::new()))
 }
 
 pub struct ConfigSet {
+    pub options: Options,
     pub templates: HashMap<PathBuf, Template>,
     pub renderers: Vec<Renderer>,
 }
 
-pub fn read_configs(path: &Path) -> Result<ConfigSet, Error>
+pub fn read_configs(options: Options) -> Result<ConfigSet, Error>
 {
     let mut cfg = ConfigSet {
+        options: options,
         templates: HashMap::new(),
         renderers: Vec::new(),
     };
-    let cfgv = validator();
-    debug!("Configuration directory: {:?}", path);
-    for entry in try!(Walker::new(path)) {
-        let epath = try!(entry).path();
-        let hidden = path.file_name().and_then(|x| x.to_str())
-            .map(|x| x.starts_with(".")).unwrap_or(false);
-        if hidden {
-            continue;
-        }
-        let rpath = relative(&epath, path).unwrap();
-        // The last (shortest) extension
-        match epath.extension().and_then(|x| x.to_str()) {
-            Some("hbs") | Some("handlebars") => {
-                let mut buf = String::with_capacity(4096);
-                try!(File::open(&epath)
-                     .and_then(|mut x| x.read_to_string(&mut buf)));
-                debug!("Adding template {:?}", epath);
-                cfg.templates.insert(rpath.to_path_buf(),
-                    try!(buf.parse().map_err(|(e, txt)|
-                        Error::Template(epath.clone(), e, txt))));
+    {
+        let cfgdir = &cfg.options.config_dir;
+        let cfgv = validator();
+        debug!("Configuration directory: {:?}", cfgdir);
+        for entry in try!(Walker::new(cfgdir)) {
+            let epath = try!(entry).path();
+            let hidden = epath.file_name().and_then(|x| x.to_str())
+                .map(|x| x.starts_with(".")).unwrap_or(false);
+            if hidden {
+                continue;
             }
-            _ => {}
-        }
-        // The longest extension
-        match epath.to_str().and_then(|x| x.splitn(2, ".").nth(1)) {
-            Some("vw.yaml") => {
-                // read config
-                debug!("Reading config {:?}", epath);
-                let piece: Config = try!(parse_config(&epath,
-                                            &cfgv, Default::default())
-                    .map_err(|e| Error::Config(epath.clone(), e)));
-                cfg.renderers.extend(piece.render.into_iter()
-                .map(|r| Renderer {
-                    // Normalize path to be relative to config root rather
-                    // than relative to current subdir
-                    source: relative(
-                        &epath.parent().unwrap().join(r.source),
-                        path).unwrap().to_path_buf(),
-                    apply: r.apply,
-                }));
+            let rpath = relative(&epath, &cfgdir).unwrap();
+            // The last (shortest) extension
+            match epath.extension().and_then(|x| x.to_str()) {
+                Some("hbs") | Some("handlebars") => {
+                    let mut buf = String::with_capacity(4096);
+                    try!(File::open(&epath)
+                         .and_then(|mut x| x.read_to_string(&mut buf)));
+                    debug!("Adding template {:?}", epath);
+                    cfg.templates.insert(rpath.to_path_buf(),
+                        try!(buf.parse().map_err(|(e, txt)|
+                            Error::Template(epath.clone(), e, txt))));
+                }
+                _ => {}
             }
-            _ => {}
+            // The longest extension
+            match epath.to_str().and_then(|x| x.splitn(2, ".").nth(1)) {
+                Some("vw.yaml") => {
+                    // read config
+                    debug!("Reading config {:?}", epath);
+                    let piece: Config = try!(parse_config(&epath,
+                                                &cfgv, Default::default())
+                        .map_err(|e| Error::Config(epath.clone(), e)));
+                    cfg.renderers.extend(piece.render.into_iter()
+                    .map(|r| Renderer {
+                        // Normalize path to be relative to config root rather
+                        // than relative to current subdir
+                        source: relative(
+                            &epath.parent().unwrap().join(r.source),
+                            cfgdir).unwrap().to_path_buf(),
+                        apply: r.apply,
+                    }));
+                }
+                _ => {}
+            }
         }
     }
     Ok(cfg)

@@ -18,8 +18,9 @@ quick-error = "0.1.1"
 liquid = "0.1.1"
 argparse = "0.2.0"
 walker = "1.0.0"
-rumblebars = "0.3.0"
+rumblebars = { git = "git://github.com/nicolas-cherel/rumblebars" }
 log = "*"
 env_logger = "0.3.1"
+tempfile = "1.1.1"
 rustc-serialize = "0.3.16"
 quire = { git = "git://github.com/tailhook/rust-quire" }
