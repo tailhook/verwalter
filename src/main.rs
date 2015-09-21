@@ -5,6 +5,7 @@ extern crate env_logger;
 extern crate quire;
 extern crate rustc_serialize;
 extern crate tempfile;
+extern crate hlua;
 #[macro_use] extern crate quick_error;
 #[macro_use] extern crate log;
 

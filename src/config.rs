@@ -1,9 +1,10 @@
 use std::io;
 use std::io::Read;
 use std::fs::File;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 
+use hlua::Lua;
 use quire::validate as V;
 use quire::sky::parse_config;
 use walker::Walker;
@@ -39,19 +40,29 @@ pub enum Command {
 pub struct Renderer {
     pub source: PathBuf,
     pub apply: Command,
+    pub variables: HashMap<String, String>,
 }
 
+// Configuration in .vw.yaml
 #[derive(RustcDecodable, Debug)]
 struct Config {
     render: Vec<Renderer>,
     variables: HashMap<String, String>,
 }
 
-fn validator<'x>() -> V::Structure<'x> {
+// Configuration in meta.yaml
+#[derive(RustcDecodable, Debug)]
+struct Meta {
+    variables: HashMap<String, String>,
+}
+
+fn config_validator<'x>() -> V::Structure<'x> {
     V::Structure::new()
     .member("render", V::Sequence::new(
         V::Structure::new()
         .member("source", V::Scalar::new())
+        .member("variables", V::Mapping::new(V::Scalar::new(),
+                                             V::Scalar::new()))
         .member("apply", V::Enum::new().optional()
             .option("RootCommand",
                 V::Sequence::new(V::Scalar::new())
@@ -61,22 +72,59 @@ fn validator<'x>() -> V::Structure<'x> {
     .member("variables", V::Mapping::new(V::Scalar::new(), V::Scalar::new()))
 }
 
-pub struct ConfigSet {
+fn meta_validator<'x>() -> V::Structure<'x> {
+    V::Structure::new()
+    .member("variables", V::Mapping::new(V::Scalar::new(), V::Scalar::new()))
+}
+
+pub struct ConfigSet<'lua> {
     pub options: Options,
     pub templates: HashMap<PathBuf, Template>,
     pub renderers: Vec<Renderer>,
+    pub lua: Lua<'lua>,
 }
 
-pub fn read_configs(options: Options) -> Result<ConfigSet, Error>
+fn read_meta(base: &Path)
+    -> Result<HashMap<PathBuf, HashMap<String, String>>, Error>
+{
+    let cfgv = meta_validator();
+    let mut dirvars = HashMap::new();
+    for entry in try!(Walker::new(base)) {
+        let entry = try!(entry);
+        if entry.file_name().to_str() == Some("meta.yaml") {
+            let piece: Meta = try!(parse_config(&entry.path(),
+                                                &cfgv, Default::default())
+                .map_err(|e| Error::Config(entry.path(), e)));
+            dirvars.insert(
+                relative(&entry.path(), base).unwrap().to_path_buf(),
+                piece.variables);
+        }
+    }
+    Ok(dirvars)
+}
+
+fn update_missing<'x, I>(target: &mut HashMap<String, String>, src: I)
+    where I: Iterator<Item=(&'x String, &'x String)>
+{
+    for (k, v) in src {
+        if !target.contains_key(k) {
+            target.insert(k.clone(), v.clone());
+        }
+    }
+}
+
+pub fn read_configs<'lua>(options: Options) -> Result<ConfigSet<'lua>, Error>
 {
     let mut cfg = ConfigSet {
         options: options,
         templates: HashMap::new(),
         renderers: Vec::new(),
+        lua: Lua::new(),
     };
     {
         let cfgdir = &cfg.options.config_dir;
-        let cfgv = validator();
+        let dirvars = try!(read_meta(&cfgdir));
+        let cfgv = config_validator();
         debug!("Configuration directory: {:?}", cfgdir);
         for entry in try!(Walker::new(cfgdir)) {
             let epath = try!(entry).path();
@@ -107,14 +155,32 @@ pub fn read_configs(options: Options) -> Result<ConfigSet, Error>
                     let piece: Config = try!(parse_config(&epath,
                                                 &cfgv, Default::default())
                         .map_err(|e| Error::Config(epath.clone(), e)));
+
+                    let mut vars = piece.variables;
+                    let mut ppath: &Path = &epath;
+                    loop {
+                        if let Some(v) = dirvars.get(&ppath.to_path_buf()) {
+                            update_missing(&mut vars, v.iter());
+                        }
+                        ppath = if let Some(path) = ppath.parent() { path }
+                            else {
+                                break;
+                            };
+                    }
+
                     cfg.renderers.extend(piece.render.into_iter()
-                    .map(|r| Renderer {
-                        // Normalize path to be relative to config root rather
-                        // than relative to current subdir
-                        source: relative(
-                            &epath.parent().unwrap().join(r.source),
-                            cfgdir).unwrap().to_path_buf(),
-                        apply: r.apply,
+                    .map(|r| {
+                        let mut rvars = r.variables;
+                        update_missing(&mut rvars, vars.iter());
+                        Renderer {
+                            // Normalize path to be relative to config root
+                            // rather than relative to current subdir
+                            source: relative(
+                                &epath.parent().unwrap().join(r.source),
+                                cfgdir).unwrap().to_path_buf(),
+                            apply: r.apply,
+                            variables: rvars,
+                        }
                     }));
                 }
                 _ => {}
