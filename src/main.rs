@@ -16,6 +16,7 @@ mod path_util;
 mod config;
 mod render;
 mod apply;
+mod scheduler;
 
 use argparse::{ArgumentParser, Parse, StoreTrue};
 
@@ -60,11 +61,29 @@ fn main() {
     };
     debug!("Configuration read with, templates: {}, renderers: {}",
         configs.templates.len(), configs.renderers.len());
-    let apply_task = match render::render_all(&configs.renderers, &configs) {
+    let mut scheduler = match scheduler::read(&configs.options.config_dir) {
+        Ok(s) => s,
+        Err(e) => {
+            error!("Scheduler load failed: {}", e);
+            exit(3);
+        }
+    };
+    debug!("Scheduler loaded");
+    let scheduler_result = match scheduler.execute() {
+        Ok(j) => j,
+        Err(e) => {
+            error!("Initial scheduling failed: {}", e);
+            exit(4);
+        }
+    };
+    debug!("Got initial scheduling of {}", scheduler_result);
+    let apply_task = match render::render_all(&configs.renderers, &configs,
+        scheduler_result)
+    {
         Ok(res) => res,
         Err(e) => {
             error!("Initial configuration render failed: {}", e);
-            exit(3);
+            exit(5);
         }
     };
     debug!("Rendered config, got {} tasks to apply", apply_task.len());

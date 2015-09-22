@@ -3,7 +3,7 @@ use std::io::SeekFrom::{Current, Start};
 use std::io::{copy, stdout, Seek};
 use std::path::PathBuf;
 
-use rustc_serialize::json;
+use rustc_serialize::json::Json;
 use tempfile::NamedTempFile;
 use rumblebars::{eval, EvalContext};
 use config::{Renderer, Command, ConfigSet};
@@ -21,7 +21,8 @@ quick_error! {
     }
 }
 
-pub fn render_all<'x>(renderers: &'x [Renderer], config: &ConfigSet)
+pub fn render_all<'x>(renderers: &'x [Renderer], config: &ConfigSet,
+    data: Json)
     -> Result<Vec<(NamedTempFile, &'x Command)>, Error>
 {
     let mut result = Vec::new();
@@ -30,17 +31,6 @@ pub fn render_all<'x>(renderers: &'x [Renderer], config: &ConfigSet)
             .ok_or(Error::TemplateNotFound(render.source.clone())));
         let mut tmpfile = try!(NamedTempFile::new());
         let ectx = EvalContext::new();
-        let data = json::Json::from_str(concat!(r#"{
-            "verwalter_version": "v"#, env!("CARGO_PKG_VERSION"), r#"",
-            "node": {
-                "instances": [{
-                    "key": "process1",
-                    "image": "pro1.my.xxx2343",
-                    "config": "/config/process1.yaml",
-                    "instances": 2
-                }]
-            }
-        }"#)).unwrap();
         try!(eval(template, &data, &mut tmpfile, &ectx));
         debug!("Rendered {:?} into {} bytes at {:?}",
             &render.source, tmpfile.seek(Current(0)).unwrap(), tmpfile.path());
