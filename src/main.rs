@@ -52,16 +52,14 @@ fn main() {
                 log.");
         ap.parse_args_or_exit();
     }
-    let configs = match config::read_configs(options) {
-        Ok(configs) => configs,
-        Err(e) => {
-            error!("Initial configuration load failed: {}", e);
-            exit(2);
-        }
-    };
-    debug!("Configuration read with, templates: {}, renderers: {}",
-        configs.templates.len(), configs.renderers.len());
-    let mut scheduler = match scheduler::read(&configs.options.config_dir) {
+    let mut cfg_cache = config::Cache::new();
+    let config = config::read_configs(&options, &mut cfg_cache);
+    debug!("Configuration read with, roles: {}, meta items: {}, errors: {}",
+        config.roles.len(),
+        config.machine.as_ref().ok().and_then(|o| o.as_object())
+            .map(|x| x.len()).unwrap_or(0),
+        config.total_errors());
+    let mut scheduler = match scheduler::read(&options.config_dir) {
         Ok(s) => s,
         Err(e) => {
             error!("Scheduler load failed: {}", e);
@@ -77,8 +75,9 @@ fn main() {
         }
     };
     debug!("Got initial scheduling of {}", scheduler_result);
-    let apply_task = match render::render_all(&configs.renderers, &configs,
-        scheduler_result)
+    /*
+    let apply_task = match render::render_all(&configs.renderers,
+        scheduler_result, options.print_configs)
     {
         Ok(res) => res,
         Err(e) => {
@@ -87,4 +86,5 @@ fn main() {
         }
     };
     debug!("Rendered config, got {} tasks to apply", apply_task.len());
+    */
 }

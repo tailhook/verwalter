@@ -15,7 +15,7 @@ The directory layout is still in flux. Here are somewhat current draft.
 
 * ``templates`` -- the templates to render configuration locally
 
-    * ``templates/APPNAME/TMPL_VERSION`` -- templates for app and version [1]_
+    * ``templates/ROLE/TMPL_VERSION`` -- templates for role and version [1]_
 
         * ``**/*.hbs`` -- bare configuration templates
         * ``**/*.vw.yaml`` -- instructions on how to apply the template
@@ -24,7 +24,7 @@ The directory layout is still in flux. Here are somewhat current draft.
   other data needed for scheduling. Basically all of this is passed to the
   scheduler
 
-    * ``runtime/APPNAME/APP_VERSION`` -- metadata dir for app and version
+    * ``runtime/ROLE/ROLE_VERSION`` -- metadata dir for role and version
 
         * ``NAME.yaml`` -- adds some metadata under key ``NAME``
         * ``NAME.json`` -- just another format of the same thing
@@ -36,13 +36,19 @@ The directory layout is still in flux. Here are somewhat current draft.
 * ``frontend`` -- the files to render the frontend [2]_
 
     * ``common/*`` -- common files for the whole cluster (e.g. libraries)
-    * ``APPNAME/*`` -- application specific things [3]_
+    * ``ROLE/*`` -- role-specific things [3]_
 
+.. note:: We avoid the term "application" here because it's inherently vague.
+   The role is just unit that may be deployed independendly (so it's also
+   versioned independently). The role may consists multiple applications or
+   application may be built on top of multiple roles, dependening on use
+   case and how you define the application.
 
 .. [1] The version of scheduler and version of templates is not the same as
-   version of application. It's expected that scheduler and templates change
-   very rarely and only by admins, not by release managers. Also you might use
-   "shadow" scheduler and "shadow" template renderer for debugging.
+   version of role (i.e. an application). It's expected that scheduler and
+   templates change very rarely and only by admins, not by release managers.
+   Also you might use "shadow" scheduler and "shadow" template renderer for
+   debugging.
 
 .. [2] Each installation have different needs. So verwalter doesn't have a
    frontend that is packaged with verwalter. We only provide the API, and a
@@ -51,8 +57,8 @@ The directory layout is still in flux. Here are somewhat current draft.
    server.
 
 .. [3] We don't have frontend files versioned yet. It's not critical part of
-   the system and it assumed that an (updated) frontend should support at least
-   few versions of the application.
+   the system and it assumed that an (updated) frontend should support at
+   least few versions of the application (role).
 
 
 Deployment
