@@ -10,10 +10,12 @@ use rustc_serialize::json::Json;
 use super::config::Template;
 
 
+#[derive(Debug)]
 pub struct RenderSet {
     items: Vec<Renderer>
 }
 
+#[derive(Debug)]
 pub struct Renderer {
     pub source: Template,
     pub apply: Command,

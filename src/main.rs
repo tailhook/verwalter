@@ -59,6 +59,7 @@ fn main() {
         config.machine.as_ref().ok().and_then(|o| o.as_object())
             .map(|x| x.len()).unwrap_or(0),
         config.total_errors());
+    println!("CONFIG {:?}", config);
     let mut scheduler = match scheduler::read(&options.config_dir) {
         Ok(s) => s,
         Err(e) => {
