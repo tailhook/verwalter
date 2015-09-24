@@ -1,11 +1,16 @@
 use std::io;
 use std::io::Read;
 use std::fs::{File, read_dir};
+use std::str::FromStr;
+use std::num::ParseFloatError;
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 use std::collections::BTreeMap;
 
 use rustc_serialize::json::Json;
+use rustc_serialize::json::BuilderError as JsonError;
+use yaml_rust::{Yaml, YamlLoader};
+use yaml_rust::scanner::ScanError as YamlError;
 
 use super::render::RenderSet;
 use Options;
@@ -31,6 +36,28 @@ quick_error! {
             cause(err)
             display("error reading {:?}: {}", path, err)
             description("error reading configuration file")
+        }
+        JsonParse(err: JsonError, path: PathBuf) {
+            cause(err)
+            display("error parsing json {:?}: {}", path, err)
+            description("error parsing json metadata")
+        }
+        YamlParse(err: YamlError, path: PathBuf) {
+            cause(err)
+            display("error parsing yaml {:?}: {}", path, err)
+            description("error parsing yaml metadata")
+        }
+        Float(err: ParseFloatError, path: PathBuf) {
+            cause(err)
+            display("error parsing float in {:?}: {}", path, err)
+        }
+        /// Some valid yaml keys can't be json keys
+        BadYamlKey(key: Yaml, path: PathBuf) {
+            display("bad key in yaml {:?}, key: {:?}", path, key)
+        }
+        /// Some valid yaml keys does not work in json
+        BadYamlValue(key: Yaml, path: PathBuf) {
+            display("bad value in yaml {:?}, key: {:?}", path, key)
         }
     }
 }
@@ -85,16 +112,68 @@ impl Cache {
     }
 }
 
+fn convert_yaml(yaml: Yaml, path: &Path) -> Result<Json, MetadataError> {
+    use self::MetadataError::{Float, BadYamlKey, BadYamlValue};
+    use yaml_rust::Yaml as Y;
+    use rustc_serialize::json::Json as J;
+    let json = match yaml {
+        Y::Real(x) => J::F64(try!(FromStr::from_str(&x)
+                       .map_err(|e| Float(e, path.to_path_buf())))),
+        Y::Integer(x) => J::I64(x),
+        Y::String(x) => J::String(x),
+        Y::Boolean(x) => J::Boolean(x),
+        Y::Array(a) => {
+            let mut r = vec![];
+            for x in a.into_iter() {
+                r.push(try!(convert_yaml(x, path)));
+            }
+            J::Array(r)
+        }
+        Y::Hash(m) => {
+            let mut r = BTreeMap::new();
+            for (k, v) in m.into_iter() {
+                let k = match k {
+                    Y::String(x) => x,
+                    Y::Real(x) => x,
+                    Y::Integer(x) => format!("{}", x),
+                    Y::Boolean(x) => format!("{}", x),
+                    e => return Err(BadYamlKey(e, path.to_path_buf())),
+                };
+                r.insert(k, try!(convert_yaml(v, path)));
+            }
+            J::Object(r)
+        }
+        Y::Null => J::Null,
+        v @ Y::Alias(_) | v @ Y::BadValue => {
+            return Err(BadYamlValue(v, path.to_path_buf()))
+        }
+    };
+    Ok(json)
+}
+
 fn read_meta_entry(path: &Path, ext: &str)
     -> Result<Option<Json>, MetadataError>
 {
-    use self::MetadataError::FileRead;
+    use self::MetadataError::{FileRead, JsonParse, YamlParse};
     let value = match ext {
         "yaml" | "yml" => {
-            unimplemented!();
+            let mut buf = String::with_capacity(1024);
+            try!(File::open(path)
+                .and_then(|mut f| f.read_to_string(&mut buf))
+                .map_err(|e| FileRead(e, path.to_path_buf())));
+            let mut yaml = try!(YamlLoader::load_from_str(&buf)
+                .map_err(|e| YamlParse(e, path.to_path_buf())));
+            if yaml.len() < 1 {
+                Some(Json::Null)
+            } else {
+                Some(try!(convert_yaml(yaml.remove(0), path)))
+            }
         }
         "json" => {
-            unimplemented!();
+            let mut f = try!(File::open(path)
+                .map_err(|e| FileRead(e, path.to_path_buf())));
+            Some(try!(Json::from_reader(&mut f)
+                .map_err(|e| JsonParse(e, path.to_path_buf()))))
         }
         "txt" => {
             let mut buf = String::with_capacity(100);

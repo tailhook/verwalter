@@ -6,6 +6,7 @@ extern crate quire;
 extern crate rustc_serialize;
 extern crate tempfile;
 extern crate hlua;
+extern crate yaml_rust;
 #[macro_use] extern crate quick_error;
 #[macro_use] extern crate log;
 
