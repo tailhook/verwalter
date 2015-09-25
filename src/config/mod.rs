@@ -11,6 +11,7 @@ use rustc_serialize::json::Json;
 use rustc_serialize::json::BuilderError as JsonError;
 use yaml_rust::{Yaml, YamlLoader};
 use yaml_rust::scanner::ScanError as YamlError;
+use scan_dir;
 
 use super::render::RenderSet;
 use Options;
@@ -24,13 +25,10 @@ mod version;
 quick_error! {
     #[derive(Debug)]
     pub enum MetadataError {
-        DirRead(err: io::Error, path: PathBuf) {
+        ScanDir(err: scan_dir::Error) {
             cause(err)
-            display("error reading dir {:?}: {}", path, err)
+            display("{}", err)
             description("error reading configuration directory")
-        }
-        FileNameDecode(path: PathBuf) {
-            display("error decoding filename {:?}", path)
         }
         FileRead(err: io::Error, path: PathBuf) {
             cause(err)
@@ -157,6 +155,7 @@ fn read_meta_entry(path: &Path, ext: &str)
     use self::MetadataError::{FileRead, JsonParse, YamlParse};
     let value = match ext {
         "yaml" | "yml" => {
+            debug!("Reading YAML metadata from {:?}", path);
             let mut buf = String::with_capacity(1024);
             try!(File::open(path)
                 .and_then(|mut f| f.read_to_string(&mut buf))
@@ -170,12 +169,14 @@ fn read_meta_entry(path: &Path, ext: &str)
             }
         }
         "json" => {
+            debug!("Reading JSON metadata from {:?}", path);
             let mut f = try!(File::open(path)
                 .map_err(|e| FileRead(e, path.to_path_buf())));
             Some(try!(Json::from_reader(&mut f)
                 .map_err(|e| JsonParse(e, path.to_path_buf()))))
         }
         "txt" => {
+            debug!("Reading text metadata from {:?}", path);
             let mut buf = String::with_capacity(100);
             try!(File::open(path)
                 .and_then(|mut f| f.read_to_string(&mut buf))
@@ -188,49 +189,28 @@ fn read_meta_entry(path: &Path, ext: &str)
 }
 
 fn read_meta_dir(path: &Path) -> Result<Json, MetadataErrors> {
-    use self::MetadataError::{DirRead, FileNameDecode};
+    use self::MetadataError::ScanDir;
+
     let mut data = BTreeMap::new();
     let mut errors = vec!();
-    match read_dir(path) {
-        Ok(iter) => {
-            for entryres in iter {
-                let entry = match entryres {
-                    Ok(entry) => entry,
-                    Err(e) => {
-                        errors.push(DirRead(e, path.to_path_buf()));
-                        continue;
-                    }
-                };
-                let fpath = entry.path();
-                let stem = fpath.file_stem().and_then(|x| x.to_str());
-                let extension = fpath.extension().and_then(|x| x.to_str());
-                if let Some(stem) = stem {
-                    if stem.starts_with(".") {
-                        // Skip hidden files
-                        continue;
-                    }
-                    if let Some(ext) = extension {
-                        match read_meta_entry(&fpath, ext) {
-                            Ok(Some(value)) => {
-                                data.insert(stem.to_string(), value);
-                            }
-                            Ok(None) => {}
-                            Err(e) => {
-                                errors.push(e);
-                            }
-                        }
-                    }
-                } else {
-                    // Only reason why stem is None in our case is that
-                    // we can't decode filename
-                    errors.push(FileNameDecode(fpath.to_path_buf()));
+    scan_dir::ScanDir::files().read(path, |iter| {
+        for (entry, name) in iter {
+            let fpath = entry.path();
+            let ext = fpath.extension().map(|x| x.to_str()).unwrap();
+            if ext.is_none() { continue; }
+            match read_meta_entry(&entry.path(), ext.unwrap()) {
+                Ok(Some(value)) => {
+                    let stem = fpath.file_stem().unwrap().to_str().unwrap();
+                    data.insert(stem.to_string(), value);
+                }
+                Ok(None) => {}
+                Err(e) => {
+                    errors.push(e);
                 }
             }
         }
-        Err(e) => {
-            errors.push(DirRead(e, path.to_path_buf()));
-        }
-    }
+    }).map_err(|e| errors.push(ScanDir(e))).ok();
+
     if errors.len() > 0 {
         Err(MetadataErrors {
             errors: errors,
@@ -241,13 +221,25 @@ fn read_meta_dir(path: &Path) -> Result<Json, MetadataErrors> {
     }
 }
 
-pub fn read_configs(options: &Options, cache: &mut Cache) -> Config {
+pub fn read_configs(options: &Options, cache: &mut Cache)
+    -> Result<Config, scan_dir::Error>
+{
     let meta = read_meta_dir(&options.config_dir.join("machine"));
-    let roles = HashMap::new();
-    Config {
+    let mut roles = HashMap::new();
+    let tpldir = options.config_dir.join("templates");
+    try!(scan_dir::ScanDir::dirs().read(tpldir, |iter| {
+        for (entry, name) in iter {
+            let role = Role {
+                renderers: HashMap::new(),
+                runtime: HashMap::new(),
+            };
+            roles.insert(name.to_string(), role);
+        }
+    }));
+    Ok(Config {
         machine: meta,
         roles: roles,
-    }
+    })
 }
 
 impl Config {

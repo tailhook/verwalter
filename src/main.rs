@@ -6,9 +6,10 @@ extern crate quire;
 extern crate rustc_serialize;
 extern crate tempfile;
 extern crate hlua;
+extern crate scan_dir;
 extern crate yaml_rust;
-#[macro_use] extern crate quick_error;
 #[macro_use] extern crate log;
+#[macro_use] extern crate quick_error;
 
 use std::path::PathBuf;
 use std::process::exit;
@@ -54,7 +55,13 @@ fn main() {
         ap.parse_args_or_exit();
     }
     let mut cfg_cache = config::Cache::new();
-    let config = config::read_configs(&options, &mut cfg_cache);
+    let config = match config::read_configs(&options, &mut cfg_cache) {
+        Ok(cfg) => cfg,
+        Err(e) => {
+            error!("Fatal error while reading config: {}", e);
+            exit(3);
+        }
+    };
     debug!("Configuration read with, roles: {}, meta items: {}, errors: {}",
         config.roles.len(),
         config.machine.as_ref().ok().and_then(|o| o.as_object())
@@ -65,7 +72,7 @@ fn main() {
         Ok(s) => s,
         Err(e) => {
             error!("Scheduler load failed: {}", e);
-            exit(3);
+            exit(4);
         }
     };
     debug!("Scheduler loaded");
@@ -73,7 +80,7 @@ fn main() {
         Ok(j) => j,
         Err(e) => {
             error!("Initial scheduling failed: {}", e);
-            exit(4);
+            exit(5);
         }
     };
     debug!("Got initial scheduling of {}", scheduler_result);
