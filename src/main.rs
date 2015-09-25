@@ -1,6 +1,5 @@
-extern crate walker;
 extern crate argparse;
-extern crate rumblebars;
+extern crate handlebars;
 extern crate env_logger;
 extern crate quire;
 extern crate rustc_serialize;

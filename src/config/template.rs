@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::os::raw::c_long;
 use std::os::unix::raw::time_t;
 
-use rumblebars;
+use handlebars;
 use rustc_serialize::json::Json;
 
 pub type Template = Rc<Wrapper>;
@@ -15,7 +15,7 @@ pub type Template = Rc<Wrapper>;
 struct Wrapper {
     mtime: (time_t, c_long),
     filename: PathBuf,
-    implementation: rumblebars::Template, // TODO(tailhook) will be enum later
+    implementation: handlebars::Template, // TODO(tailhook) will be enum later
 }
 
 impl fmt::Debug for Wrapper {
@@ -50,8 +50,8 @@ impl Wrapper {
     pub fn render(&self, data: &Json, out: &mut Write)
         -> Result<(), RenderError>
     {
-        let ectx = rumblebars::EvalContext::new();
-        try!(rumblebars::eval(&self.implementation, data, out, &ectx));
+        //let ectx = handlebars::EvalContext::new();
+        //try!(handlebars::eval(&self.implementation, data, out, &ectx));
         Ok(())
     }
 }
