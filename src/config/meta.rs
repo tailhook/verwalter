@@ -95,7 +95,7 @@ pub fn read_dir(path: &Path) -> Result<Json, MetadataErrors> {
     let mut data = BTreeMap::new();
     let mut errors = vec!();
     scan_dir::ScanDir::files().read(path, |iter| {
-        for (entry, name) in iter {
+        for (entry, _) in iter {
             let fpath = entry.path();
             let ext = fpath.extension().map(|x| x.to_str()).unwrap();
             if ext.is_none() { continue; }

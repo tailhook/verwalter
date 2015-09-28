@@ -1,25 +1,27 @@
 use std::io;
 use std::io::Read;
 use std::num::ParseFloatError;
-use std::path::{Path, PathBuf};
+use std::path::{PathBuf};
 use std::collections::HashMap;
-use std::collections::BTreeMap;
 
 use rustc_serialize::json::Json;
+use handlebars::TemplateError as HandlebarsError;
 use yaml_rust::Yaml;
 use rustc_serialize::json::BuilderError as JsonError;
 use yaml_rust::scanner::ScanError as YamlError;
 use scan_dir;
 
 use super::render::RenderSet;
+use self::render::read_renderers;
 use Options;
 
 pub use self::version::Version;
-pub use self::template::Template;
+//pub use self::template::Template;
 
 mod meta;
-mod template;
+//mod template;
 mod version;
+mod render;
 
 quick_error! {
     #[derive(Debug)]
@@ -67,6 +69,20 @@ quick_error! {
             display("error reading {:?}: {}", path, err)
             description("error reading template file")
         }
+        TemplateParse(err: HandlebarsError, path: PathBuf) {
+            cause(err)
+            display("error reading {:?}: {}", path, err)
+            description("error reading template file")
+        }
+        Config(err: String, path: PathBuf) {
+            display("error reading {:?}: {}", path, err)
+            description("error reading config from template dir")
+        }
+        ScanDir(err: scan_dir::Error) {
+            from() cause(err)
+            display("{}", err)
+            description("error reading template directory")
+        }
     }
 }
 
@@ -96,20 +112,15 @@ pub struct Role {
     pub runtime: HashMap<Version, Result<Json, MetadataErrors>>,
 }
 
-pub struct Cache {
-    templates: template::Cache,
-}
-
+pub struct Cache;
 
 impl Cache {
     pub fn new() -> Cache {
-        Cache {
-            templates: template::Cache::new(),
-        }
+        Cache
     }
 }
 
-pub fn read_configs(options: &Options, cache: &mut Cache)
+pub fn read_configs(options: &Options, _cache: &mut Cache)
     -> Result<Config, scan_dir::Error>
 {
     let meta = meta::read_dir(&options.config_dir.join("machine"));
@@ -117,13 +128,22 @@ pub fn read_configs(options: &Options, cache: &mut Cache)
     let tpldir = options.config_dir.join("templates");
     try!(scan_dir::ScanDir::dirs().read(tpldir, |iter| {
         for (entry, name) in iter {
-            let role = Role {
+            let mut role = Role {
                 renderers: HashMap::new(),
                 runtime: HashMap::new(),
             };
+            try!(scan_dir::ScanDir::dirs().read(entry.path(), |iter| {
+                for (entry, version) in iter {
+                    debug!("Reading template version {:?} of {:?}",
+                        version, name);
+                    role.renderers.insert(Version(version),
+                        read_renderers(&entry.path()));
+                }
+            }));
             roles.insert(name.to_string(), role);
         }
-    }));
+        Ok(())
+    }).and_then(|x| x));
     Ok(Config {
         machine: meta,
         roles: roles,

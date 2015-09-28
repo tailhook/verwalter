@@ -2,24 +2,30 @@ use std::io;
 use std::io::SeekFrom::{Current, Start};
 use std::io::{copy, stdout, Seek};
 use std::path::PathBuf;
-use std::collections::HashMap;
 
 use tempfile::NamedTempFile;
+use handlebars::Handlebars;
 use rustc_serialize::json::Json;
 
-use super::config::Template;
 
-
-#[derive(Debug)]
 pub struct RenderSet {
-    items: Vec<Renderer>
+    pub items: Vec<Renderer>,
+    pub handlebars: Handlebars,
 }
 
-#[derive(Debug)]
+impl ::std::fmt::Debug for RenderSet {
+    fn fmt(&self, fmt: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        fmt.debug_map()
+            .entry(&"renderers", &self.items)
+            .entry(&"handlebars", &"Handlebars")
+            .finish()
+    }
+}
+
+#[derive(RustcDecodable, Debug)]
 pub struct Renderer {
-    pub source: Template,
+    pub source: String,
     pub apply: Command,
-    pub variables: HashMap<String, String>,
 }
 
 #[derive(RustcDecodable, Debug, Clone)]
