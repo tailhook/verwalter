@@ -125,6 +125,7 @@ pub fn read_configs(options: &Options, _cache: &mut Cache)
 {
     let meta = meta::read_dir(&options.config_dir.join("machine"));
     let mut roles = HashMap::new();
+
     let tpldir = options.config_dir.join("templates");
     try!(scan_dir::ScanDir::dirs().read(tpldir, |iter| {
         for (entry, name) in iter {
@@ -144,6 +145,27 @@ pub fn read_configs(options: &Options, _cache: &mut Cache)
         }
         Ok(())
     }).and_then(|x| x));
+
+    let tpldir = options.config_dir.join("runtime");
+    try!(scan_dir::ScanDir::dirs().read(tpldir, |iter| {
+        for (entry, name) in iter {
+            if let Some(ref mut role) = roles.get_mut(&name) {
+                try!(scan_dir::ScanDir::dirs().read(entry.path(), |iter| {
+                    for (entry, version) in iter {
+                        debug!("Reading runtime version {:?} of {:?}",
+                            version, name);
+                        role.runtime.insert(Version(version),
+                            meta::read_dir(&entry.path()));
+                    }
+                }));
+            } else {
+                warn!("Ignored runtime data for {:?} \
+                    because to templates found", name);
+            }
+        }
+        Ok(())
+    }).and_then(|x| x));
+
     Ok(Config {
         machine: meta,
         roles: roles,
