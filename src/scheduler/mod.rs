@@ -1,9 +1,6 @@
-use std::io;
-use std::io::Read;
-use std::fs::File;
 use std::path::{Path, PathBuf};
 
-use rustc_serialize::json::{Json, BuilderError};
+use rustc_serialize::json::{Json};
 use lua::{State, ThreadStatus, Type};
 use config::Config;
 
@@ -17,12 +14,8 @@ pub struct Scheduler {
 quick_error! {
     #[derive(Debug)]
     pub enum ReadError {
-        Read(err: io::Error, path: PathBuf) {
-            display("error reading lua script {:?}: {:?}", path, err)
-            description("error reading lua script")
-        }
-        Lua(err: ThreadStatus, path: PathBuf) {
-            display("error parsing lua script {:?}: {:?}", path, err)
+        Lua(err: ThreadStatus, msg: String, path: PathBuf) {
+            display("error parsing lua script {:?}: {:?}: {}", path, err, msg)
             description("error parsing lua script")
         }
         UnexpectedYield(path: PathBuf) {
@@ -63,13 +56,16 @@ pub fn read(base_dir: &Path) -> Result<Scheduler, ReadError> {
     // should have more control over which libraries to use
     lua.open_libs();
 
-    let path = &base_dir.join("scheduler/main.lua");
+    let path = &base_dir.join("scheduler/v1/main.lua");
     {
         try!(match lua.do_file(&path.to_str().unwrap_or("undecodable")) {
             ThreadStatus::Ok => Ok(()),
             ThreadStatus::Yield
             => Err(ReadError::UnexpectedYield(path.clone())),
-            x => Err(ReadError::Lua(x, path.clone())),
+            x => {
+                let e = lua.to_str(-1).unwrap_or("undefined").to_string();
+                Err(ReadError::Lua(x, e, path.clone()))
+            }
         });
     }
     Ok(Scheduler {
@@ -95,9 +91,9 @@ impl Scheduler {
                     self.lua.to_str(-1).unwrap_or("undefined").to_string()))
             }
         }
-        match self.lua.to_type() {
-            Some(x) => Ok(Json::String(x)),
-            None => return Err(Error::Conversion),
+        match self.lua.to_type::<String>() {
+            Some(ref x) => Json::from_str(x).map_err(|_| Error::Conversion),
+            None => Err(Error::Conversion),
         }
     }
 }

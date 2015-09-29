@@ -25,6 +25,7 @@ pub struct Options {
     config_dir: PathBuf,
     dry_run: bool,
     print_configs: bool,
+    hostname: String,
 }
 
 
@@ -34,12 +35,16 @@ fn main() {
         config_dir: PathBuf::from("/etc/verwalter"),
         dry_run: false,
         print_configs: false,
+        hostname: "localhost".to_string(),
     };
     {
         let mut ap = ArgumentParser::new();
         ap.refer(&mut options.config_dir)
             .add_option(&["-D", "--config-dir"], Parse,
                 "Directory of configuration files");
+        ap.refer(&mut options.hostname)
+            .add_option(&["--hostname"], Parse,
+                "Hostname of current server");
         ap.refer(&mut options.dry_run)
             .add_option(&["-n", "--dry-run"], StoreTrue, "
                 Just try to render configs, and don't run anything real.
@@ -83,9 +88,8 @@ fn main() {
         }
     };
     debug!("Got initial scheduling of {}", scheduler_result);
-    /*
-    let apply_task = match render::render_all(&configs.renderers,
-        scheduler_result, options.print_configs)
+    let apply_task = match render::render_all(&config,
+        scheduler_result, options.hostname, options.print_configs)
     {
         Ok(res) => res,
         Err(e) => {
@@ -93,6 +97,4 @@ fn main() {
             exit(5);
         }
     };
-    debug!("Rendered config, got {} tasks to apply", apply_task.len());
-    */
 }

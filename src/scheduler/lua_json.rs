@@ -1,6 +1,6 @@
 use std::i64;
 
-use lua::{ToLua, State};
+use lua::{State};
 use rustc_serialize::json::Json;
 
 
