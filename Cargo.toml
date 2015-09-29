@@ -13,7 +13,7 @@ authors = ["Paul Colomiets <paul@colomiets.name>"]
 [dependencies]
 rotor = "0.2"
 rotor-http = "0.2.1"
-hlua = "0.1.6"
+lua = { git = "https://github.com/jcmoyer/rust-lua53" }
 quick-error = "0.1.3"
 liquid = "0.1.1"
 argparse = "0.2.0"

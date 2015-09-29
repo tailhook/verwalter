@@ -4,7 +4,7 @@ extern crate env_logger;
 extern crate quire;
 extern crate rustc_serialize;
 extern crate tempfile;
-extern crate hlua;
+extern crate lua;
 extern crate scan_dir;
 extern crate yaml_rust;
 #[macro_use] extern crate log;
@@ -75,7 +75,7 @@ fn main() {
         }
     };
     debug!("Scheduler loaded");
-    let scheduler_result = match scheduler.execute() {
+    let scheduler_result = match scheduler.execute(&config) {
         Ok(j) => j,
         Err(e) => {
             error!("Initial scheduling failed: {}", e);
