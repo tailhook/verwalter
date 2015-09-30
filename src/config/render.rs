@@ -1,6 +1,7 @@
 use std::io::Read;
 use std::fs::File;
 use std::path::{Path};
+use std::collections::HashMap;
 
 use scan_dir;
 use quire::validate as V;
@@ -15,12 +16,13 @@ use super::TemplateErrors;
 // Configuration in .vw.yaml
 #[derive(RustcDecodable, Debug)]
 struct Config {
-    render: Vec<Renderer>,
+    render: HashMap<String, Renderer>,
 }
 
 fn config_validator<'x>() -> V::Structure<'x> {
     V::Structure::new()
-    .member("render", V::Sequence::new(
+    .member("render", V::Mapping::new(
+        V::Scalar::new(),
         V::Structure::new()
         .member("source", V::Scalar::new())
         .member("apply", V::Enum::new().optional()
@@ -32,7 +34,7 @@ fn config_validator<'x>() -> V::Structure<'x> {
 }
 
 pub fn read_config(path: &Path, base: &Path)
-    -> Result<Vec<Renderer>, Error>
+    -> Result<Vec<(String, Renderer)>, Error>
 {
     debug!("Reading config {:?}", path);
     let piece: Config = try!(parse_config(&path,
@@ -40,8 +42,9 @@ pub fn read_config(path: &Path, base: &Path)
         .map_err(|e| Error::Config(e, path.to_path_buf())));
 
     Ok(piece.render.into_iter()
-    .map(|r| {
-        Renderer {
+    .map(|(name, r)| {
+        (name,
+         Renderer {
             // Normalize path to be relative to base path
             // rather than relative to current subdir
             source: relative(
@@ -49,7 +52,7 @@ pub fn read_config(path: &Path, base: &Path)
                 base,
             ).unwrap().to_string_lossy().to_string(),
             apply: r.apply,
-        }
+        })
     }).collect())
 }
 
@@ -57,7 +60,7 @@ pub fn read_renderers(path: &Path) -> Result<RenderSet, TemplateErrors> {
     use super::TemplateError::{TemplateRead, TemplateParse};
     let mut errors: Vec<Error> = Vec::new();
     let mut render_set = RenderSet {
-        items: Vec::new(),
+        items: HashMap::new(),
         handlebars: Handlebars::new(),
     };
     scan_dir::ScanDir::files().walk(path, |iter| {
@@ -82,10 +85,15 @@ pub fn read_renderers(path: &Path) -> Result<RenderSet, TemplateErrors> {
                       fname.ends_with(".vw.yml")
             {
                 let epath = entry.path();
+                let rpath = relative(&epath, &path).unwrap();
+                let spath = rpath.to_string_lossy();
                 debug!("Reading render task {:?}", epath);
                 read_config(&epath, &path)
                 .map_err(|e| errors.push(e)).ok()
-                .map(|v| render_set.items.extend(v));
+                .map(|v| render_set.items.extend(
+                    v.into_iter().map(|(name, rnd)| {
+                        (format!("{}:{}", spath, name), rnd)
+                    })));
             } else {
                 debug!("Ignored file {:?}", entry.path());
             }

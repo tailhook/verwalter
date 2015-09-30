@@ -97,4 +97,28 @@ fn main() {
             exit(5);
         }
     };
+    if log_enabled!(log::LogLevel::Debug) {
+        for (role, result) in &apply_task {
+            match result {
+                &Ok(ref v) => {
+                    debug!("Role {:?} has {} apply tasks", role, v.len());
+                }
+                &Err(render::Error::Skip) => {
+                    debug!("Role {:?} is skipped on the node", role);
+                }
+                &Err(ref e) => {
+                    debug!("Role {:?} has error: {}", role, e);
+                }
+            }
+        }
+    }
+
+    let errors = apply::apply_all(&config, apply_task, options.dry_run);
+    if log_enabled!(log::LogLevel::Debug) {
+        for (role, errs) in errors {
+            for e in errs {
+                error!("Error when applying config for {:?}: {}", role, e);
+            }
+        }
+    }
 }
