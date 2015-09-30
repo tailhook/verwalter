@@ -7,6 +7,7 @@ use config::Config;
 use render::Error as RenderError;
 
 mod root_command;
+mod log;
 
 pub type ApplyTask = HashMap<String,
     Result<Vec<(String, Action, Source)>, RenderError>>;

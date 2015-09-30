@@ -4,6 +4,7 @@ extern crate env_logger;
 extern crate quire;
 extern crate rustc_serialize;
 extern crate tempfile;
+extern crate time;
 extern crate lua;
 extern crate scan_dir;
 extern crate yaml_rust;
