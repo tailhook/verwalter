@@ -26,3 +26,4 @@ quire = { git = "git://github.com/tailhook/rust-quire" }
 yaml-rust = "0.2.2"
 scan_dir = "0.2.0"
 time = "0.1.32"
+rand = "0.3.11"

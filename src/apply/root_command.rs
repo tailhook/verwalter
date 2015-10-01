@@ -1,5 +1,8 @@
-use apply::{Source, Error};
+use apply::{Source, Error, log};
 
-pub fn execute(cmd: Vec<String>, source: Source) -> Result<(), Error> {
+pub fn execute(cmd: Vec<String>, source: Source,
+    role: &mut log::Role, dry_run: bool)
+    -> Result<(), Error>
+{
     unimplemented!();
 }

@@ -5,12 +5,14 @@ extern crate quire;
 extern crate rustc_serialize;
 extern crate tempfile;
 extern crate time;
+extern crate rand;
 extern crate lua;
 extern crate scan_dir;
 extern crate yaml_rust;
 #[macro_use] extern crate log;
 #[macro_use] extern crate quick_error;
 
+use rand::Rng;
 use std::path::PathBuf;
 use std::process::exit;
 
@@ -25,6 +27,7 @@ use argparse::{ArgumentParser, Parse, StoreTrue};
 
 pub struct Options {
     config_dir: PathBuf,
+    log_dir: PathBuf,
     dry_run: bool,
     print_configs: bool,
     hostname: String,
@@ -35,6 +38,7 @@ fn main() {
     env_logger::init().unwrap();
     let mut options = Options {
         config_dir: PathBuf::from("/etc/verwalter"),
+        log_dir: PathBuf::from("/var/log/verwalter"),
         dry_run: false,
         print_configs: false,
         hostname: "localhost".to_string(),
@@ -52,6 +56,11 @@ fn main() {
                 Just try to render configs, and don't run anything real.
                 Use with RUST_LOG=debug to find out every command that
                 is about to run");
+        ap.refer(&mut options.log_dir)
+            .add_option(&["--log-dir"], Parse, "
+                Directory for log files. The directory must be owned by
+                verwalter, meaning that nobody should put any extra files
+                there (because verwalter may traverse the directory)");
         ap.refer(&mut options.print_configs)
             .add_option(&["--print-configs"], StoreTrue, "
                 Print all rendered configs to stdout. It's useful with dry-run
@@ -91,7 +100,7 @@ fn main() {
     };
     debug!("Got initial scheduling of {}", scheduler_result);
     let apply_task = match render::render_all(&config,
-        scheduler_result, options.hostname, options.print_configs)
+        &scheduler_result, options.hostname, options.print_configs)
     {
         Ok(res) => res,
         Err(e) => {
@@ -115,7 +124,14 @@ fn main() {
         }
     }
 
-    let errors = apply::apply_all(&config, apply_task, options.dry_run);
+    let id = rand::thread_rng().gen_ascii_chars().take(24).collect();
+    let mut index = apply::log::Index::new(options.log_dir, options.dry_run);
+    let mut dlog = index.deployment(id)
+        .map_err(|e| error!("Can't write log: {}", e)).unwrap();
+    dlog.metadata("scheduler_result", &scheduler_result)
+        .map_err(|e| error!("Can't write log: {}", e)).ok();
+    let errors = apply::apply_all(&config, apply_task,
+         &mut dlog,options.dry_run);
     if log_enabled!(log::LogLevel::Debug) {
         for (role, errs) in errors {
             for e in errs {

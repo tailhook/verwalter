@@ -152,7 +152,7 @@ fn render_role(meta: &BTreeMap<String, Json>, node: &BTreeMap<String, Json>,
     Ok(result)
 }
 
-pub fn render_all<'x>(cfg: &'x Config, data: Json,
+pub fn render_all<'x>(cfg: &'x Config, data: &Json,
     hostname: String, print: bool)
     -> Result<ApplyTask, SchedulerDataError>
 {

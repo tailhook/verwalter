@@ -7,7 +7,7 @@ use config::Config;
 use render::Error as RenderError;
 
 mod root_command;
-mod log;
+pub mod log;
 
 pub type ApplyTask = HashMap<String,
     Result<Vec<(String, Action, Source)>, RenderError>>;
@@ -24,23 +24,39 @@ pub enum Source {
 quick_error!{
     #[derive(Debug)]
     pub enum Error {
-        Command(runner: String, cmd: String, err: io::Error)
+        Command(runner: String, cmd: String, err: io::Error) {
+            display("Action {:?} failed to run {:?}: {}", runner, cmd, err)
+            description("error running command")
+        }
+        Log(err: log::Error) {
+            from() cause(err)
+            display("error opening log file: {}", err)
+            description("error logging command info")
+        }
     }
 }
 
 pub fn apply_list(name: &String,
     task: Result<Vec<(String, Action, Source)>, RenderError>,
-    dry_run: bool)
+    log: &mut log::Deployment, dry_run: bool)
     -> Vec<Error>
 {
     use self::Action::*;
     let mut errors = Vec::new();
+    let mut role_log = match log.role(name) {
+        Ok(l) => l,
+        Err(e) => {
+            errors.push(From::from(e));
+            return errors;
+        }
+    };
     match task {
         Ok(actions) => {
             for (name, cmd, source) in actions {
                 match cmd {
                     RootCommand(cmd) => {
-                        root_command::execute(cmd, source)
+                        root_command::execute(cmd, source,
+                            &mut role_log, dry_run)
                         .map_err(|e| errors.push(e)).ok();
                     }
                 }
@@ -54,11 +70,12 @@ pub fn apply_list(name: &String,
     return errors;
 }
 
-pub fn apply_all(cfg: &Config, task: ApplyTask, dry_run: bool)
+pub fn apply_all(cfg: &Config, task: ApplyTask,
+    log: &mut log::Deployment, dry_run: bool)
     -> HashMap<String, Vec<Error>>
 {
     task.into_iter().map(|(name, items)| {
-        let apply_result = apply_list(&name, items, dry_run);
+        let apply_result = apply_list(&name, items, log, dry_run);
         (name, apply_result)
     }).collect()
 }
