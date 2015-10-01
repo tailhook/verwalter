@@ -82,7 +82,6 @@ fn main() {
         config.machine.as_ref().ok().and_then(|o| o.as_object())
             .map(|x| x.len()).unwrap_or(0),
         config.total_errors());
-    println!("CONFIG {:?}", config);
     let mut scheduler = match scheduler::read(&options.config_dir) {
         Ok(s) => s,
         Err(e) => {
@@ -126,14 +125,16 @@ fn main() {
 
     let id = rand::thread_rng().gen_ascii_chars().take(24).collect();
     let mut index = apply::log::Index::new(options.log_dir, options.dry_run);
-    let mut dlog = index.deployment(id)
-        .map_err(|e| error!("Can't write log: {}", e)).unwrap();
-    dlog.metadata("scheduler_result", &scheduler_result)
-        .map_err(|e| error!("Can't write log: {}", e)).ok();
-    let errors = apply::apply_all(&config, apply_task,
-         &mut dlog,options.dry_run);
+    let mut dlog = index.deployment(id);
+    dlog.object("config", &config);
+    dlog.json("scheduler_result", &scheduler_result);
+    let (rerrors, gerrs) = apply::apply_all(&config, apply_task,
+        dlog, options.dry_run);
     if log_enabled!(log::LogLevel::Debug) {
-        for (role, errs) in errors {
+        for e in gerrs {
+            error!("Error when applying config: {}", e);
+        }
+        for (role, errs) in rerrors {
             for e in errs {
                 error!("Error when applying config for {:?}: {}", role, e);
             }

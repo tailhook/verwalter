@@ -52,11 +52,12 @@ pub fn apply_list(name: &String,
     };
     match task {
         Ok(actions) => {
-            for (name, cmd, source) in actions {
+            for (aname, cmd, source) in actions {
+                let mut action = role_log.action(&aname);
                 match cmd {
                     RootCommand(cmd) => {
                         root_command::execute(cmd, source,
-                            &mut role_log, dry_run)
+                            &mut action, dry_run)
                         .map_err(|e| errors.push(e)).ok();
                     }
                 }
@@ -71,11 +72,13 @@ pub fn apply_list(name: &String,
 }
 
 pub fn apply_all(cfg: &Config, task: ApplyTask,
-    log: &mut log::Deployment, dry_run: bool)
-    -> HashMap<String, Vec<Error>>
+    mut log: log::Deployment, dry_run: bool)
+    -> (HashMap<String, Vec<Error>>, Vec<Error>)
 {
-    task.into_iter().map(|(name, items)| {
-        let apply_result = apply_list(&name, items, log, dry_run);
+    let roles = task.into_iter().map(|(name, items)| {
+        let apply_result = apply_list(&name, items, &mut log, dry_run);
         (name, apply_result)
-    }).collect()
+    }).collect();
+    let glob = log.done().into_iter().map(From::from).collect();
+    (roles, glob)
 }

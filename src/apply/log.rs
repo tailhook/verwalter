@@ -1,4 +1,6 @@
 use std::io;
+use std::fmt::Debug;
+use std::mem::replace;
 use std::io::{Write, Seek};
 use std::io::ErrorKind::NotFound;
 use std::fs::{OpenOptions, File};
@@ -6,6 +8,7 @@ use std::fs::{create_dir, read_link, remove_file, rename, metadata};
 use std::os::unix::fs::symlink;
 use std::os::unix::ffi::OsStrExt;
 use std::io::SeekFrom::Current;
+use std::fmt::Arguments;
 use std::path::{Path, PathBuf};
 
 use time::now_utc;
@@ -21,17 +24,37 @@ const MAX_ROLE_LOG: u64 = 10 << 20;  // 10 Mebibytes
 quick_error! {
     #[derive(Debug)]
     pub enum Error {
-        Io(err: io::Error) {
-            from() cause(err)
+        OpenGlobal(err: io::Error) {
+            cause(err)
+            display("can't open global log or index: {}", err)
+            description("error open global log")
+        }
+        WriteGlobal(err: io::Error) {
+            cause(err)
+            display("can't write global log: {}", err)
+            description("error writing global log")
+        }
+        WriteIndex(err: io::Error) {
+            cause(err)
             display("can't write index: {}", err)
-            description("error write index entry")
+            description("error writing index")
+        }
+        WriteRole(err: io::Error, role: String) {
+            cause(err)
+            display("can't write role: {}", err)
+            description("error write role log")
+        }
+        OpenRole(err: io::Error, role: String) {
+            cause(err)
+            display("can't write role log: {}", err)
+            display("can't open file role log")
         }
     }
 }
 
 pub struct Index {
     log_dir: PathBuf,
-    dry_run: bool,
+    stdout: bool,
 }
 
 pub struct Deployment<'a> {
@@ -40,6 +63,8 @@ pub struct Deployment<'a> {
     id: String,
     segment: String,
     log: File,
+    errors: Vec<Error>,
+    done: bool,
 }
 
 pub struct Role<'a: 'b, 'b> {
@@ -47,10 +72,11 @@ pub struct Role<'a: 'b, 'b> {
     role: &'b str,
     segment: String,
     log: File,
+    err: Option<io::Error>,
 }
 
 pub struct Action<'a: 'b, 'b: 'c, 'c> {
-    parent: &'c mut  Role<'a, 'b>,
+    role: &'c mut  Role<'a, 'b>,
     action: &'c str,
 }
 
@@ -71,57 +97,68 @@ enum Marker<'a> {
     ActionFinish(&'a str),
     RoleFinish,
     DeploymentFinish,
+    DeploymentError,
 }
 
 impl Index {
-    pub fn new(log_dir: PathBuf, dry_run: bool) -> Index {
+    pub fn new(log_dir: PathBuf, stdout: bool) -> Index {
         Index {
             log_dir: log_dir,
-            dry_run: dry_run,
+            stdout: stdout,
         }
     }
     pub fn deployment<'x>(&'x mut self, id: String)
-        -> Result<Deployment<'x>, Error>
+        -> Deployment<'x>
     {
         let segment = format!("{}", now_utc().strftime("%Y%m%d").unwrap());
-        let idx_file;
-        let log_file;
+        let idx;
+        let log;
+        let mut errors = Vec::new();
 
-        if self.dry_run {
-            idx_file = try!(File::create("/dev/stdout"));
-            log_file = try!(File::create("/dev/stdout"));
+        if self.stdout {
+            idx = open_stdout();
+            log = open_stdout();
         } else {
-            let index_dir = self.log_dir.join(".index");
-            try!(ensure_dir(&index_dir));
-            let global_dir = self.log_dir.join(".global");
-            try!(ensure_dir(&global_dir));
-
-            idx_file = try!(open_segment(
-                &index_dir, &format!("index.{}.json", segment)));
-            log_file = try!(open_segment(
-                &global_dir, &format!("log.{}.txt", segment)));
+            match open_global(&self.log_dir, &segment) {
+                Ok((index, lg)) => {
+                    idx = index;
+                    log = lg;
+                }
+                Err(e) => {
+                    errors.push(Error::OpenGlobal(e));
+                    idx = open_null();
+                    log = open_null();
+                }
+            }
         }
 
         let mut depl = Deployment {
-            index_file: idx_file,
+            index_file: idx,
             index: self,
             id: id,
             segment: segment,
-            log: log_file,
+            log: log,
+            errors: errors,
+            done: false,
         };
-        try!(depl.global_entry(Marker::DeploymentStart));
-        Ok(depl)
+        depl.global_entry(Marker::DeploymentStart);
+        return depl;
     }
 }
 
 impl<'a> Deployment<'a> {
-    fn global_index_entry(&mut self, marker: &Marker)
-        -> Result<String, Error>
+    fn global_index_entry(&mut self, marker: &Marker) -> String
     {
-        let pos = if self.index.dry_run { 0 } else {
-            try!(self.log.seek(Current(0)))
-        };
         let time = now_utc().rfc3339().to_string();
+        let pos = if self.index.stdout { 0 } else {
+            match self.log.seek(Current(0)) {
+                Ok(x) => x,
+                Err(e) => {
+                    self.errors.push(Error::WriteGlobal(e));
+                    return time;
+                }
+            }
+        };
         {
             let ptr = Pointer::Global(&self.segment, pos);
             let entry: IndexEntry = (&time, &self.id, ptr, marker);
@@ -131,13 +168,13 @@ impl<'a> Deployment<'a> {
             // having error. For now we are only writer anyway, so atomic
             // writing is only useful to not to confuse readers and to be
             // crash-safe.
-            try!(self.index_file.write_all(buf.as_bytes()));
+            if let Err(e) = self.index_file.write_all(buf.as_bytes()) {
+                self.errors.push(Error::WriteGlobal(e))
+            }
         }
-        Ok(time)
+        return time;
     }
-    fn role_index_entry(&mut self, ptr: Pointer, marker: &Marker)
-        -> Result<String, Error>
-    {
+    fn role_index_entry(&mut self, ptr: Pointer, marker: &Marker) -> String {
         let time = now_utc().rfc3339().to_string();
         {
             let entry: IndexEntry = (&time, &self.id, ptr, marker);
@@ -147,27 +184,39 @@ impl<'a> Deployment<'a> {
             // having error. For now we are only writer anyway, so atomic
             // writing is only useful to not to confuse readers and to be
             // crash-safe.
-            try!(self.index_file.write_all(buf.as_bytes()));
+            if let Err(e) = self.index_file.write_all(buf.as_bytes()) {
+                self.errors.push(Error::WriteIndex(e));
+            }
         }
-        Ok(time)
+        time
     }
-    fn global_entry(&mut self, marker: Marker)
-        -> Result<(), Error>
-    {
-        let date = try!(self.global_index_entry(&marker));
+    fn global_entry(&mut self, marker: Marker) {
+        let date = self.global_index_entry(&marker);
         let row = format!("{date} {id} ------------ {marker:?} ----------- \n",
             date=date, id=self.id, marker=marker);
-        try!(self.log.write_all(row.as_bytes()));
-        Ok(())
+        if let Err(e) = self.log.write_all(row.as_bytes()) {
+            self.errors.push(Error::WriteGlobal(e));
+        }
     }
-    pub fn metadata(&mut self, name: &str, value: &Json)
-        -> Result<(), io::Error>
-    {
-        write!(&mut self.log,
+    pub fn object(&mut self, name: &str, value: &Debug) {
+        if let Err(e) = write!(&mut self.log,
+            "+++ debug start: {name:?} +++\n\
+             {value:#?}\n\
+             +++ debug end: {name:?} +++\n",
+             name=name, value=value)
+        {
+             self.errors.push(Error::WriteGlobal(e));
+        }
+    }
+    pub fn json(&mut self, name: &str, value: &Json) {
+        if let Err(e) = write!(&mut self.log,
             "+++ metadata start: {name:?} +++\n\
              {value}\n\
              +++ metadata end: {name:?} +++\n",
              name=name, value=as_pretty_json(value))
+        {
+             self.errors.push(Error::WriteGlobal(e));
+        }
     }
     pub fn role<'x>(&'x mut self, name: &'x str)
         -> Result<Role<'a, 'x>, Error>
@@ -175,15 +224,25 @@ impl<'a> Deployment<'a> {
         let segment;
         let mut log_file;
 
-        if self.index.dry_run {
+        if self.index.stdout {
             segment = "dry-run".to_string();
-            log_file = try!(File::create("/dev/stdout"));
+            log_file = open_stdout();;
         } else {
             let role_dir = self.index.log_dir.join(name);
-            try!(ensure_dir(&role_dir));
-            let tup = try!(check_log(&role_dir));
-            segment = tup.0;
-            log_file = tup.1;
+            match ensure_dir(&role_dir)
+                .and_then(|()| check_log(&role_dir))
+                .map_err(|e| Error::OpenRole(e, name.to_string()))
+            {
+                Ok((seg, log)) => {
+                    segment = seg;
+                    log_file = log;
+                }
+                Err(e) => {
+                    self.errors.push(e);
+                    segment = "stdout".to_string();
+                    log_file = open_null();
+                }
+            }
         }
 
         let mut role = Role {
@@ -191,43 +250,76 @@ impl<'a> Deployment<'a> {
             role: name,
             segment: segment,
             log: log_file,
+            err: None,
         };
-        try!(role.entry(Marker::RoleStart));
+        role.entry(Marker::RoleStart);
         Ok(role)
+    }
+    pub fn done(mut self) -> Vec<Error> {
+        self.done = true;
+        self.global_entry(Marker::DeploymentFinish);
+        let mut errors = replace(&mut self.errors, Vec::new());
+        return errors;
     }
 }
 
 impl<'a> Drop for Deployment<'a> {
     fn drop(&mut self) {
-        self.global_entry(Marker::DeploymentFinish)
-            .map_err(|e| error!("Can't write to log: {}", e)).ok();
+        if !self.done {
+            self.global_entry(Marker::DeploymentFinish);
+        }
     }
 }
 
 impl<'a, 'b> Role<'a, 'b> {
-    fn entry(&mut self, marker: Marker)
-        -> Result<(), Error>
-    {
-        let pos = if self.deployment.index.dry_run { 0 } else {
-            try!(self.log.seek(Current(0)))
+    fn entry(&mut self, marker: Marker) {
+        let pos = if self.deployment.index.stdout { 0 } else {
+            match self.log.seek(Current(0)) {
+                Ok(x) => x,
+                Err(e) => {
+                    add_err(&mut self.err, Some(e));
+                    return;
+                }
+            }
         };
         let ptr = Pointer::Role(self.role, &self.segment, pos);
-        let date = try!(self.deployment.role_index_entry(ptr, &marker));
+        let date = self.deployment.role_index_entry(ptr, &marker);
         let row = format!("{date} {id} ------------ {marker:?} ----------- \n",
             date=date, id=self.deployment.id, marker=marker);
-        try!(self.log.write_all(row.as_bytes()));
-        Ok(())
+        add_err(&mut self.err, self.log.write_all(row.as_bytes()).err());
+    }
+    pub fn action<'x>(&'x mut self, name: &'x str) -> Action<'a, 'b, 'x> {
+        self.entry(Marker::ActionStart(name));
+        Action {
+            role: self,
+            action: name,
+        }
     }
 }
 
 impl<'a, 'b> Drop for Role<'a, 'b> {
     fn drop(&mut self) {
-        self.entry(Marker::RoleFinish)
-            .map_err(|e| error!("Can't write to log: {}", e)).ok();
+        self.entry(Marker::RoleFinish);
+        if let Some(e) = self.err.take() {
+            self.deployment.errors
+                .push(Error::WriteRole(e, self.role.to_string()));
+        }
     }
 }
 
-fn check_log(dir: &Path) -> Result<(String, File), Error> {
+impl<'a, 'b, 'c> Action<'a, 'b, 'c> {
+    pub fn log(&mut self, args: Arguments) {
+        add_err(&mut self.role.err, self.role.log.write_fmt(args).err());
+    }
+}
+
+impl<'a, 'b, 'c> Drop for Action<'a, 'b, 'c> {
+    fn drop(&mut self) {
+        self.role.entry(Marker::ActionFinish(self.action));
+    }
+}
+
+fn check_log(dir: &Path) -> Result<(String, File), io::Error> {
     let link = dir.join("latest");
     let seg = match read_link(&link) {
         Ok(ref x) if x.starts_with("log.") && x.ends_with(".txt") => {
@@ -243,7 +335,7 @@ fn check_log(dir: &Path) -> Result<(String, File), Error> {
             None
         }
         Err(ref e) if e.kind() == NotFound => { None }
-        Err(e) => return Err(From::from(e)),
+        Err(e) => return Err(e),
     };
     if let Some(sname) = seg {
         let mut log_file = try!(open_segment(
@@ -260,11 +352,46 @@ fn check_log(dir: &Path) -> Result<(String, File), Error> {
     return Ok((segment, log_file));
 }
 
-fn open_segment(dir: &Path, name: &String) -> Result<File, Error> {
+fn open_segment(dir: &Path, name: &String) -> Result<File, io::Error> {
     let filename = dir.join(name);
     let link = dir.join("latest");
     try!(raceless_symlink(name, &link));
     let file = try!(OpenOptions::new().write(true).create(true)
         .open(&filename));
     Ok(file)
+}
+
+fn open_global(dir: &Path, segment: &str) -> Result<(File, File), io::Error>
+{
+    let index_dir = dir.join(".index");
+    try!(ensure_dir(&index_dir));
+    let global_dir = dir.join(".global");
+    try!(ensure_dir(&global_dir));
+
+    let idx_file = try!(open_segment(
+        &index_dir, &format!("index.{}.json", segment)));
+    let log_file = try!(open_segment(
+        &global_dir, &format!("log.{}.txt", segment)));
+    return Ok((idx_file, log_file));
+}
+
+fn open_stdout() -> File {
+    OpenOptions::new().write(true).append(true)
+        .open("/dev/stdout")
+        .ok().expect("Can't open /dev/stdout ?")
+}
+
+fn open_null() -> File {
+    OpenOptions::new().write(true).append(true)
+        .open("/dev/null")
+        .ok().expect("Can't open /dev/null ?")
+}
+
+fn add_err(old: &mut Option<io::Error>, new: Option<io::Error>) {
+    if let Some(e) = new {
+        error!("Error writing deployment log: {}", e);
+        if old.is_none() {
+            *old = Some(e);
+        }
+    }
 }
