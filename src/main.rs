@@ -15,6 +15,7 @@ use std::path::PathBuf;
 use std::process::exit;
 
 mod path_util;
+mod fs_util;
 mod config;
 mod render;
 mod apply;

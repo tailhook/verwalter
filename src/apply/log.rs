@@ -1,6 +1,5 @@
 use std::io;
 use std::io::{Write, Seek};
-use std::io::ErrorKind::{NotFound, AlreadyExists};
 use std::fs::{OpenOptions, File};
 use std::fs::{create_dir, read_link, remove_file, rename, metadata};
 use std::os::unix::fs::symlink;
@@ -10,6 +9,8 @@ use std::path::{Path, PathBuf};
 
 use time::now_utc;
 use rustc_serialize::json::{as_json, as_pretty_json};
+
+use fs_util::{raceless_symlink, ensure_dir};
 
 quick_error! {
     #[derive(Debug)]
@@ -24,6 +25,7 @@ quick_error! {
 
 pub struct Index {
     log_dir: PathBuf,
+    dry_run: bool,
 }
 
 pub struct DeploymentLog<'a> {
@@ -122,50 +124,6 @@ impl<'a> DeploymentLog<'a> {
     }
     fn start_apply(role: &str, deployment_id: &str) {
 
-    }
-}
-
-fn raceless_symlink(value: &String, dest: &Path) -> Result<(), io::Error> {
-    let tmpdest = dest.with_extension("tmp");
-    loop {
-        match read_link(dest) {
-            Ok(ref x) if x.as_os_str().as_bytes() == value.as_bytes() => break,
-            Ok(_) => {
-                match remove_file(&tmpdest) {
-                    Ok(()) => {}
-                    Err(ref e) if e.kind() == NotFound => {}
-                    Err(e) => return Err(e),
-                }
-            },
-            Err(ref e) if e.kind() == NotFound => {}
-            Err(e) => return Err(From::from(e)),
-        }
-        match symlink(value, &tmpdest) {
-            Ok(()) => {}
-            Err(ref e) if e.kind() == AlreadyExists => continue,
-            Err(e) => return Err(e),
-        }
-        match rename(&tmpdest, dest) {
-            Ok(()) => break,
-            Err(ref e) if e.kind() == NotFound => continue,
-            Err(e) => return Err(e),
-        }
-    }
-    Ok(())
-}
-
-fn ensure_dir(dir: &Path) -> Result<(), io::Error> {
-    // TODO(tailhook) check if thing is a directory
-    match metadata(&dir) {
-        Ok(_) => Ok(()),
-        Err(ref e) if e.kind() == NotFound => {
-            match create_dir(&dir) {
-                Ok(()) => Ok(()),
-                Err(ref e) if e.kind() == AlreadyExists => return Ok(()),
-                Err(e) => return Err(e),
-            }
-        }
-        Err(e) => return Err(e),
     }
 }
 
