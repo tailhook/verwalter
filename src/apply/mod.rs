@@ -1,16 +1,26 @@
 use std::io;
+use std::fmt::Arguments;
+use std::process::ExitStatus;
 use std::collections::HashMap;
 
 use tempfile::NamedTempFile;
 
-use config::Config;
 use render::Error as RenderError;
+
 
 mod root_command;
 pub mod log;
 
+
 pub type ApplyTask = HashMap<String,
     Result<Vec<(String, Action, Source)>, RenderError>>;
+
+pub struct Task<'a: 'b, 'b: 'c, 'c: 'd, 'd> {
+    pub runner: &'d str,
+    pub log: &'d mut log::Action<'a, 'b, 'c>,
+    pub dry_run: bool,
+    pub source: Source,
+}
 
 #[derive(RustcDecodable, Debug, Clone)]
 pub enum Action {
@@ -24,7 +34,11 @@ pub enum Source {
 quick_error!{
     #[derive(Debug)]
     pub enum Error {
-        Command(runner: String, cmd: String, err: io::Error) {
+        Command(runner: String, cmd: String, status: ExitStatus) {
+            display("Action {:?} failed to run {:?}: {}", runner, cmd, status)
+            description("error running command")
+        }
+        CantRun(runner: String, cmd: String, err: io::Error) {
             display("Action {:?} failed to run {:?}: {}", runner, cmd, err)
             description("error running command")
         }
@@ -32,6 +46,16 @@ quick_error!{
             from() cause(err)
             display("error opening log file: {}", err)
             description("error logging command info")
+        }
+    }
+}
+
+impl<'a, 'b, 'c, 'd> Task<'a, 'b, 'c, 'd> {
+    fn log(&mut self, args: Arguments) {
+        if self.dry_run {
+            self.log.log(format_args!("(dry_run) {}", args));
+        } else {
+            self.log.log(args);
         }
     }
 }
@@ -56,9 +80,12 @@ pub fn apply_list(name: &String,
                 let mut action = role_log.action(&aname);
                 match cmd {
                     RootCommand(cmd) => {
-                        root_command::execute(cmd, source,
-                            &mut action, dry_run)
-                        .map_err(|e| errors.push(e)).ok();
+                        root_command::execute(cmd, Task {
+                            runner: &aname,
+                            log: &mut action,
+                            dry_run: dry_run,
+                            source: source,
+                        }).map_err(|e| errors.push(e)).ok();
                     }
                 }
             }
@@ -71,8 +98,7 @@ pub fn apply_list(name: &String,
     return errors;
 }
 
-pub fn apply_all(cfg: &Config, task: ApplyTask,
-    mut log: log::Deployment, dry_run: bool)
+pub fn apply_all(task: ApplyTask, mut log: log::Deployment, dry_run: bool)
     -> (HashMap<String, Vec<Error>>, Vec<Error>)
 {
     let roles = task.into_iter().map(|(name, items)| {

@@ -6,6 +6,7 @@ extern crate rustc_serialize;
 extern crate tempfile;
 extern crate time;
 extern crate rand;
+extern crate libc;
 extern crate lua;
 extern crate scan_dir;
 extern crate yaml_rust;
@@ -128,8 +129,7 @@ fn main() {
     let mut dlog = index.deployment(id);
     dlog.object("config", &config);
     dlog.json("scheduler_result", &scheduler_result);
-    let (rerrors, gerrs) = apply::apply_all(&config, apply_task,
-        dlog, options.dry_run);
+    let (rerrors, gerrs) = apply::apply_all(apply_task, dlog, options.dry_run);
     if log_enabled!(log::LogLevel::Debug) {
         for e in gerrs {
             error!("Error when applying config: {}", e);

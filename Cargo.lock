@@ -5,6 +5,7 @@ dependencies = [
  "argparse 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "handlebars 0.10.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "liquid 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "lua 0.0.8 (git+https://github.com/jcmoyer/rust-lua53)",

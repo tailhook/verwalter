@@ -3,9 +3,7 @@ use std::fmt::Debug;
 use std::mem::replace;
 use std::io::{Write, Seek};
 use std::io::ErrorKind::NotFound;
-use std::fs::{OpenOptions, File};
-use std::fs::{create_dir, read_link, remove_file, rename, metadata};
-use std::os::unix::fs::symlink;
+use std::fs::{OpenOptions, File, read_link};
 use std::os::unix::ffi::OsStrExt;
 use std::io::SeekFrom::Current;
 use std::fmt::Arguments;
@@ -162,7 +160,7 @@ impl<'a> Deployment<'a> {
         {
             let ptr = Pointer::Global(&self.segment, pos);
             let entry: IndexEntry = (&time, &self.id, ptr, marker);
-            let mut buf = format!("{}\n", as_json(&entry));
+            let buf = format!("{}\n", as_json(&entry));
             // We rely on POSIX semantics of atomic writes, but even if that
             // doesn't work, it's better to continue writing entry instead of
             // having error. For now we are only writer anyway, so atomic
@@ -178,7 +176,7 @@ impl<'a> Deployment<'a> {
         let time = now_utc().rfc3339().to_string();
         {
             let entry: IndexEntry = (&time, &self.id, ptr, marker);
-            let mut buf = format!("{}\n", as_json(&entry));
+            let buf = format!("{}\n", as_json(&entry));
             // We rely on POSIX semantics of atomic writes, but even if that
             // doesn't work, it's better to continue writing entry instead of
             // having error. For now we are only writer anyway, so atomic
@@ -222,7 +220,7 @@ impl<'a> Deployment<'a> {
         -> Result<Role<'a, 'x>, Error>
     {
         let segment;
-        let mut log_file;
+        let log_file;
 
         if self.index.stdout {
             segment = "dry-run".to_string();
@@ -258,15 +256,14 @@ impl<'a> Deployment<'a> {
     pub fn done(mut self) -> Vec<Error> {
         self.done = true;
         self.global_entry(Marker::DeploymentFinish);
-        let mut errors = replace(&mut self.errors, Vec::new());
-        return errors;
+        return replace(&mut self.errors, Vec::new());
     }
 }
 
 impl<'a> Drop for Deployment<'a> {
     fn drop(&mut self) {
         if !self.done {
-            self.global_entry(Marker::DeploymentFinish);
+            self.global_entry(Marker::DeploymentError);
         }
     }
 }
@@ -330,7 +327,7 @@ fn check_log(dir: &Path) -> Result<(String, File), io::Error> {
                 })
             })
         }
-        Ok(x) => {
+        Ok(_) => {
             error!("errorneous segment");
             None
         }
