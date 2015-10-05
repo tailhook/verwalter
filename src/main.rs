@@ -23,6 +23,7 @@ mod config;
 mod render;
 mod apply;
 mod scheduler;
+mod elect;
 
 use argparse::{ArgumentParser, Parse, StoreTrue};
 
