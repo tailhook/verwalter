@@ -22,7 +22,7 @@ log = "0.3.2"
 env_logger = "0.3.1"
 tempfile = "1.1.1"
 rustc-serialize = "0.3.16"
-quire = { git = "git://github.com/tailhook/rust-quire" }
+quire = "0.1.1"
 yaml-rust = "0.2.2"
 scan_dir = "0.2.0"
 time = "0.1.32"
