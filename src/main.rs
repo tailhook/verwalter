@@ -10,6 +10,7 @@ extern crate libc;
 extern crate lua;
 extern crate scan_dir;
 extern crate yaml_rust;
+#[macro_use] extern crate matches;
 #[macro_use] extern crate log;
 #[macro_use] extern crate quick_error;
 

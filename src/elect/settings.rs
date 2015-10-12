@@ -26,7 +26,7 @@ pub const MAX_MESSAGE_TIMEOUT: i64 = 3000;
 /// system. There is no good reason to wait so long for original Raft. I.e.
 /// it wants to reestablish consistency as fast as possible. But it may be
 /// nicer to keep lower elections for us.
-pub const HEARTBEAT_INTERVAL: u64 = 600;
+pub const HEARTBEAT_INTERVAL: i64 = 600;
 
 
 pub fn start_timeout() -> Duration {

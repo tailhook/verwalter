@@ -5,8 +5,10 @@ use time::SteadyTime;
 use time::Timespec;
 
 mod node;
+mod action;
 mod settings;
 mod external;
+#[cfg(test)] mod test_node;
 #[cfg(test)] mod test_mesh;
 #[cfg(test)] mod test_util;
 #[cfg(test)] mod test_split_brain;

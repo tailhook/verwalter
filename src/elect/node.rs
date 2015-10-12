@@ -2,7 +2,8 @@ use rand::{thread_rng, Rng};
 use time::{SteadyTime, Duration};
 
 use super::{Node, Machine, ExternalData};
-use super::settings::start_timeout;
+use super::settings::{start_timeout, HEARTBEAT_INTERVAL};
+use super::action::{Action, ActionList};
 
 
 impl Node {
@@ -14,5 +15,32 @@ impl Node {
             },
             ext: ExternalData::empty(),
         }
+    }
+    pub fn time_passed(self, now: SteadyTime) -> (Node, ActionList) {
+        use super::Machine::*;
+        let (machine, action) = match self.machine {
+            Starting { leader_deadline } if leader_deadline <= now => {
+                info!("[{}] Time passed. Electing as a leader", self.id);
+                if self.ext.all_hosts.len() == 0 {
+                    // No other hosts. May safefully become a leader
+                    let next_ping = now +
+                        Duration::milliseconds(HEARTBEAT_INTERVAL);
+                    (Leader { ping_time: next_ping },
+                     Action::LeaderPing.and_wait(next_ping))
+                } else {
+                    unimplemented!();
+                }
+            }
+            Starting { leader_deadline: dline }
+            => (Starting { leader_deadline: dline }, Action::wait(dline)),
+            _ => unimplemented!(),
+        };
+        return (
+            Node {
+                machine: machine,
+                id: self.id,
+                ext: self.ext,
+            },
+            action)
     }
 }
