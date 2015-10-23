@@ -1,7 +1,9 @@
+use std::collections::HashSet;
+
 use rand::{thread_rng, Rng};
 use time::{SteadyTime, Duration};
 
-use super::{Node, Machine, ExternalData};
+use super::{Id, Node, Machine, Message, ExternalData};
 use super::settings::{start_timeout, HEARTBEAT_INTERVAL};
 use super::action::{Action, ActionList};
 
@@ -9,7 +11,7 @@ use super::action::{Action, ActionList};
 impl Node {
     pub fn new<S:AsRef<str>>(id: S, now: SteadyTime) -> Node {
         Node {
-            id: id.as_ref().to_string(),
+            id: Id(id.as_ref().to_string()),
             machine: Machine::Starting {
                 leader_deadline: now + start_timeout(),
             },
@@ -26,9 +28,17 @@ impl Node {
                     let next_ping = now +
                         Duration::milliseconds(HEARTBEAT_INTERVAL);
                     (Leader { ping_time: next_ping },
-                     Action::LeaderPing.and_wait(next_ping))
+                     Action::PingAll.and_wait(next_ping))
                 } else {
-                    unimplemented!();
+                    let election_end = now +
+                        Duration::milliseconds(HEARTBEAT_INTERVAL);
+                    (Electing {
+                        votes_for_me: {
+                            let mut h = HashSet::new();
+                            h.insert(self.id.clone());
+                            h },
+                        election_deadline: election_end },
+                     Action::Vote.and_wait(election_end))
                 }
             }
             Starting { leader_deadline: dline }
@@ -42,5 +52,8 @@ impl Node {
                 ext: self.ext,
             },
             action)
+    }
+    pub fn message(self, msg: Message) -> (Node, ActionList) {
+        unimplemented!();
     }
 }

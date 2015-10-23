@@ -3,7 +3,10 @@ use time::SteadyTime;
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum Action {
-    LeaderPing,
+    PingAll,
+    Vote,
+    ConfirmVote,
+    PingNew,
 }
 
 #[derive(PartialEq, Eq, Debug)]
