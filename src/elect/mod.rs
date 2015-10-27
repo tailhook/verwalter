@@ -16,7 +16,7 @@ mod external;
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct Id(String);
 
-
+type Capsule = (u64, Message);
 
 #[derive(Clone, Debug)]
 enum Machine {
@@ -34,10 +34,8 @@ enum Message {
     Ping,
     /// Pong message from follower to leader, confirm that node is a leader
     Pong,
-    /// New node or node recover is detected by cantal
-    NodeAdded,
-    /// Node death is detected by cantal
-    NodeRemoved,
+    /// Vote for some node
+    Vote(Id),
 }
 
 #[derive(Clone, Debug)]

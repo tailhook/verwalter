@@ -2,7 +2,7 @@
 //!
 use time::SteadyTime;
 
-use super::{Node, Machine};
+use super::{Node, Machine, Message};
 use super::action::Action;
 use super::test_util::Environ;
 
@@ -40,4 +40,22 @@ fn test_start_vote() {
     let (node, act) = node.time_passed(env.now());
     assert!(matches!(node.machine, Machine::Electing { .. }));
     assert!(act.action == Some(Action::Vote));
+}
+
+#[test]
+fn test_vote_approved() {
+    let mut env = Environ::new();
+    let mut node = Node::new("one", env.now());
+    let id = node.id.clone();
+    assert!(matches!(node.machine, Machine::Starting { .. }));
+
+    env.add_another_for(&mut node);
+    env.sleep(10000);  // Large timeout, should start_election
+    let (node, act) = node.time_passed(env.now());
+    assert!(matches!(node.machine, Machine::Electing { .. }));
+    assert!(act.action == Some(Action::Vote));
+
+    let (node, act) = node.message(Message::Vote(id.clone()), env.now());
+    assert!(matches!(node.machine, Machine::Leader { .. }));
+    assert!(act.action == Some(Action::PingAll));
 }

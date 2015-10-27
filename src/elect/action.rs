@@ -1,11 +1,13 @@
 use time::SteadyTime;
 
+use super::{Id};
+
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum Action {
     PingAll,
     Vote,
-    ConfirmVote,
+    ConfirmVote(Id),
     PingNew,
 }
 

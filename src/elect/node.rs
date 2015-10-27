@@ -3,8 +3,8 @@ use std::collections::HashSet;
 use rand::{thread_rng, Rng};
 use time::{SteadyTime, Duration};
 
-use super::{Id, Node, Machine, Message, ExternalData};
-use super::settings::{start_timeout, HEARTBEAT_INTERVAL};
+use super::{Id, Node, Machine, Message, ExternalData, Capsule};
+use super::settings::{start_timeout, election_ivl, HEARTBEAT_INTERVAL};
 use super::action::{Action, ActionList};
 
 
@@ -53,7 +53,38 @@ impl Node {
             },
             action)
     }
-    pub fn message(self, msg: Message) -> (Node, ActionList) {
-        unimplemented!();
+    pub fn message(self, msg: Capsule, now: SteadyTime) -> (Node, ActionList) {
+        use super::Machine::*;
+        use super::Message::*;
+        let (num, data) = msg;
+
+        let (machine, action) = match (self.machine, data) {
+            (Starting { .. }, Ping) => {
+                let dline = now + election_ivl();
+                (Follower { leader_deadline: dline }, Action::wait(dline))
+            }
+            (Starting { leader_deadline: dline }, Pong) => {
+                // This probably means this node was a leader. But there is
+                // no guarantee that no leader has been already elected, so
+                // we just continue work
+                (Starting { leader_deadline: dline }, Action::wait(dline))
+            }
+            (Starting { leader_deadline }, Vote(id)) => {
+                let dline = now + election_ivl();
+                (Voted { peer: id.clone(), election_deadline: dline},
+                 Action::ConfirmVote(id).and_wait(leader_deadline))
+            }
+            (Electing { .. }, _) => unimplemented!(),
+            (Voted { .. }, _) => unimplemented!(),
+            (Leader { .. }, _) => unimplemented!(),
+            (Follower { .. }, _) => unimplemented!(),
+        };
+        return (
+            Node {
+                machine: machine,
+                id: self.id,
+                ext: self.ext,
+            },
+            action)
     }
 }
