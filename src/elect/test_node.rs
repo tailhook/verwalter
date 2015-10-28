@@ -2,8 +2,9 @@
 //!
 use time::SteadyTime;
 
-use super::{Info, Machine, Message};
+use super::{Info, Message};
 use super::action::Action;
+use super::machine::Machine;
 use super::test_util::Environ;
 
 

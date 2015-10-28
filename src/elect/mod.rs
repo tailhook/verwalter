@@ -19,15 +19,6 @@ struct Id(String);
 type Capsule = (u64, Message);
 
 #[derive(Clone, Debug)]
-enum Machine {
-    Starting { leader_deadline: SteadyTime },
-    Electing { votes_for_me: HashSet<Id>, election_deadline: SteadyTime },
-    Voted { peer: Id, election_deadline: SteadyTime },
-    Leader { ping_time: SteadyTime },
-    Follower { leader_deadline: SteadyTime },
-}
-
-#[derive(Clone, Debug)]
 enum Message {
     /// Ping message from leader to followers, reassures that leadership
     /// still holds

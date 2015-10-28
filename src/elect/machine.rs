@@ -3,9 +3,23 @@ use std::collections::HashSet;
 use rand::{thread_rng, Rng};
 use time::{SteadyTime, Duration};
 
-use super::{Id, Machine, Message, Info, Capsule};
+use super::{Id, Message, Info, Capsule};
 use super::settings::{start_timeout, election_ivl, HEARTBEAT_INTERVAL};
 use super::action::{Action, ActionList};
+
+
+type Epoch = u64;
+
+
+#[derive(Clone, Debug)]
+pub enum Machine {
+    Starting { leader_deadline: SteadyTime },
+    Electing { epoch: Epoch,
+        votes_for_me: HashSet<Id>, election_deadline: SteadyTime },
+    Voted { epoch: Epoch, peer: Id, election_deadline: SteadyTime },
+    Leader { epoch: Epoch, ping_time: SteadyTime },
+    Follower { epoch: Epoch, leader_deadline: SteadyTime },
+}
 
 
 impl Machine {
@@ -17,7 +31,7 @@ impl Machine {
     pub fn time_passed(self, info: &Info, now: SteadyTime)
         -> (Machine, ActionList)
     {
-        use super::Machine::*;
+        use self::Machine::*;
         let (machine, action) = match self {
             Starting { leader_deadline } if leader_deadline <= now => {
                 info!("[{}] Time passed. Electing as a leader", info.id);
@@ -25,12 +39,13 @@ impl Machine {
                     // No other hosts. May safefully become a leader
                     let next_ping = now +
                         Duration::milliseconds(HEARTBEAT_INTERVAL);
-                    (Leader { ping_time: next_ping },
+                    (Leader { epoch: 1, ping_time: next_ping },
                      Action::PingAll.and_wait(next_ping))
                 } else {
                     let election_end = now +
                         Duration::milliseconds(HEARTBEAT_INTERVAL);
                     (Electing {
+                        epoch: 1,
                         votes_for_me: {
                             let mut h = HashSet::new();
                             h.insert(info.id.clone());
@@ -48,14 +63,15 @@ impl Machine {
     pub fn message(self, info: &Info, msg: Capsule, now: SteadyTime)
         -> (Machine, ActionList)
     {
-        use super::Machine::*;
+        use self::Machine::*;
         use super::Message::*;
-        let (num, data) = msg;
+        let (msg_epoch, data) = msg;
 
         let (machine, action) = match (self, data) {
             (Starting { .. }, Ping) => {
                 let dline = now + election_ivl();
-                (Follower { leader_deadline: dline }, Action::wait(dline))
+                (Follower { epoch: msg_epoch, leader_deadline: dline },
+                 Action::wait(dline))
             }
             (Starting { leader_deadline: dline }, Pong) => {
                 // This probably means this node was a leader. But there is
@@ -65,7 +81,8 @@ impl Machine {
             }
             (Starting { leader_deadline }, Vote(id)) => {
                 let dline = now + election_ivl();
-                (Voted { peer: id.clone(), election_deadline: dline},
+                (Voted { epoch: msg_epoch,
+                    peer: id.clone(), election_deadline: dline},
                  Action::ConfirmVote(id).and_wait(leader_deadline))
             }
             (Electing { .. }, _) => unimplemented!(),
