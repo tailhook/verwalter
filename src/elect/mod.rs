@@ -4,10 +4,10 @@ use std::collections::{HashSet, HashMap};
 use time::SteadyTime;
 use time::Timespec;
 
-mod node;
+mod machine;
 mod action;
 mod settings;
-mod external;
+mod info;
 #[cfg(test)] mod test_node;
 #[cfg(test)] mod test_mesh;
 #[cfg(test)] mod test_util;
@@ -44,19 +44,12 @@ struct PeerInfo {
      last_report: Timespec,
 }
 
-#[derive(Clone, Debug)]
-struct ExternalData {
-    all_hosts: HashMap<Id, PeerInfo>,
-}
-
 #[derive(Debug)]
-struct Node {
+struct Info {
     /// Unique identificator of the node, should be read from /etc/machine-id
     id: Id,
     /// State machine of the leader election
-    machine: Machine,
-    /// Represents how this node sees the external world
-    ext: ExternalData,
+    all_hosts: HashMap<Id, PeerInfo>,
 }
 
 impl ::std::fmt::Display for Id {

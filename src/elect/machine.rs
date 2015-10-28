@@ -3,27 +3,25 @@ use std::collections::HashSet;
 use rand::{thread_rng, Rng};
 use time::{SteadyTime, Duration};
 
-use super::{Id, Node, Machine, Message, ExternalData, Capsule};
+use super::{Id, Machine, Message, Info, Capsule};
 use super::settings::{start_timeout, election_ivl, HEARTBEAT_INTERVAL};
 use super::action::{Action, ActionList};
 
 
-impl Node {
-    pub fn new<S:AsRef<str>>(id: S, now: SteadyTime) -> Node {
-        Node {
-            id: Id(id.as_ref().to_string()),
-            machine: Machine::Starting {
-                leader_deadline: now + start_timeout(),
-            },
-            ext: ExternalData::empty(),
+impl Machine {
+    pub fn new(now: SteadyTime) -> Machine {
+        Machine::Starting {
+            leader_deadline: now + start_timeout(),
         }
     }
-    pub fn time_passed(self, now: SteadyTime) -> (Node, ActionList) {
+    pub fn time_passed(self, info: &Info, now: SteadyTime)
+        -> (Machine, ActionList)
+    {
         use super::Machine::*;
-        let (machine, action) = match self.machine {
+        let (machine, action) = match self {
             Starting { leader_deadline } if leader_deadline <= now => {
-                info!("[{}] Time passed. Electing as a leader", self.id);
-                if self.ext.all_hosts.len() == 0 {
+                info!("[{}] Time passed. Electing as a leader", info.id);
+                if info.all_hosts.len() == 0 {
                     // No other hosts. May safefully become a leader
                     let next_ping = now +
                         Duration::milliseconds(HEARTBEAT_INTERVAL);
@@ -35,7 +33,7 @@ impl Node {
                     (Electing {
                         votes_for_me: {
                             let mut h = HashSet::new();
-                            h.insert(self.id.clone());
+                            h.insert(info.id.clone());
                             h },
                         election_deadline: election_end },
                      Action::Vote.and_wait(election_end))
@@ -45,20 +43,16 @@ impl Node {
             => (Starting { leader_deadline: dline }, Action::wait(dline)),
             _ => unimplemented!(),
         };
-        return (
-            Node {
-                machine: machine,
-                id: self.id,
-                ext: self.ext,
-            },
-            action)
+        return (machine, action)
     }
-    pub fn message(self, msg: Capsule, now: SteadyTime) -> (Node, ActionList) {
+    pub fn message(self, info: &Info, msg: Capsule, now: SteadyTime)
+        -> (Machine, ActionList)
+    {
         use super::Machine::*;
         use super::Message::*;
         let (num, data) = msg;
 
-        let (machine, action) = match (self.machine, data) {
+        let (machine, action) = match (self, data) {
             (Starting { .. }, Ping) => {
                 let dline = now + election_ivl();
                 (Follower { leader_deadline: dline }, Action::wait(dline))
@@ -79,12 +73,6 @@ impl Node {
             (Leader { .. }, _) => unimplemented!(),
             (Follower { .. }, _) => unimplemented!(),
         };
-        return (
-            Node {
-                machine: machine,
-                id: self.id,
-                ext: self.ext,
-            },
-            action)
+        return (machine, action)
     }
 }
