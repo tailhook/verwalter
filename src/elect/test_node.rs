@@ -54,14 +54,15 @@ fn test_vote_approved() {
     let id = info.id.clone();
     assert!(matches!(node, Machine::Starting { .. }));
 
-    env.add_another_for(&mut info);
+    let two = env.add_another_for(&mut info);
     env.sleep(10000);  // Large timeout, should start_election
     let (node, act) = node.time_passed(&info, env.now());
     assert!(matches!(node, Machine::Electing { .. }));
     assert!(act.action == Some(Action::Vote));
 
     let (node, act) = node.message(&info,
-        (0, Message::Vote(id.clone())), env.now());
+        (two.clone(), 1, Message::Vote(id.clone())), env.now());
+    println!("Node {:?}", node);
     assert!(matches!(node, Machine::Leader { .. }));
     assert!(act.action == Some(Action::PingAll));
 }

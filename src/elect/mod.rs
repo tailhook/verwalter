@@ -16,7 +16,7 @@ mod info;
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct Id(String);
 
-type Capsule = (u64, Message);
+type Capsule = (Id, u64, Message);
 
 #[derive(Clone, Debug)]
 enum Message {
