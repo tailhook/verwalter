@@ -74,9 +74,14 @@ impl Machine {
                      Action::Vote.and_wait(election_end))
                 }
             }
-            Starting { leader_deadline: dline }
-            => (Starting { leader_deadline: dline }, Action::wait(dline)),
-            _ => unimplemented!(),
+            Starting { leader_deadline: dline } => {
+                (Starting { leader_deadline: dline },
+                 Action::wait(dline))
+            }
+            Electing { .. } => unimplemented!(),
+            Voted { .. } => unimplemented!(),
+            Leader { .. } => unimplemented!(),
+            Follower { .. } => unimplemented!(),
         };
         return (machine, action)
     }
