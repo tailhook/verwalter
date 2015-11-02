@@ -6,7 +6,7 @@ use super::{Id};
 #[derive(PartialEq, Eq, Debug)]
 pub enum Action {
     PingAll,
-    Vote,
+    Vote(Id),
     ConfirmVote(Id),
     PingNew,
 }

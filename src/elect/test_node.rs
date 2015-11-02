@@ -37,13 +37,14 @@ fn test_start_vote() {
     let mut env = Environ::new();
     let mut info = Info::new("one");
     let node = Machine::new(env.now());
+    let id = info.id.clone();
     assert!(matches!(node, Machine::Starting { .. }));
 
     env.add_another_for(&mut info);
     env.sleep(10000);  // Large timeout, should start_election
     let (node, act) = node.time_passed(&info, env.now());
     assert!(matches!(node, Machine::Electing { .. }));
-    assert!(act.action == Some(Action::Vote));
+    assert!(act.action == Some(Action::Vote(id.clone())));
 }
 
 #[test]
@@ -58,11 +59,31 @@ fn test_vote_approved() {
     env.sleep(10000);  // Large timeout, should start_election
     let (node, act) = node.time_passed(&info, env.now());
     assert!(matches!(node, Machine::Electing { .. }));
-    assert!(act.action == Some(Action::Vote));
+    assert!(act.action == Some(Action::Vote(id.clone())));
 
     let (node, act) = node.message(&info,
         (two.clone(), 1, Message::Vote(id.clone())), env.now());
     println!("Node {:?}", node);
     assert!(matches!(node, Machine::Leader { .. }));
     assert!(act.action == Some(Action::PingAll));
+}
+
+#[test]
+fn test_election_expired() {
+    let mut env = Environ::new();
+    let mut info = Info::new("one");
+    let node = Machine::new(env.now());
+    let id = info.id.clone();
+    assert!(matches!(node, Machine::Starting { .. }));
+
+    let two = env.add_another_for(&mut info);
+    env.sleep(10000);  // Large timeout, should start_election
+    let (node, act) = node.time_passed(&info, env.now());
+    assert!(matches!(node, Machine::Electing { epoch: 1, .. }));
+    assert!(act.action == Some(Action::Vote(id.clone())));
+
+    env.sleep(3000);  // Large timeout, should be enough for new election
+    let (node, act) = node.time_passed(&info, env.now());
+    assert!(matches!(node, Machine::Electing { epoch: 2, .. }));
+    assert!(act.action == Some(Action::Vote(id.clone())));
 }

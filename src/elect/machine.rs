@@ -69,19 +69,26 @@ impl Machine {
                     // No other hosts. May safefully become a leader
                     become_leader(1, now)
                 } else {
-                    let election_end = now +
-                        Duration::milliseconds(HEARTBEAT_INTERVAL);
-                    (Electing {
-                        epoch: 1,
-                        votes_for_me: {
-                            let mut h = HashSet::new();
-                            h.insert(info.id.clone());
-                            h },
-                        deadline: election_end },
-                     Action::Vote.and_wait(election_end))
+                    start_election(1, now, &info.id)
                 }
             }
-            Electing { .. } => unimplemented!(),
+            Electing { epoch, .. } => {
+                // It's decided that even if at the end of election we
+                // suddenly have >= minimum votes it's safely to start new
+                // election.
+                //
+                // I mean in the following case:
+                //
+                // 1. Node starts election
+                // 2. Node receives few votes
+                // 3. Number of peers drop (i.e. some nodes fail)
+                // 4. Timeout expires
+                //
+                // .. we start election again instead of trying to count votes
+                // again (e.g. if failed nodes are voted for the node)
+                info!("[{}] Time passed. Starting new election", info.id);
+                start_election(epoch+1, now, &info.id)
+            },
             Voted { .. } => unimplemented!(),
             Leader { .. } => unimplemented!(),
             Follower { .. } => unimplemented!(),
@@ -176,4 +183,19 @@ fn become_leader(epoch: Epoch, now: SteadyTime) -> (Machine, ActionList) {
         Duration::milliseconds(HEARTBEAT_INTERVAL);
     (Machine::Leader { epoch: epoch, next_ping_time: next_ping },
      Action::PingAll.and_wait(next_ping))
+}
+
+fn start_election(epoch: Epoch, now: SteadyTime, first_vote: &Id)
+    -> (Machine, ActionList)
+{
+    let election_end = now +
+        Duration::milliseconds(HEARTBEAT_INTERVAL);
+    (Machine::Electing {
+        epoch: epoch,
+        votes_for_me: {
+            let mut h = HashSet::new();
+            h.insert(first_vote.clone());
+            h },
+        deadline: election_end },
+     Action::Vote(first_vote.clone()).and_wait(election_end))
 }
