@@ -24,6 +24,11 @@ impl Environ {
         self.now = self.now +  Duration::milliseconds(ms);
         self.tspec = self.tspec +  Duration::milliseconds(ms);
     }
+    /// A single tick in mio is 100ms AFAIK. This is convenience method
+    /// to have some time passed
+    pub fn tick(&mut self) {
+        self.sleep(100)
+    }
     pub fn now(&self) -> SteadyTime {
         self.now
     }

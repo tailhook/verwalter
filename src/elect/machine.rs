@@ -89,9 +89,20 @@ impl Machine {
                 info!("[{}] Time passed. Starting new election", info.id);
                 start_election(epoch+1, now, &info.id)
             },
-            Voted { .. } => unimplemented!(),
-            Leader { .. } => unimplemented!(),
-            Follower { .. } => unimplemented!(),
+            Voted { epoch, .. } => {
+                info!("[{}] Time passed. Elect me please", info.id);
+                start_election(epoch+1, now, &info.id)
+            }
+            me @ Leader { .. } => {
+                let next_ping = now +
+                    Duration::milliseconds(HEARTBEAT_INTERVAL);
+                (me,
+                 Action::PingAll.and_wait(next_ping))
+            }
+            Follower { epoch, .. } => {
+                info!("[{}] Leader is unresponsive. Elect me please", info.id);
+                start_election(epoch+1, now, &info.id)
+            }
         };
         return (machine, action)
     }
@@ -161,7 +172,7 @@ impl Machine {
 fn follow(epoch: Epoch, now: SteadyTime) -> (Machine, ActionList) {
     let dline = now + election_ivl();
     (Machine::Follower { epoch: epoch, leader_deadline: dline },
-     Action::wait(dline))
+     Action::Pong.and_wait(dline))
 }
 
 fn pass(me: Machine) -> (Machine, ActionList) {
