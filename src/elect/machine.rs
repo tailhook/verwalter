@@ -55,8 +55,15 @@ impl Machine {
         -> (Machine, ActionList)
     {
         use self::Machine::*;
+
+        // In case of spurious time events
+        if self.current_deadline() > now {
+            return pass(self)
+        }
+
+        // Everything here assumes that deadline is definitely already passed
         let (machine, action) = match self {
-            Starting { leader_deadline } if leader_deadline <= now => {
+            Starting { .. } => {
                 info!("[{}] Time passed. Electing as a leader", info.id);
                 if info.all_hosts.len() == 0 {
                     // No other hosts. May safefully become a leader
@@ -73,10 +80,6 @@ impl Machine {
                         deadline: election_end },
                      Action::Vote.and_wait(election_end))
                 }
-            }
-            Starting { leader_deadline: dline } => {
-                (Starting { leader_deadline: dline },
-                 Action::wait(dline))
             }
             Electing { .. } => unimplemented!(),
             Voted { .. } => unimplemented!(),
