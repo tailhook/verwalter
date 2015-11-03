@@ -149,3 +149,24 @@ fn test_follower_timeout() {
     assert!(matches!(node, Machine::Electing { .. }));
     assert!(act.action == Some(Action::Vote(id.clone())));
 }
+
+#[test]
+fn test_voted_ping() {
+    let mut env = Environ::new();
+    let mut info = Info::new("one");
+    let id = info.id.clone();
+    let node = Machine::new(env.now());
+    assert!(matches!(node, Machine::Starting { .. }));
+    env.tick();
+
+    let two = env.add_another_for(&mut info);
+    let (node, act) = node.message(&info,
+        (two.clone(), 1, Message::Vote(two.clone())), env.now());
+    assert!(act.action == Some(Action::ConfirmVote(two.clone())));
+    assert!(matches!(node, Machine::Voted { .. }));
+
+    let (node, act) = node.message(&info,
+        (two.clone(), 1, Message::Ping), env.now());
+    assert!(matches!(node, Machine::Follower { .. }));
+    assert!(act.action == Some(Action::Pong));
+}

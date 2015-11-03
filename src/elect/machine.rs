@@ -117,31 +117,11 @@ impl Machine {
         }
 
         let (machine, action) = match (self, data) {
-            (Starting { .. }, Ping) => {
-                // Got message that someone is a leader
-                follow(msg_epoch, now)
-            }
-            (Starting { leader_deadline: dline }, Pong) => {
-                // This probably means this node was a leader. But there is
-                // no guarantee that no leader has been already elected, so
-                // we just continue work
-                (Starting { leader_deadline: dline }, Action::wait(dline))
-            }
             (Starting { leader_deadline }, Vote(id)) => {
                 let dline = now + election_ivl();
                 (Voted { epoch: msg_epoch,
                     peer: id.clone(), election_deadline: dline},
                  Action::ConfirmVote(id).and_wait(leader_deadline))
-            }
-            (Electing { .. }, Ping) => {
-                // Got message that someone is already (just became) a leader
-                follow(msg_epoch, now)
-            }
-            (me @ Electing { .. }, Pong) => {
-                // This is not expected when the network is okay and all nodes
-                // behave well because it means someone thinks that this node
-                // is a leader
-                pass(me)
             }
             (Electing { epoch, mut votes_for_me, deadline}, Vote(id)) => {
                 if id == info.id {
@@ -160,6 +140,18 @@ impl Machine {
                                 deadline: deadline },
                      Action::wait(deadline))
                 }
+            }
+            (Leader { .. }, Ping) => unimplemented!(),
+            (_, Ping) => {
+                // Got message that someone is already (just became) a leader
+                follow(msg_epoch, now)
+            }
+            (Leader { .. }, Pong) => unimplemented!(),
+            (me, Pong) => {
+                // Except in Starting state is not expected when the network
+                // is okay and all nodes behave well because it means someone
+                // thinks that this node is a leader
+                pass(me)
             }
             (Voted { .. }, _) => unimplemented!(),
             (Leader { .. }, _) => unimplemented!(),
