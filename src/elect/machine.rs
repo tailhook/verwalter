@@ -1,4 +1,6 @@
 use std::collections::HashSet;
+use std::cmp::{Ord, Ordering};
+use std::cmp::Ordering::{Less as Older, Equal as Current, Greater as Newer};
 
 use rand::{thread_rng, Rng};
 use time::{SteadyTime, Duration};
@@ -29,7 +31,7 @@ impl Machine {
     }
 
     // methods generic over the all states
-    pub fn is_newer_than(&self, epoch: Epoch) -> bool {
+    pub fn compare_epoch(&self, epoch: Epoch) -> Ordering {
         use self::Machine::*;
         let my_epoch = match *self {
             Starting { .. } => 0,  // real epochs start from 1
@@ -38,7 +40,7 @@ impl Machine {
             Leader { epoch, ..} => epoch,
             Follower { epoch, ..} => epoch,
         };
-        my_epoch > epoch
+        epoch.cmp(&my_epoch)
     }
     pub fn current_deadline(&self) -> SteadyTime {
         use self::Machine::*;
@@ -112,18 +114,37 @@ impl Machine {
         use self::Machine::*;
         use super::Message::*;
         let (src, msg_epoch, data) = msg;
-        if self.is_newer_than(msg_epoch) {
-            return pass(self);
-        }
-
-        let (machine, action) = match (self, data) {
-            (Starting { leader_deadline }, Vote(id)) => {
+        let epoch_cmp = self.compare_epoch(msg_epoch);
+        let (machine, action) = match (data, epoch_cmp, self) {
+            (_, Older, me) => { // discard old messages
+                pass(me)
+            }
+            (Ping, Current, me @ Leader { .. }) => {
+                // Another leader is here, restart the election
+                // This is valid when two partitions suddenly joined
+                start_election(msg_epoch+1, now, &info.id)
+            }
+            (Ping, Current, _) => {
+                // Ping in any other state, means we follow the leader
+                follow(msg_epoch, now)
+            }
+            (Pong, Current, me @ Leader { .. }) => {
+                // It's just okay, should we count successful pongs?
+                pass(me)
+            }
+            (Pong, Current, _) => {
+                // Pong in any other state means something wrong with other
+                // peers thinking of who is a leader
+                start_election(msg_epoch+1, now, &info.id)
+            }
+            (Vote(id), Current, Starting { .. }) => {
                 let dline = now + election_ivl();
                 (Voted { epoch: msg_epoch,
                     peer: id.clone(), election_deadline: dline},
-                 Action::ConfirmVote(id).and_wait(leader_deadline))
+                 Action::ConfirmVote(id).and_wait(dline))
             }
-            (Electing { epoch, mut votes_for_me, deadline}, Vote(id)) => {
+            (Vote(id), Current, Electing {epoch, mut votes_for_me, deadline})
+            => {
                 if id == info.id {
                     votes_for_me.insert(src);
                     let need = minimum_votes(info.all_hosts.len());
@@ -141,21 +162,29 @@ impl Machine {
                      Action::wait(deadline))
                 }
             }
-            (Leader { .. }, Ping) => unimplemented!(),
-            (_, Ping) => {
-                // Got message that someone is already (just became) a leader
-                follow(msg_epoch, now)
-            }
-            (Leader { .. }, Pong) => unimplemented!(),
-            (me, Pong) => {
-                // Except in Starting state is not expected when the network
-                // is okay and all nodes behave well because it means someone
-                // thinks that this node is a leader
+            (Vote(_), Current, me @ Voted { .. })
+            | (Vote(_), Current, me @ Leader { .. })
+            | (Vote(_), Current, me @ Follower { .. })
+            => {
+                // This vote is late for the party
                 pass(me)
             }
-            (Voted { .. }, _) => unimplemented!(),
-            (Leader { .. }, _) => unimplemented!(),
-            (Follower { .. }, _) => unimplemented!(),
+            (Ping, Newer, _) => {
+                // We missed something, there is already a new leader
+                follow(msg_epoch, now)
+            }
+            (Pong, Newer, _) => {
+                // Something terribly wrong: somebody thinks that we are leader
+                // in the new epoch. Just start a new election
+                start_election(msg_epoch+1, now, &info.id)
+            }
+            (Vote(id), Newer, _) => {
+                // Somebody started an election, just trust him
+                let dline = now + election_ivl();
+                (Voted { epoch: msg_epoch,
+                    peer: id.clone(), election_deadline: dline},
+                 Action::ConfirmVote(id).and_wait(dline))
+            }
         };
         return (machine, action)
     }
