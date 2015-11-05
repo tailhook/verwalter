@@ -3,3 +3,5 @@
 /doc/_build
 /tmp
 /todo.txt
+/figwheel_server.log
+/public/js

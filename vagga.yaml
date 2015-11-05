@@ -28,6 +28,10 @@ commands:
     work-dir: doc
     run: [make, html]
 
+  lein: !Command
+    container: clj
+    run: [lein]
+
 containers:
 
   ubuntu:
@@ -49,3 +53,30 @@ containers:
     setup:
     - !Alpine v3.2
     - !Install [py-sphinx, make]
+
+  clj:
+    setup:
+    - !Ubuntu trusty
+    - !Install [openjdk-7-jdk, ca-certificates, bash]
+    - !BuildDeps [wget]
+    - !EnsureDir /usr/share/java
+    - !Sh |
+        update-ca-certificates -f
+        wget -O /usr/share/java/leiningen-2.5.3-standalone.jar \
+          https://github.com/technomancy/leiningen/releases/download/2.5.3/leiningen-2.5.3-standalone.zip
+        wget -O /usr/bin/lein \
+          https://raw.githubusercontent.com/technomancy/leiningen/2.5.3/bin/lein-pkg
+        chmod +x /usr/bin/lein
+
+
+    #
+    # Because crappy Java doesn't like HOME environment variable
+    # and spark does not allow customize spark staging. We set homedir
+    # for "root" as "/work/target"
+    #
+    - !Sh |
+        sed -i '/^root/{s@/root@/work/target@;}' /etc/passwd
+    environ:
+      LEIN_ROOT: true
+      HOME: /work/target
+
