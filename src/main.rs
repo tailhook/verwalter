@@ -10,23 +10,30 @@ extern crate libc;
 extern crate lua;
 extern crate scan_dir;
 extern crate yaml_rust;
+extern crate rotor;
+extern crate rotor_http;
+extern crate mio;
+extern crate hyper;
 #[macro_use] extern crate matches;
 #[macro_use] extern crate log;
 #[macro_use] extern crate quick_error;
 
 use rand::Rng;
-use std::path::PathBuf;
 use std::process::exit;
+use std::path::PathBuf;
+use std::net::SocketAddr;
 
 mod path_util;
+mod routing_util;
 mod fs_util;
 mod config;
 mod render;
 mod apply;
 mod scheduler;
 mod elect;
+mod net;
 
-use argparse::{ArgumentParser, Parse, StoreTrue};
+use argparse::{ArgumentParser, Parse, Store, StoreTrue};
 
 pub struct Options {
     config_dir: PathBuf,
@@ -34,6 +41,7 @@ pub struct Options {
     dry_run: bool,
     print_configs: bool,
     hostname: String,
+    listen_web: SocketAddr,
 }
 
 
@@ -45,6 +53,7 @@ fn main() {
         dry_run: false,
         print_configs: false,
         hostname: "localhost".to_string(),
+        listen_web: "127.0.0.1:8379".parse().unwrap(),
     };
     {
         let mut ap = ArgumentParser::new();
@@ -70,8 +79,21 @@ fn main() {
                 because every temporary file will be removed at the end of
                 run. Note configurations are printed to stdout not to the
                 log.");
+        ap.refer(&mut options.listen_web)
+            .add_option(&["--listen-web"], Store,
+                "Hostname and port of web frontend");
         ap.parse_args_or_exit();
     }
+    match net::main(&options.listen_web) {
+        Ok(()) => {}
+        Err(e) => {
+            error!("Error running main loop: {:?}", e);
+            exit(1);
+        }
+    }
+}
+
+fn render_configs(options: Options) {
     let mut cfg_cache = config::Cache::new();
     let config = match config::read_configs(&options, &mut cfg_cache) {
         Ok(cfg) => cfg,
