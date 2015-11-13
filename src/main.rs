@@ -22,6 +22,7 @@ use rand::Rng;
 use std::process::exit;
 use std::path::PathBuf;
 use std::net::SocketAddr;
+use std::sync::{Arc, RwLock};
 
 mod path_util;
 mod routing_util;
@@ -84,7 +85,18 @@ fn main() {
                 "Hostname and port of web frontend");
         ap.parse_args_or_exit();
     }
-    match net::main(&options.listen_web) {
+    let mut cfg_cache = config::Cache::new();
+    let config = match config::read_configs(&options, &mut cfg_cache) {
+        Ok(cfg) => cfg,
+        Err(e) => {
+            error!("Fatal error while reading initial config: {}", e);
+            exit(3);
+        }
+    };
+
+    let cfg = Arc::new(RwLock::new(config));
+
+    match net::main(&options.listen_web, cfg.clone()) {
         Ok(()) => {}
         Err(e) => {
             error!("Error running main loop: {:?}", e);

@@ -20,7 +20,9 @@ commands:
     container: ubuntu
     environ:
       RUST_LOG: debug
-    run: [./target/debug/verwalter]
+    run:
+    - ./target/debug/verwalter
+    - --config-dir=tmp/cfg
 
   docs: !Command
     description: Build docs

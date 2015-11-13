@@ -22,6 +22,7 @@ mod meta;
 //mod template;
 mod version;
 mod render;
+mod tojson;
 
 quick_error! {
     #[derive(Debug)]
