@@ -2,6 +2,7 @@
   :dependencies [[org.clojure/clojure "1.7.0"]
                  [org.clojure/clojurescript "1.7.122"]
                  [org.clojure/core.async "0.1.346.0-17112a-alpha"]
+                 [cljs-ajax "0.3.11"]
                  [rum "0.5.0"]]
 
   :plugins [[lein-cljsbuild "1.1.0"]
@@ -31,7 +32,7 @@
 
   :figwheel {
              :http-server-root "public" ;; default and assumes "resources"
-             :server-port 8000 ;; default
+             :server-port 8378 ;; default
              ;; :server-ip "127.0.0.1"
 
              :css-dirs ["public/css"] ;; watch and update CSS
