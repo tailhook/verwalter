@@ -15,14 +15,19 @@ commands:
     container: ubuntu
     run: [cargo]
 
-  run: !Command
+  run: !Supervise
     description: Run verwalter
-    container: ubuntu
-    environ:
-      RUST_LOG: debug
-    run:
-    - ./target/debug/verwalter
-    - --config-dir=tmp/cfg
+    children:
+      figwheel: !Command
+        container: clj
+        run: [lein, figwheel]
+      verw: !Command
+        container: ubuntu
+        environ:
+          RUST_LOG: debug
+        run:
+        - ./target/debug/verwalter
+        - --config-dir=tmp/cfg
 
   docs: !Command
     description: Build docs
