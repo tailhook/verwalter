@@ -97,10 +97,14 @@ fn serve_api(context: &Context, route: &ApiRoute, format: Format,
 impl Handler<Context> for Public {
     fn request(req: Request, res: &mut ResponseBuilder, ctx: &mut Context) {
         use self::Route::*;
-        let path = match req.uri {
+        let uri = match req.uri {
             AbsolutePath(ref x) => &x[..],
             // TODO(tailhook) fix AbsoluteUri
             _ => return,  // Do nothing: not found or bad request
+        };
+        let path = match uri.find('?') {
+            Some(x) => &uri[..x],
+            None => uri,
         };
         let route = match path_component(&path[..]) {
             ("", _) => Index,
