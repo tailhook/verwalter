@@ -4,6 +4,7 @@ use std::process::ExitStatus;
 use std::collections::HashMap;
 
 use tempfile::NamedTempFile;
+use rustc_serialize::json::{Json, ToJson};
 
 use render::Error as RenderError;
 
@@ -46,6 +47,16 @@ quick_error!{
             from() cause(err)
             display("error opening log file: {}", err)
             description("error logging command info")
+        }
+    }
+}
+
+impl ToJson for Action {
+    fn to_json(&self) -> Json {
+        match *self {
+            Action::RootCommand(ref cmd) => {
+                Json::Array(vec!["RootCommand".to_json(), cmd.to_json()])
+            }
         }
     }
 }
