@@ -33,6 +33,7 @@ mod apply;
 mod scheduler;
 mod elect;
 mod net;
+mod frontend;
 
 use argparse::{ArgumentParser, Parse, Store, StoreTrue};
 
