@@ -11,9 +11,10 @@
 
 
 (def cfg (atom {}))
+(def state (atom {}))
 
 (rum/defc page []
-  (config/render @cfg))
+  (config/render @cfg (rum/cursor state [:config])))
 
 (let [comp (rum/mount (page) (.getElementById js/document "app"))]
     (add-watch cfg :page

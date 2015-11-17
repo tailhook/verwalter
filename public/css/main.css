@@ -1,0 +1,8 @@
+.accordion {
+}
+.accordion__button {
+    cursor: pointer;
+}
+.offset-left {
+    margin-left: 32px;
+}

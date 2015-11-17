@@ -7,7 +7,7 @@
     [:.p key ": " value])
 
 (defn role [[name, info]]
-    [:.section
+    [:.offset-left
         [:.h3 "Role " name]
         [:.h4 "Renderers"]
         (map key-value (get info "renderers"))
@@ -15,12 +15,20 @@
         (map key-value (get info "runtime"))
     ])
 
-(defn render [cfg]
-    [:.div
-        [:.h1 "VERSION " (get cfg "verwalter_version")]
-        [:.h2 "Machine Config"]
-        (map key-value (get cfg "machine"))
-        [:.h2 "Roles"]
-        (map role (get cfg "roles"))
-    ])
+(rum/defc render < rum/cursored rum/cursored-watch [cfg state]
+    (let [show_machine (rum/cursor state [:show_machine])]
+        [:.div
+            [:.h1 "VERSION " (get cfg "verwalter_version")]
+            (if @show_machine
+                [:.accordion
+                    {:on-click (fn [_] (do (reset! show_machine false)))}
+                    [:.h2 "Machine Config"]
+                    [:.offset-left
+                        (map key-value (get cfg "machine"))]]
+                [:.accordion__button
+                    {:on-click (fn [_] (do (reset! show_machine true)))}
+                    "Machine config"])
+            [:.h2 "Roles"]
+            (map role (get cfg "roles"))
+        ]))
 
