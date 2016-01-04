@@ -11,6 +11,7 @@ extern crate lua;
 extern crate scan_dir;
 extern crate yaml_rust;
 extern crate rotor;
+extern crate rotor_stream;
 extern crate rotor_http;
 extern crate mio;
 extern crate hyper;

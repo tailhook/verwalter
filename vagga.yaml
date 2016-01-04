@@ -2,17 +2,17 @@ commands:
 
   make: !Command
     description: Build library and binaries
-    container: ubuntu
+    container: rust
     run: [cargo, build]
 
   test: !Command
     description: Run tests
-    container: ubuntu
+    container: rust
     run: [cargo, test]
 
   cargo: !Command
     description: Run any cargo command
-    container: ubuntu
+    container: rust
     run: [cargo]
 
   run: !Supervise
@@ -22,7 +22,7 @@ commands:
         container: clj
         run: [lein, figwheel]
       verw: !Command
-        container: ubuntu
+        container: rust
         environ:
           RUST_LOG: debug
         run:
@@ -41,7 +41,7 @@ commands:
 
 containers:
 
-  ubuntu:
+  rust:
     setup:
     - !Ubuntu trusty
     - !UbuntuUniverse ~
@@ -50,8 +50,11 @@ containers:
     - !Install [libreadline-dev] # for lua
 
     - !TarInstall
-      url: "http://static.rust-lang.org/dist/rust-1.4.0-x86_64-unknown-linux-gnu.tar.gz"
-      script: "./install.sh --prefix=/usr --components=rustc,cargo"
+      url: "http://static.rust-lang.org/dist/rust-1.5.0-x86_64-unknown-linux-gnu.tar.gz"
+      script: "./install.sh --prefix=/usr \
+               --components=rustc,rust-std-x86_64-unknown-linux-gnu,cargo"
+    - !Sh |
+        cargo install --root=/usr cargo-outdated
 
     environ:
       HOME: /work/target
