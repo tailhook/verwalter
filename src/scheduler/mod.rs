@@ -91,7 +91,8 @@ impl Scheduler {
                     self.lua.to_str(-1).unwrap_or("undefined").to_string()))
             }
         }
-        match self.lua.to_type::<String>() {
+        let top = self.lua.get_top();
+        match self.lua.to_type::<String>(top) {
             Some(ref x) => Json::from_str(x).map_err(|_| Error::Conversion),
             None => Err(Error::Conversion),
         }

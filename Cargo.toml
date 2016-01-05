@@ -14,9 +14,9 @@ authors = ["Paul Colomiets <paul@colomiets.name>"]
 rotor = "0.4.0"
 rotor-stream = "0.3.0"
 rotor-http = "0.4.0"
-lua = { rev="71a77687", git = "https://github.com/jcmoyer/rust-lua53" }
+lua = { rev="e76065b", git = "https://github.com/jcmoyer/rust-lua53" }
 quick-error = "0.2.1"
-liquid = "0.1.1"
+liquid = "0.2"
 argparse = "0.2"
 handlebars = "0.12"
 log = "0.3.2"

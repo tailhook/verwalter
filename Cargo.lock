@@ -5,11 +5,11 @@ dependencies = [
  "argparse 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "handlebars 0.12.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "hyper 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hyper 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "liquid 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "liquid 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "lua 0.0.8 (git+https://github.com/jcmoyer/rust-lua53?rev=71a77687)",
+ "lua 0.0.8 (git+https://github.com/jcmoyer/rust-lua53?rev=e76065b)",
  "matches 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "mio 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "quick-error 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -127,16 +127,16 @@ dependencies = [
 
 [[package]]
 name = "httparse"
-version = "1.1.0"
+version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "hyper"
-version = "0.7.1"
+version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "cookie 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "httparse 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "httparse 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "language-tags 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "mime 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -190,7 +190,7 @@ dependencies = [
 
 [[package]]
 name = "liquid"
-version = "0.1.2"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "regex 0.1.44 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -207,9 +207,10 @@ dependencies = [
 [[package]]
 name = "lua"
 version = "0.0.8"
-source = "git+https://github.com/jcmoyer/rust-lua53?rev=71a77687#71a776872cd1edb7153944170766f8f7a48041c4"
+source = "git+https://github.com/jcmoyer/rust-lua53?rev=e76065b#e76065b85c8846192540cebc07bd6bfcfc702bf6"
 dependencies = [
  "bitflags 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "gcc 0.3.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -414,8 +415,8 @@ name = "rotor-http"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "httparse 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "hyper 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "httparse 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hyper 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "matches 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "mio 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
