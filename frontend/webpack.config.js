@@ -28,6 +28,8 @@ module.exports = {
             "transform-strict-mode",
             "transform-object-rest-spread",
             "transform-es2015-block-scoping",
+            "transform-es2015-parameters",
+            "transform-es2015-destructuring",
         ],
     },
     resolve: {
@@ -43,7 +45,7 @@ module.exports = {
     devServer: {
         contentBase: '../public',
         proxy: {
-            '/*.json': {
+            '/v1/*': {
                 target: 'http://localhost:8379',
                 secure: false,
             },

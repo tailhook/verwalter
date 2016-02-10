@@ -1,2 +1,62 @@
+import {refresher, json} from './middleware/request'
+import {entries, repr, pretty, is_string} from './util/object'
+import {bool, enable, disable, init} from './stores/simple'
+import config from './stores/config'
+
+view configuration():
+  <section>
+    store @cfg = config | refresher | json('/v1/config')
+    <h1> "Config"
+    if not @cfg:
+      "Loading ..."
+    else:
+      <h2> "Machine"
+      <table.table>
+        <tbody>
+          for [k, v] of entries(@cfg.machine) key k:
+            <tr>
+              <td> `${ k }`
+              if is_string(v):
+                <td> `${ v }`
+              else:
+                <td> `${ repr(v) }`
+      <h2> "Roles"
+      for [name, role] of entries(@cfg.roles) key name:
+        <div>
+          store @show = bool | init(false)
+          <h3>
+            name
+            if @show:
+              <button>
+                link {click} disable() -> @show
+                "close"
+            else:
+              <button>
+                link {click} enable() -> @show
+                "open"
+          if @show:
+            <h4> "Runtime"
+            <table.table>
+              <tbody>
+                for [k, v] of entries(role.runtime) key k:
+                  <tr>
+                    <td>
+                      k
+                    <td>
+                      <pre>
+                        pretty(v)
+            <h4> "Renderers"
+            <table.table>
+              <tbody>
+                for [k, v] of entries(role.renderers) key k:
+                  <tr>
+                    <td>
+                      k
+                    <td>
+                      <pre>
+                        pretty(v)
+
+
 view main():
   <h1> "Verwalter"
+  configuration()
