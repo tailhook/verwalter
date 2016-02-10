@@ -1,8 +1,8 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap};
 
 use rustc_serialize::json::{Json, ToJson};
 
-use config::{Config, Role, MetadataErrors, Version};
+use config::{Config, Role, MetadataErrors};
 use render::{RenderSet, Renderer};
 
 trait JsonObject {

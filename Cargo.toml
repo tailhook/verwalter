@@ -12,8 +12,7 @@ authors = ["Paul Colomiets <paul@colomiets.name>"]
 
 [dependencies]
 rotor = "0.5.0"
-rotor-stream = "0.3.0"
-rotor-http = "0.4.0"
+rotor-http = { rev="62531b8", git = "https://github.com/tailhook/rotor-http" }
 lua = { rev="e76065b", git = "https://github.com/jcmoyer/rust-lua53" }
 quick-error = "0.2.1"
 liquid = "0.2"
@@ -32,3 +31,6 @@ libc = "0.2"
 matches = "0.1.2"
 hyper = "0.7"
 mio = "0.5"
+
+[[bin]]
+name = "verwalter"

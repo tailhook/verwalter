@@ -4,8 +4,9 @@ commands:
     description: Build library and binaries
     container: build
     run: |
+      set -ex
       cargo build
-      webpack
+      cd frontend; webpack
 
   test: !Command
     description: Run tests

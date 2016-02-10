@@ -11,32 +11,29 @@ extern crate lua;
 extern crate scan_dir;
 extern crate yaml_rust;
 extern crate rotor;
-extern crate rotor_stream;
-extern crate rotor_http;
-extern crate mio;
 extern crate hyper;
-#[macro_use] extern crate matches;
+extern crate rotor_http;
 #[macro_use] extern crate log;
+#[macro_use] extern crate matches;
 #[macro_use] extern crate quick_error;
 
 use rand::Rng;
-use std::process::exit;
-use std::path::PathBuf;
-use std::net::SocketAddr;
+use std::net::ToSocketAddrs;
 use std::sync::{Arc, RwLock};
+use std::path::PathBuf;
+use std::process::exit;
 
 mod path_util;
-mod routing_util;
 mod fs_util;
 mod config;
 mod render;
 mod apply;
 mod scheduler;
 mod elect;
-mod net;
 mod frontend;
+mod net;
 
-use argparse::{ArgumentParser, Parse, Store, StoreTrue};
+use argparse::{ArgumentParser, Parse, StoreTrue};
 
 pub struct Options {
     config_dir: PathBuf,
@@ -44,7 +41,8 @@ pub struct Options {
     dry_run: bool,
     print_configs: bool,
     hostname: String,
-    listen_web: SocketAddr,
+    listen_host: String,
+    listen_port: u16,
 }
 
 
@@ -56,7 +54,8 @@ fn main() {
         dry_run: false,
         print_configs: false,
         hostname: "localhost".to_string(),
-        listen_web: "127.0.0.1:8379".parse().unwrap(),
+        listen_host: "127.0.0.1".to_string(),
+        listen_port: 8379,
     };
     {
         let mut ap = ArgumentParser::new();
@@ -82,32 +81,14 @@ fn main() {
                 because every temporary file will be removed at the end of
                 run. Note configurations are printed to stdout not to the
                 log.");
-        ap.refer(&mut options.listen_web)
-            .add_option(&["--listen-web"], Store,
-                "Hostname and port of web frontend");
+        ap.refer(&mut options.listen_host)
+            .add_option(&["--host"], Parse, "
+                Bind to host (ip), for web and cluster messaging");
+        ap.refer(&mut options.listen_port)
+            .add_option(&["--port"], Parse, "
+                Bind to port, for web and cluster messaging");
         ap.parse_args_or_exit();
     }
-    let mut cfg_cache = config::Cache::new();
-    let config = match config::read_configs(&options, &mut cfg_cache) {
-        Ok(cfg) => cfg,
-        Err(e) => {
-            error!("Fatal error while reading initial config: {}", e);
-            exit(3);
-        }
-    };
-
-    let cfg = Arc::new(RwLock::new(config));
-
-    match net::main(&options.listen_web, cfg.clone()) {
-        Ok(()) => {}
-        Err(e) => {
-            error!("Error running main loop: {:?}", e);
-            exit(1);
-        }
-    }
-}
-
-fn render_configs(options: Options) {
     let mut cfg_cache = config::Cache::new();
     let config = match config::read_configs(&options, &mut cfg_cache) {
         Ok(cfg) => cfg,
@@ -128,6 +109,16 @@ fn render_configs(options: Options) {
             exit(4);
         }
     };
+    let addr = (&options.listen_host[..], options.listen_port)
+        .to_socket_addrs().expect("Can't resolve hostname")
+        .collect::<Vec<_>>()[0];
+    net::main(&addr, Arc::new(RwLock::new(config)))
+        .expect("Error running main loop");
+}
+
+fn execute_scheduler(scheduler: &mut scheduler::Scheduler,
+                     config: &config::Config, options: &Options)
+{
     debug!("Scheduler loaded");
     let scheduler_result = match scheduler.execute(&config) {
         Ok(j) => j,
@@ -138,7 +129,7 @@ fn render_configs(options: Options) {
     };
     debug!("Got initial scheduling of {}", scheduler_result);
     let apply_task = match render::render_all(&config,
-        &scheduler_result, options.hostname, options.print_configs)
+        &scheduler_result, &options.hostname, options.print_configs)
     {
         Ok(res) => res,
         Err(e) => {
@@ -163,7 +154,7 @@ fn render_configs(options: Options) {
     }
 
     let id = rand::thread_rng().gen_ascii_chars().take(24).collect();
-    let mut index = apply::log::Index::new(options.log_dir, options.dry_run);
+    let mut index = apply::log::Index::new(&options.log_dir, options.dry_run);
     let mut dlog = index.deployment(id);
     dlog.object("config", &config);
     dlog.json("scheduler_result", &scheduler_result);

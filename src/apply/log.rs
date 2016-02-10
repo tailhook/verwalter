@@ -99,9 +99,9 @@ enum Marker<'a> {
 }
 
 impl Index {
-    pub fn new(log_dir: PathBuf, stdout: bool) -> Index {
+    pub fn new(log_dir: &Path, stdout: bool) -> Index {
         Index {
-            log_dir: log_dir,
+            log_dir: log_dir.to_path_buf(),
             stdout: stdout,
         }
     }

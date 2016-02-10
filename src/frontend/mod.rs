@@ -4,19 +4,16 @@ use std::path::Path;
 use std::path::Component::ParentDir;
 use std::fs::File;
 
-use time::Duration;
-use hyper::header::{ContentLength, ContentType};
+use time::{Duration};
+use rotor_http::Deadline;
+use rotor_http::header::{ContentLength, ContentType};
 use rotor::Scope;
-use rotor_stream::Deadline;
 use rotor_http::server::{Server, Response, RecvMode, Head};
 use rotor_http::server::{Context as HttpContext};
-use hyper::uri::RequestUri::{AbsolutePath};
-use hyper::status::StatusCode;
+use rotor_http::status::StatusCode;
 use hyper::mime::{Mime, TopLevel, SubLevel};
 use rustc_serialize::json::{ToJson, as_pretty_json};
 
-use routing_util::path_component;
-use config::Config;
 use net::Context;
 
 #[derive(Clone, Debug)]
@@ -38,6 +35,30 @@ pub enum Route {
 }
 
 pub struct Public(Route);
+
+fn path_component(path: &str) -> (&str, &str) {
+    let path = if path.starts_with('/') {
+        &path[1..]
+    } else {
+        path
+    };
+    match path.bytes().position(|x| x == b'/') {
+        Some(end) => (&path[..end], &path[end+1..]),
+        None => {
+            let end = path.bytes().position(|x| x == b'.')
+                .unwrap_or(path.as_bytes().len());
+            (&path[..end], "")
+        }
+    }
+}
+
+fn suffix(path: &str) -> &str {
+    match path.bytes().rposition(|x| x == b'.' || x == b'/') {
+        Some(i) if path.as_bytes()[i] == b'.' => &path[i+1..],
+        Some(_) => "",
+        None => "",
+    }
+}
 
 fn read_file<P:AsRef<Path>>(path: P, res: &mut Response)
     -> Result<(), io::Error>
@@ -65,9 +86,9 @@ fn parse_api(path: &str) -> Option<Route> {
     use self::Route::*;
     use self::ApiRoute::*;
     use self::Format::*;
-    match path_component(&path[..]) {
-        ("config", "") => Some(Api(Config, Json)),
-        ("config.pretty", "") => Some(Api(Config, Plain)),
+    match path_component(path) {
+        ("config", "") => Some(Api(Config,
+            if suffix(path) == "pretty" { Plain } else { Json })),
         _ => None,
     }
 }
@@ -100,19 +121,20 @@ impl HttpContext for Context {
     // Defaults for now
 }
 
-impl Server<Context> for Public {
-    fn headers_received(head: &Head, _scope: &mut Scope<Context>)
+impl Server for Public {
+    type Context = Context;
+    fn headers_received(head: Head, _res: &mut Response,
+        _scope: &mut Scope<Context>)
         -> Result<(Self, RecvMode, Deadline), StatusCode>
     {
         use self::Route::*;
-        let uri = match head.uri {
-            AbsolutePath(ref x) => &x[..],
-            // TODO(tailhook) fix AbsoluteUri
-            _ => return Err(StatusCode::NotFound),
-        };
-        let path = match uri.find('?') {
-            Some(x) => &uri[..x],
-            None => uri,
+        if !head.path.starts_with('/') {
+            // Don't know what to do with that ugly urls
+            return Err(StatusCode::BadRequest);
+        }
+        let path = match head.path.find('?') {
+            Some(x) => &head.path[..x],
+            None => head.path,
         };
         let route = match path_component(&path[..]) {
             ("", _) => Some(Index),
@@ -125,12 +147,6 @@ impl Server<Context> for Public {
         .map(|route| (Public(route), RecvMode::Buffered(1024),
             Deadline::now() + Duration::seconds(120)))
         .ok_or(StatusCode::NotFound)
-    }
-    fn request_start(self, _head: Head, _res: &mut Response,
-        _scope: &mut Scope<Context>)
-        -> Option<Self>
-    {
-        Some(self)
     }
     fn request_received(self, _data: &[u8], res: &mut Response,
         scope: &mut Scope<Context>)

@@ -153,7 +153,7 @@ fn render_role(meta: &BTreeMap<String, Json>, node: &BTreeMap<String, Json>,
 }
 
 pub fn render_all<'x>(cfg: &'x Config, data: &Json,
-    hostname: String, print: bool)
+    hostname: &str, print: bool)
     -> Result<ApplyTask, SchedulerDataError>
 {
     let meta = data.as_object()
@@ -163,7 +163,7 @@ pub fn render_all<'x>(cfg: &'x Config, data: &Json,
     let node = data.as_object()
         .and_then(|x| x.get("nodes"))
         .and_then(|y| y.as_object())
-        .and_then(|x| x.get(&hostname))
+        .and_then(|x| x.get(hostname))
         .and_then(|y| y.as_object());
     let node = try!(node.ok_or(SchedulerDataError::MissingHost));
     Ok(cfg.roles.iter().map(|(role_name, role)| {
