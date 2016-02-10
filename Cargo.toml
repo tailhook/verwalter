@@ -11,7 +11,7 @@ documentation = "http://verwalter.readthedocs.org"
 authors = ["Paul Colomiets <paul@colomiets.name>"]
 
 [dependencies]
-rotor = "0.4.0"
+rotor = "0.5.0"
 rotor-stream = "0.3.0"
 rotor-http = "0.4.0"
 lua = { rev="e76065b", git = "https://github.com/jcmoyer/rust-lua53" }

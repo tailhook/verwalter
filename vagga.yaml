@@ -2,29 +2,48 @@ commands:
 
   make: !Command
     description: Build library and binaries
-    container: rust
-    run: [cargo, build]
+    container: build
+    run: |
+      cargo build
+      webpack
 
   test: !Command
     description: Run tests
-    container: rust
+    container: build
     run: [cargo, test]
 
   cargo: !Command
     description: Run any cargo command
-    container: rust
+    container: build
     run: [cargo]
 
-  run: !Supervise
-    description: Run verwalter
+  run: !Command
+    description: "Run verwalter (prerequisites: make)"
+    container: build
+    environ:
+      RUST_LOG: debug
+    run:
+    - ./target/debug/verwalter
+    - --config-dir=tmp/cfg
+
+  live: !Supervise
+    description: "Run verwalter with live reload of web (prerequisites: make)"
     children:
       verw: !Command
-        container: rust
+        container: build
         environ:
           RUST_LOG: debug
         run:
         - ./target/debug/verwalter
         - --config-dir=tmp/cfg
+      webpack: !Command
+        container: build
+        work-dir: frontend
+        run:
+        - webpack-dev-server
+        - --hot
+        - --progress
+        - --colors
 
   docs: !Command
     description: Build docs
@@ -32,9 +51,19 @@ commands:
     work-dir: doc
     run: [make, html]
 
+  webpack: !Command
+    description: "Run webpack (compile javascripts)"
+    container: build
+    work-dir: frontend
+    run:
+    - webpack-dev-server
+    - --hot
+    - --progress
+    - --colors
+
 containers:
 
-  rust:
+  build:
     setup:
     - !Ubuntu trusty
     - !UbuntuUniverse ~
@@ -42,8 +71,12 @@ containers:
                 libssl-dev, build-essential]
     - !Install [libreadline-dev] # for lua
 
+    - !NpmDependencies
+      file: "frontend/package.json"
+      optional: true
+
     - !TarInstall
-      url: "http://static.rust-lang.org/dist/rust-1.5.0-x86_64-unknown-linux-gnu.tar.gz"
+      url: "http://static.rust-lang.org/dist/rust-1.6.0-x86_64-unknown-linux-gnu.tar.gz"
       script: "./install.sh --prefix=/usr \
                --components=rustc,rust-std-x86_64-unknown-linux-gnu,cargo"
     - !Sh |
@@ -51,6 +84,7 @@ containers:
 
     environ:
       HOME: /work/target
+      NODE_PATH: /usr/local/lib/node_modules:/usr/lib/node_modules
 
   docs:
     setup:

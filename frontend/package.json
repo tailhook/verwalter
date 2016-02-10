@@ -1,0 +1,48 @@
+{
+  "name": "verwalter-web-frontend",
+  "description": "The web view for verwalter",
+  "keywords": ["verwalter", "containers", "orchestration"],
+  "main": "index.js",
+  "dependencies": {
+    "khufu-runtime": "0.4.2",
+    "redux": "3.1.2",
+    "incremental-dom": "0.3.0",
+    "redux-logger": "2.4.0",
+    "babel-es6-polyfill": "1.0.1"
+  },
+  "devDependencies": {
+    "webpack": "2.0.7-beta",
+    "babel-loader": "6.2",
+    "babel-plugin-transform-object-rest-spread": "6.3.13",
+    "babel-plugin-transform-strict-mode": "6.3.13",
+    "babel-plugin-transform-es2015-block-scoping": "6.3.13",
+    "khufu": "0.4.2"
+  },
+  "optionalDependencies": {
+    "webpack-dev-server": "// For hot reload, with dependencies",
+    "webpack-dev-server": "1.14",
+    "sockjs-client": "*",
+    "strip-ansi": "*",
+    "debug": "*",
+    "inherits": "*",
+    "json3": "*",
+    "url-parse": "*",
+    "ansi-regex": "*",
+    "requires-port": "*",
+    "querystringify": "*",
+    "ms": "*",
+    "babel-polyfill": "// Temporary dependencies",
+    "babel-core": "6.3.26",
+    "babel-cli": "6.3.17",
+    "babel-register": "6.3.13",
+    "babel-types": "6.4.1",
+    "babel-polyfill": "6.3.14",
+    "jison": "0.4.15",
+    "postcss": "5.0.14"
+  },
+  "scripts": {
+    "webpack": "webpack"
+  },
+  "author": "Paul Colomiets <paul@colomiets.name>",
+  "license": "MIT"
+}
