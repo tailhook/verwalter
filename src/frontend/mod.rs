@@ -3,15 +3,11 @@ use std::io::Read;
 use std::path::Path;
 use std::path::Component::ParentDir;
 use std::fs::File;
+use std::time::{Duration};
 
-use time::{Duration};
-use rotor_http::Deadline;
-use rotor_http::header::{ContentLength, ContentType};
-use rotor::Scope;
+use rotor::{Scope, Time};
 use rotor_http::server::{Server, Response, RecvMode, Head};
 use rotor_http::server::{Context as HttpContext};
-use rotor_http::status::StatusCode;
-use hyper::mime::{Mime, TopLevel, SubLevel};
 use rustc_serialize::json::{ToJson, as_pretty_json};
 
 use net::Context;
@@ -73,8 +69,8 @@ fn read_file<P:AsRef<Path>>(path: P, res: &mut Response)
     let mut file = try!(File::open(path));
     let mut buf = Vec::with_capacity(1024);
     try!(file.read_to_end(&mut buf));
-    res.status(StatusCode::Ok);
-    res.add_header(ContentLength(buf.len() as u64)).unwrap();
+    res.status(200, "OK");
+    res.add_length(buf.len() as u64).unwrap();
     // TODO(tailhook) guess mime type
     res.done_headers().unwrap();
     res.write_body(&buf);
@@ -103,14 +99,13 @@ fn serve_api(context: &Context, route: &ApiRoute, format: Format,
         Config => context.config.read().unwrap().to_json(),
     };
 
-    res.status(StatusCode::Ok);
-    res.add_header(ContentType(
-            Mime(TopLevel::Application, SubLevel::Json, vec![]))).unwrap();
+    res.status(200, "OK");
+    res.add_header("Content-Type", b"application/json").unwrap();
     let data = match format {
         Json => format!("{}", data),
         Plain => format!("{}", as_pretty_json(&data)),
     };
-    res.add_header(ContentLength(data.as_bytes().len() as u64)).unwrap();
+    res.add_length(data.as_bytes().len() as u64).unwrap();
     res.done_headers().unwrap();
     res.write_body(data.as_bytes());
     res.done();
@@ -121,16 +116,39 @@ impl HttpContext for Context {
     // Defaults for now
 }
 
+
+fn serve_error_page(code: u32, response: &mut Response) {
+    let (status, reason) = match code {
+        400 => (400, "Bad Request"),
+        404 => (404, "Not Found"),
+        413 => (413, "Payload Too Large"),
+        408 => (408, "Request Timeout"),
+        431 => (431, "Request Header Fields Too Large"),
+        500 => (500, "InternalServerError"),
+        _ => unreachable!(),
+    };
+    response.status(status, reason);
+    let data = format!("<h1>{} {}</h1>\n\
+        <p><small>Served for you by rotor-http</small></p>\n",
+        status, reason);
+    let bytes = data.as_bytes();
+    response.add_length(bytes.len() as u64).unwrap();
+    response.add_header("Content-Type", b"text/html").unwrap();
+    response.done_headers().unwrap();
+    response.write_body(bytes);
+    response.done();
+}
+
 impl Server for Public {
     type Context = Context;
-    fn headers_received(head: Head, _res: &mut Response,
-        _scope: &mut Scope<Context>)
-        -> Result<(Self, RecvMode, Deadline), StatusCode>
+    fn headers_received(head: Head, res: &mut Response,
+        scope: &mut Scope<Context>)
+        -> Option<(Self, RecvMode, Time)>
     {
         use self::Route::*;
         if !head.path.starts_with('/') {
             // Don't know what to do with that ugly urls
-            return Err(StatusCode::BadRequest);
+            return None;
         }
         let path = match head.path.find('?') {
             Some(x) => &head.path[..x],
@@ -143,10 +161,16 @@ impl Server for Public {
             (_, _) => None,
         };
         debug!("Routed {:?} to {:?}", head, route);
-        route
-        .map(|route| (Public(route), RecvMode::Buffered(1024),
-            Deadline::now() + Duration::seconds(120)))
-        .ok_or(StatusCode::NotFound)
+        match route {
+            Some(route) => {
+                Some((Public(route), RecvMode::Buffered(1024),
+                    scope.now() + Duration::new(120, 0)))
+            }
+            None => {
+                serve_error_page(500, res);
+                None
+            }
+        }
     }
     fn request_received(self, _data: &[u8], res: &mut Response,
         scope: &mut Scope<Context>)
@@ -161,14 +185,14 @@ impl Server for Public {
         match iores {
             Ok(()) => {}
             Err(ref e) if e.kind() == io::ErrorKind::NotFound => {
-                scope.emit_error_page(StatusCode::NotFound, res);
+                serve_error_page(404, res);
             }
             Err(ref e) if e.kind() == io::ErrorKind::PermissionDenied => {
-                scope.emit_error_page(StatusCode::Forbidden, res);
+                serve_error_page(403, res);
             }
             Err(e) => {
                 info!("Error serving {:?}: {}", self.0, e);
-                scope.emit_error_page(StatusCode::InternalServerError, res);
+                serve_error_page(500, res);
             }
         }
         None
@@ -188,7 +212,7 @@ impl Server for Public {
     }
 
     fn timeout(self, _response: &mut Response, _scope: &mut Scope<Context>)
-        -> Option<(Self, Deadline)>
+        -> Option<(Self, Time)>
     {
         unimplemented!();
     }
