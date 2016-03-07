@@ -8,13 +8,15 @@ use std::time::{Duration};
 use rotor::{Scope, Time};
 use rotor_http::server::{Server, Response, RecvMode, Head};
 use rotor_http::server::{Context as HttpContext};
-use rustc_serialize::json::{ToJson, as_pretty_json};
+use rustc_serialize::Encodable;
+use rustc_serialize::json::{ToJson, as_json, as_pretty_json};
 
 use net::Context;
 
 #[derive(Clone, Debug)]
 pub enum ApiRoute {
     Config,
+    Peers,
 }
 
 #[derive(Clone, Debug, Copy)]
@@ -85,31 +87,43 @@ fn parse_api(path: &str) -> Option<Route> {
     match path_component(path) {
         ("config", "") => Some(Api(Config,
             if suffix(path) == "pretty" { Plain } else { Json })),
+        ("peers", "") => Some(Api(Peers,
+            if suffix(path) == "pretty" { Plain } else { Json })),
         _ => None,
     }
 }
 
-fn serve_api(context: &Context, route: &ApiRoute, format: Format,
-    res: &mut Response)
+fn respond<T: Encodable>(res: &mut Response, format: Format, data: T)
     -> Result<(), io::Error>
 {
-    use self::ApiRoute::*;
-    use self::Format::*;
-    let data = match *route {
-        Config => context.config.read().unwrap().to_json(),
-    };
-
     res.status(200, "OK");
     res.add_header("Content-Type", b"application/json").unwrap();
     let data = match format {
-        Json => format!("{}", data),
-        Plain => format!("{}", as_pretty_json(&data)),
+        Format::Json => format!("{}", as_json(&data)),
+        Format::Plain => format!("{}", as_pretty_json(&data)),
     };
     res.add_length(data.as_bytes().len() as u64).unwrap();
     res.done_headers().unwrap();
     res.write_body(data.as_bytes());
     res.done();
     Ok(())
+}
+
+fn serve_api(context: &Context, route: &ApiRoute, format: Format,
+    res: &mut Response)
+    -> Result<(), io::Error>
+{
+    match *route {
+        ApiRoute::Config => {
+            respond(res, format, &context.config.read()
+                .expect("live configuration")
+                .to_json())
+        }
+        ApiRoute::Peers => {
+            respond(res, format, &context.schedule.get_peers().as_ref()
+                .map(|x| &x.peers))
+        }
+    }
 }
 
 impl HttpContext for Context {
