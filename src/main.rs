@@ -8,6 +8,7 @@ extern crate time;
 extern crate rand;
 extern crate libc;
 extern crate lua;
+extern crate nix;
 extern crate scan_dir;
 extern crate yaml_rust;
 #[macro_use] extern crate rotor;
@@ -33,17 +34,19 @@ mod scheduler;
 mod elect;
 mod frontend;
 mod net;
+mod info;
 
-use argparse::{ArgumentParser, Parse, StoreTrue};
+use argparse::{ArgumentParser, Parse, ParseOption, StoreOption, StoreTrue};
 
 pub struct Options {
     config_dir: PathBuf,
     log_dir: PathBuf,
     dry_run: bool,
     print_configs: bool,
-    hostname: String,
+    hostname: Option<String>,
     listen_host: String,
     listen_port: u16,
+    machine_id: Option<elect::Id>,
 }
 
 
@@ -54,9 +57,10 @@ fn main() {
         log_dir: PathBuf::from("/var/log/verwalter"),
         dry_run: false,
         print_configs: false,
-        hostname: "localhost".to_string(),
+        hostname: None,
         listen_host: "127.0.0.1".to_string(),
         listen_port: 8379,
+        machine_id: None,
     };
     {
         let mut ap = ArgumentParser::new();
@@ -64,8 +68,14 @@ fn main() {
             .add_option(&["-D", "--config-dir"], Parse,
                 "Directory of configuration files");
         ap.refer(&mut options.hostname)
-            .add_option(&["--hostname"], Parse,
+            .add_option(&["--hostname"], ParseOption,
                 "Hostname of current server");
+        ap.refer(&mut options.machine_id)
+            .add_option(&["--override-machine-id"], StoreOption,
+                "Overrides machine id. Do not use in production, put the
+                 file `/etc/machine-id` instead. This should only be used
+                 for tests which run multiple nodes in single filesystem
+                 image");
         ap.refer(&mut options.dry_run)
             .add_option(&["-n", "--dry-run"], StoreTrue, "
                 Just try to render configs, and don't run anything real.
@@ -110,10 +120,12 @@ fn main() {
             exit(4);
         }
     };
+    let id = options.machine_id.unwrap_or_else(info::machine_id);
+    info!("Started with machine id {}", id);
     let addr = (&options.listen_host[..], options.listen_port)
         .to_socket_addrs().expect("Can't resolve hostname")
         .collect::<Vec<_>>()[0];
-    net::main(&addr, Arc::new(RwLock::new(config)))
+    net::main(&addr, id, Arc::new(RwLock::new(config)))
         .expect("Error running main loop");
 }
 
@@ -130,7 +142,8 @@ fn execute_scheduler(scheduler: &mut scheduler::Scheduler,
     };
     debug!("Got initial scheduling of {}", scheduler_result);
     let apply_task = match render::render_all(&config,
-        &scheduler_result, &options.hostname, options.print_configs)
+        &scheduler_result, &options.hostname.as_ref().unwrap(),
+                            options.print_configs)
     {
         Ok(res) => res,
         Err(e) => {

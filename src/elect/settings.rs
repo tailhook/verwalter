@@ -1,4 +1,5 @@
-use time::Duration;
+use std::time::Duration;
+
 use rand::{thread_rng, Rng};
 
 /// The number of seconds just started worker waits it to be reached by
@@ -11,13 +12,13 @@ use rand::{thread_rng, Rng};
 ///
 /// The random MESSAGE_TIMEOUT (constained by constants below) is added to
 /// this timeout.
-pub const START_TIMEOUT: i64 = 5000;
+pub const START_TIMEOUT: u64 = 5000;
 
 /// On each leader's ping we start election timer of a random value in this
 /// range. If there is no heartbeat from leader during this timeout, we start
 /// election. Note that mio currently has only 200 ms precision timers.
-pub const MIN_MESSAGE_TIMEOUT: i64 = 1200;
-pub const MAX_MESSAGE_TIMEOUT: i64 = 3000;
+pub const MIN_MESSAGE_TIMEOUT: u64 = 1200;
+pub const MAX_MESSAGE_TIMEOUT: u64 = 3000;
 
 /// Leader ping interval
 ///
@@ -26,14 +27,14 @@ pub const MAX_MESSAGE_TIMEOUT: i64 = 3000;
 /// system. There is no good reason to wait so long for original Raft. I.e.
 /// it wants to reestablish consistency as fast as possible. But it may be
 /// nicer to keep lower elections for us.
-pub const HEARTBEAT_INTERVAL: i64 = 600;
+pub const HEARTBEAT_INTERVAL: u64 = 600;
 
 
 pub fn start_timeout() -> Duration {
-    Duration::milliseconds(START_TIMEOUT) + election_ivl()
+    Duration::from_millis(START_TIMEOUT) + election_ivl()
 }
 
 pub fn election_ivl() -> Duration {
-    Duration::milliseconds(
+    Duration::from_millis(
         thread_rng().gen_range(MIN_MESSAGE_TIMEOUT, MAX_MESSAGE_TIMEOUT))
 }

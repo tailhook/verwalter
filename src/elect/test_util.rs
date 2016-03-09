@@ -34,12 +34,12 @@ impl Environ {
     }
     pub fn add_another_for(&self, info: &mut Info) -> Id {
         let n = NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-        let id = Id(format!("ext_node_{}", n));
+        let id: Id = format!("e0beef{:02x}", n).parse().unwrap();
         info.all_hosts.insert(id.clone(), PeerInfo {
-            addr: net::SocketAddr::V4(net::SocketAddrV4::new(
+            addr: Some(net::SocketAddr::V4(net::SocketAddrV4::new(
                 net::Ipv4Addr::new(127, 0, (n >> 8) as u8, (n & 0xFF) as u8),
-                12345)),
-            last_report: self.tspec,
+                12345))),
+            last_report: Some(self.tspec),
         });
         id
     }

@@ -11,11 +11,13 @@ use rotor_tools::loop_ext::LoopExt;
 
 use config::Config;
 use frontend::Public;
+use elect::{Election, Id};
 
 
 rotor_compose!(pub enum Fsm/Seed<Context> {
     Frontend(server::Fsm<Public, TcpListener>),
     Cantal(CantalFsm<Context>),
+    Election(Election),
 });
 
 
@@ -25,7 +27,7 @@ pub struct Context {
 }
 
 
-pub fn main(addr: &SocketAddr, cfg: Arc<RwLock<Config>>)
+pub fn main(addr: &SocketAddr, id: Id, cfg: Arc<RwLock<Config>>)
     -> Result<(), io::Error>
 {
     let mut creator = rotor::Loop::new(&rotor::Config::new())
@@ -36,11 +38,14 @@ pub fn main(addr: &SocketAddr, cfg: Arc<RwLock<Config>>)
     schedule.set_peers_interval(Duration::new(10, 0));
     let mut loop_inst = creator.instantiate(Context {
         config: cfg,
-        schedule: schedule,
+        schedule: schedule.clone(),
     });
     let listener = TcpListener::bind(&addr).expect("Can't bind address");
     loop_inst.add_machine_with(|scope| {
         server::Fsm::<Public, _>::new(listener, scope).wrap(Fsm::Frontend)
+    }).expect("Can't add a state machine");
+    loop_inst.add_machine_with(|scope| {
+        Election::new(id, schedule, scope).wrap(Fsm::Election)
     }).expect("Can't add a state machine");
     loop_inst.run()
 }

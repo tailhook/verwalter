@@ -1,9 +1,10 @@
 use std::collections::HashSet;
 use std::cmp::{Ord, Ordering};
 use std::cmp::Ordering::{Less as Older, Equal as Current, Greater as Newer};
+use std::time::Duration;
 
+use rotor::Time;
 use rand::{thread_rng, Rng};
-use time::{SteadyTime, Duration};
 
 use super::{Id, Message, Info, Capsule};
 use super::settings::{start_timeout, election_ivl, HEARTBEAT_INTERVAL};
@@ -15,16 +16,16 @@ type Epoch = u64;
 
 #[derive(Clone, Debug)]
 pub enum Machine {
-    Starting { leader_deadline: SteadyTime },
-    Electing { epoch: Epoch, votes_for_me: HashSet<Id>, deadline: SteadyTime },
-    Voted { epoch: Epoch, peer: Id, election_deadline: SteadyTime },
-    Leader { epoch: Epoch, next_ping_time: SteadyTime },
-    Follower { epoch: Epoch, leader_deadline: SteadyTime },
+    Starting { leader_deadline: Time },
+    Electing { epoch: Epoch, votes_for_me: HashSet<Id>, deadline: Time },
+    Voted { epoch: Epoch, peer: Id, election_deadline: Time },
+    Leader { epoch: Epoch, next_ping_time: Time },
+    Follower { epoch: Epoch, leader_deadline: Time },
 }
 
 
 impl Machine {
-    pub fn new(now: SteadyTime) -> Machine {
+    pub fn new(now: Time) -> Machine {
         Machine::Starting {
             leader_deadline: now + start_timeout(),
         }
@@ -42,7 +43,7 @@ impl Machine {
         };
         epoch.cmp(&my_epoch)
     }
-    pub fn current_deadline(&self) -> SteadyTime {
+    pub fn current_deadline(&self) -> Time {
         use self::Machine::*;
         match *self {
             Starting { leader_deadline } => leader_deadline,
@@ -53,7 +54,7 @@ impl Machine {
         }
     }
 
-    pub fn time_passed(self, info: &Info, now: SteadyTime)
+    pub fn time_passed(self, info: &Info, now: Time)
         -> (Machine, ActionList)
     {
         use self::Machine::*;
@@ -97,7 +98,7 @@ impl Machine {
             }
             me @ Leader { .. } => {
                 let next_ping = now +
-                    Duration::milliseconds(HEARTBEAT_INTERVAL);
+                    Duration::from_millis(HEARTBEAT_INTERVAL);
                 (me,
                  Action::PingAll.and_wait(next_ping))
             }
@@ -108,7 +109,7 @@ impl Machine {
         };
         return (machine, action)
     }
-    pub fn message(self, info: &Info, msg: Capsule, now: SteadyTime)
+    pub fn message(self, info: &Info, msg: Capsule, now: Time)
         -> (Machine, ActionList)
     {
         use self::Machine::*;
@@ -190,7 +191,7 @@ impl Machine {
     }
 }
 
-fn follow(epoch: Epoch, now: SteadyTime) -> (Machine, ActionList) {
+fn follow(epoch: Epoch, now: Time) -> (Machine, ActionList) {
     let dline = now + election_ivl();
     (Machine::Follower { epoch: epoch, leader_deadline: dline },
      Action::Pong.and_wait(dline))
@@ -210,18 +211,16 @@ fn minimum_votes(total_peers: usize) -> usize {
     }
 }
 
-fn become_leader(epoch: Epoch, now: SteadyTime) -> (Machine, ActionList) {
-    let next_ping = now +
-        Duration::milliseconds(HEARTBEAT_INTERVAL);
+fn become_leader(epoch: Epoch, now: Time) -> (Machine, ActionList) {
+    let next_ping = now + Duration::from_millis(HEARTBEAT_INTERVAL);
     (Machine::Leader { epoch: epoch, next_ping_time: next_ping },
      Action::PingAll.and_wait(next_ping))
 }
 
-fn start_election(epoch: Epoch, now: SteadyTime, first_vote: &Id)
+fn start_election(epoch: Epoch, now: Time, first_vote: &Id)
     -> (Machine, ActionList)
 {
-    let election_end = now +
-        Duration::milliseconds(HEARTBEAT_INTERVAL);
+    let election_end = now + Duration::from_millis(HEARTBEAT_INTERVAL);
     (Machine::Electing {
         epoch: epoch,
         votes_for_me: {

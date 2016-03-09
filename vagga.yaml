@@ -26,6 +26,7 @@ commands:
     run:
     - ./target/debug/verwalter
     - --config-dir=tmp/cfg
+    - --override-machine-id=dead0beef1
 
   live: !Supervise
     description: "Run verwalter with live reload of web (prerequisites: make)"
@@ -37,6 +38,7 @@ commands:
         run:
         - ./target/debug/verwalter
         - --config-dir=tmp/cfg
+        - --override-machine-id=dead0beef1
       webpack: !Command
         container: build
         work-dir: frontend
