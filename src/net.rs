@@ -4,7 +4,7 @@ use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
 use rotor;
-use rotor_http::ServerFsm;
+use rotor_http::server;
 use rotor::mio::tcp::{TcpListener};
 use rotor_cantal::{Schedule, connect_localhost, Fsm as CantalFsm};
 use rotor_tools::loop_ext::LoopExt;
@@ -14,7 +14,7 @@ use frontend::Public;
 
 
 rotor_compose!(pub enum Fsm/Seed<Context> {
-    Frontend(ServerFsm<Public, TcpListener>),
+    Frontend(server::Fsm<Public, TcpListener>),
     Cantal(CantalFsm<Context>),
 });
 
@@ -40,7 +40,7 @@ pub fn main(addr: &SocketAddr, cfg: Arc<RwLock<Config>>)
     });
     let listener = TcpListener::bind(&addr).expect("Can't bind address");
     loop_inst.add_machine_with(|scope| {
-        ServerFsm::<Public, _>::new(listener, scope).wrap(Fsm::Frontend)
+        server::Fsm::<Public, _>::new(listener, scope).wrap(Fsm::Frontend)
     }).expect("Can't add a state machine");
     loop_inst.run()
 }

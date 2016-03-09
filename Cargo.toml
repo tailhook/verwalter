@@ -12,7 +12,7 @@ authors = ["Paul Colomiets <paul@colomiets.name>"]
 
 [dependencies]
 rotor = "0.6.1"
-rotor-http = "0.6.0"
+rotor-http = { rev="e8f199b", git="git://github.com/tailhook/rotor-http" }
 rotor-tools = "0.3.1"
 rotor-cantal = { rev="f772b26", git="git://github.com/tailhook/rotor-cantal" }
 lua = { rev="e76065b", git = "https://github.com/jcmoyer/rust-lua53" }
