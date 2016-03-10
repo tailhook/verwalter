@@ -77,7 +77,7 @@ commands:
             --config-dir=/work/example-configs/cantal \
             --host=0.0.0.0 --override-machine-id=beef01 &
           RUST_LOG=debug ./target/debug/verwalter --config-dir=tmp/cfg \
-            --override-machine-id=beef01
+            --host=0.0.0.0 --override-machine-id=beef01
       n2: !Command
         container: build
         network: &n2
@@ -88,7 +88,7 @@ commands:
             --config-dir=/work/example-configs/cantal \
             --host=0.0.0.0 --override-machine-id=beef02 &
           RUST_LOG=debug ./target/debug/verwalter --config-dir=tmp/cfg \
-            --override-machine-id=beef02
+            --host=0.0.0.0 --override-machine-id=beef02
       n3: !Command
         container: build
         network: &n3
@@ -99,7 +99,7 @@ commands:
             --config-dir=/work/example-configs/cantal \
             --host=0.0.0.0 --override-machine-id=beef03 &
           RUST_LOG=debug ./target/debug/verwalter --config-dir=tmp/cfg \
-            --override-machine-id=beef03
+            --host=0.0.0.0 --override-machine-id=beef03
       connector: !BridgeCommand
         container: build
         run: |

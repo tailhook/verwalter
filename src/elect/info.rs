@@ -2,11 +2,13 @@ use std::io::Write;
 use std::str::FromStr;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 
 use cbor::{Encoder, EncodeResult};
+use rotor::Time;
 use rustc_serialize::hex::{FromHex, FromHexError};
 
-use super::{Info, Id};
+use super::{Info, Id, peers_refresh};
 
 
 impl Id {
@@ -30,6 +32,12 @@ impl Info {
         Info {
             id: id,
             all_hosts: HashMap::new(),
+            hosts_timestamp: None,
         }
+    }
+    pub fn hosts_are_fresh(&self, now: Time) -> bool {
+        self.hosts_timestamp
+            .map(|x| x + peers_refresh()*3/2 > now)
+            .unwrap_or(false)
     }
 }

@@ -1,11 +1,15 @@
 use std::net::SocketAddr;
 use std::sync::{Arc};
+use std::time::Duration;
 use std::collections::{HashSet, HashMap};
 use rustc_serialize::hex::ToHex;
 
+use rotor::Time;
 use rotor::mio::udp::UdpSocket;
 use rotor_cantal::Schedule;
 use time::Timespec;
+
+pub use self::settings::peers_refresh;
 
 mod machine;
 mod action;
@@ -51,6 +55,8 @@ struct PeerInfo {
 struct Info {
     /// Unique identificator of the node, should be read from /etc/machine-id
     id: Id,
+    /// This is used to find out whether hosts are actually valid
+    hosts_timestamp: Option<Time>,
     /// State machine of the leader election
     all_hosts: HashMap<Id, PeerInfo>,
 }

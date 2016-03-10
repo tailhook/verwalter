@@ -111,22 +111,30 @@ impl Machine for Election {
     fn wakeup(mut self, _scope: &mut Scope<Context>)
         -> Response<Self, Self::Seed>
     {
-        self.info.all_hosts = self.schedule.get_peers().map(|peers| {
+        let new_hosts = self.schedule.get_peers().map(|peers| {
+            if self.info.all_hosts.len() != peers.peers.len() {
+                info!("Peer number changed {} -> {}",
+                    self.info.all_hosts.len(), peers.peers.len());
+            }
+            self.info.hosts_timestamp = Some(peers.received);
             peers.peers.iter()
             .filter_map(|p| {
                 p.id.parse()
                 .map_err(|e| error!("Error parsing node id {:?}", p.id)).ok()
                 .map(|x| (x, p))
             }).map(|(id, p)| (id, PeerInfo {
-                addr: p.primary_addr.as_ref().and_then(|x| x.parse().ok()),
+                addr: p.primary_addr.as_ref()
+                    .and_then(|x| x.parse().ok())
+                    // TODO(tailhook) allow to override port
+                    .map(|x: SocketAddr| SocketAddr::new(x.ip(), 8379)),
                 last_report: p.last_report_direct.map(|x| {
                     Timespec { sec: (x/1000) as i64,
                                nsec: ((x % 1000)*1_000_000) as i32 }
                 }),
             })).collect()
         }).unwrap_or_else(HashMap::new);
-        // TODO(tailhook) check wakeup time
-        println!("Selfinfo {:?}", self.info);
-        Response::ok(self)
+        self.info.all_hosts = new_hosts;
+        let dline = self.machine.current_deadline();
+        Response::ok(self).deadline(dline)
     }
 }

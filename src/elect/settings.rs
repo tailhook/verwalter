@@ -9,6 +9,7 @@ use rand::{thread_rng, Rng};
 /// * TCP retransmision timeout (so that in flaky network we don't start too
 ///   much elections, because they have big chance to fail)
 /// * Cantal's discovery time and time to propagate changes to the leader
+///   (i.e. it must be at least 2x of REFRESH_INTERVAL)
 ///
 /// The random MESSAGE_TIMEOUT (constained by constants below) is added to
 /// this timeout.
@@ -29,6 +30,14 @@ pub const MAX_MESSAGE_TIMEOUT: u64 = 3000;
 /// nicer to keep lower elections for us.
 pub const HEARTBEAT_INTERVAL: u64 = 600;
 
+/// Interval at which we refresh peer info from cantal
+///
+/// This must be at least 2x smaller than START_TIMEOUT.
+///
+/// The requests are local so should be cheap enough. But it transfers all the
+/// peers so on large clusters may impose some CPU overhead for serialization.
+pub const REFRESH_INTERVAL: u64 = 1000;
+
 
 pub fn start_timeout() -> Duration {
     Duration::from_millis(START_TIMEOUT) + election_ivl()
@@ -37,4 +46,8 @@ pub fn start_timeout() -> Duration {
 pub fn election_ivl() -> Duration {
     Duration::from_millis(
         thread_rng().gen_range(MIN_MESSAGE_TIMEOUT, MAX_MESSAGE_TIMEOUT))
+}
+
+pub fn peers_refresh() -> Duration {
+    Duration::from_millis(REFRESH_INTERVAL)
 }

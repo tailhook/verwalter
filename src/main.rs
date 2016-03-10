@@ -21,6 +21,7 @@ extern crate rotor_cantal;
 #[macro_use] extern crate quick_error;
 
 use rand::Rng;
+use time::now_utc;
 use std::net::ToSocketAddrs;
 use std::sync::{Arc, RwLock};
 use std::path::PathBuf;
@@ -50,9 +51,26 @@ pub struct Options {
     machine_id: Option<elect::Id>,
 }
 
+fn init_logging(id: &elect::Id) {
+    use std::env;
+    use log::{LogLevelFilter, LogRecord};
+    use env_logger::LogBuilder;
+
+    let id = format!("{}", id);
+    let format = move |record: &LogRecord| {
+        format!("{} {} {}: {}", now_utc().rfc3339(),
+            id, record.level(), record.args())
+    };
+    let mut builder = LogBuilder::new();
+    builder.format(format).filter(None, LogLevelFilter::Warn);
+
+    if let Ok(val) = env::var("RUST_LOG") {
+       builder.parse(&val);
+    }
+    builder.init().unwrap();
+}
 
 fn main() {
-    env_logger::init().unwrap();
     let mut options = Options {
         config_dir: PathBuf::from("/etc/verwalter"),
         log_dir: PathBuf::from("/var/log/verwalter"),
@@ -101,6 +119,10 @@ fn main() {
                 Bind to port, for web and cluster messaging");
         ap.parse_args_or_exit();
     }
+
+    let id = options.machine_id.clone().unwrap_or_else(info::machine_id);
+    init_logging(&id);
+
     let mut cfg_cache = config::Cache::new();
     let config = match config::read_configs(&options, &mut cfg_cache) {
         Ok(cfg) => cfg,
@@ -121,7 +143,6 @@ fn main() {
             exit(4);
         }
     };
-    let id = options.machine_id.unwrap_or_else(info::machine_id);
     info!("Started with machine id {}", id);
     let addr = (&options.listen_host[..], options.listen_port)
         .to_socket_addrs().expect("Can't resolve hostname")

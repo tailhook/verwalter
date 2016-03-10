@@ -70,6 +70,12 @@ impl Machine {
             return pass(self)
         }
 
+        // We can't do much useful work if our peers info is outdated
+        if !info.hosts_are_fresh(now) {
+            // TODO(tailhook) We have to give up our leadership though
+            return pass(self)
+        }
+
         // Everything here assumes that deadline is definitely already passed
         let (machine, action) = match self {
             Starting { .. } => {
