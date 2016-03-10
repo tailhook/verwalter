@@ -3,6 +3,7 @@ use std::sync::{Arc};
 use std::collections::{HashSet, HashMap};
 use rustc_serialize::hex::ToHex;
 
+use rotor::mio::udp::UdpSocket;
 use rotor_cantal::Schedule;
 use time::Timespec;
 
@@ -11,6 +12,7 @@ mod action;
 mod settings;
 mod info;
 mod network;
+mod encode;
 #[cfg(test)] mod test_node;
 #[cfg(test)] mod test_mesh;
 #[cfg(test)] mod test_util;
@@ -23,9 +25,10 @@ pub struct Election {
     info: Info,
     machine: machine::Machine,
     schedule: Schedule,
+    socket: UdpSocket,
 }
 
-type Capsule = (Id, u64, Message);
+type Capsule = (Id, machine::Epoch, Message);
 
 #[derive(Clone, Debug)]
 enum Message {

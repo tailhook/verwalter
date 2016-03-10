@@ -45,7 +45,7 @@ pub fn main(addr: &SocketAddr, id: Id, cfg: Arc<RwLock<Config>>)
         server::Fsm::<Public, _>::new(listener, scope).wrap(Fsm::Frontend)
     }).expect("Can't add a state machine");
     loop_inst.add_machine_with(|scope| {
-        Election::new(id, schedule, scope).wrap(Fsm::Election)
+        Election::new(id, addr, schedule, scope).wrap(Fsm::Election)
     }).expect("Can't add a state machine");
     loop_inst.run()
 }

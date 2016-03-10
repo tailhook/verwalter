@@ -1,26 +1,73 @@
+use std::net::SocketAddr;
 use std::collections::HashMap;
 
 use time::Timespec;
-use rotor::{Machine, EventSet, Scope, Response};
+use rotor::{Machine, EventSet, Scope, Response, PollOpt};
+use rotor::mio::udp::UdpSocket;
 use rotor::void::{unreachable, Void};
 use rotor_cantal::Schedule;
 
 use net::Context;
-use super::machine;
-use super::{Election, Info, Id, PeerInfo};
+use super::{machine, encode};
+use super::action::Action;
+use super::machine::Epoch;
+use super::{Election, Info, Id, PeerInfo, Capsule, Message};
 
 
 impl Election {
-    pub fn new(id: Id, schedule: Schedule, scope: &mut Scope<Context>)
+    pub fn new(id: Id, addr: &SocketAddr,
+        schedule: Schedule, scope: &mut Scope<Context>)
         -> Response<Election, Void>
     {
         let mach = machine::Machine::new(scope.now());
         let dline = mach.current_deadline();
+        let sock = match UdpSocket::bound(addr) {
+            Ok(x) => x,
+            Err(e) => return Response::error(Box::new(e)),
+        };
+        scope.register(&sock, EventSet::readable() | EventSet::writable(),
+            PollOpt::edge());
         Response::ok(Election {
             info: Info::new(id),
             schedule: schedule,
             machine: mach,
+            socket: sock,
         }).deadline(dline)
+    }
+}
+
+fn execute_action(action: Action, info: &Info, epoch: Epoch,
+    socket: &UdpSocket)
+{
+    use super::action::Action::*;
+    match action {
+        PingAll => {
+            info!("Ping all, epoch {}", epoch);
+            let msg = encode::ping(&info.id, epoch);
+
+            for (id, peer) in &info.all_hosts {
+                if let Some(ref addr) = peer.addr {
+                    debug!("Sending Ping to {} ({:?})", addr, id);
+                    socket.send_to(&msg, addr)
+                    .map_err(|e| info!("Error sending message to {}: {}",
+                        addr, e)).ok();
+                } else {
+                    debug!("Can't send to {:?}, no address", id);
+                }
+            }
+        }
+        Vote(_) => {
+            unimplemented!();
+        }
+        ConfirmVote(_) => {
+            unimplemented!();
+        }
+        Pong => {
+            unimplemented!();
+        }
+        PingNew => {
+            unimplemented!();
+        }
     }
 }
 
@@ -32,21 +79,29 @@ impl Machine for Election {
     {
         unreachable(seed)
     }
-    fn ready(self, _events: EventSet, _scope: &mut Scope<Context>)
+    fn ready(self, events: EventSet, _scope: &mut Scope<Context>)
         -> Response<Self, Self::Seed>
     {
-        unimplemented!();
+        if events.is_readable() {
+            unimplemented!();
+        } else {
+            let dline = self.machine.current_deadline();
+            Response::ok(self).deadline(dline)
+        }
     }
     fn spawned(self, _scope: &mut Scope<Context>) -> Response<Self, Self::Seed>
     {
         unimplemented!();
     }
-    fn timeout(self, scope: &mut Scope<Context>) -> Response<Self, Self::Seed>
+    fn timeout(mut self, scope: &mut Scope<Context>)
+        -> Response<Self, Self::Seed>
     {
         let (me, alst) = self.machine.time_passed(&self.info, scope.now());
+        debug!("Current state {:?} at {:?} -> {:?}", me, scope.now(), alst);
         match alst.action {
             Some(x) => {
-                println!("DO -------> {:?}", x)
+                execute_action(x, &self.info,
+                    me.current_epoch(), &self.socket);
             }
             None => {}
         }

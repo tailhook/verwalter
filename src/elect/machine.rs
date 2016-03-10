@@ -11,7 +11,7 @@ use super::settings::{start_timeout, election_ivl, HEARTBEAT_INTERVAL};
 use super::action::{Action, ActionList};
 
 
-type Epoch = u64;
+pub type Epoch = u64;
 
 
 #[derive(Clone, Debug)]
@@ -31,16 +31,22 @@ impl Machine {
         }
     }
 
-    // methods generic over the all states
-    pub fn compare_epoch(&self, epoch: Epoch) -> Ordering {
+    /// This method should only be used for the external messages
+    /// and for compare_epoch. Don't use it in the code directly
+    pub fn current_epoch(&self) -> u64 {
         use self::Machine::*;
-        let my_epoch = match *self {
+        match *self {
             Starting { .. } => 0,  // real epochs start from 1
             Electing { epoch, .. } => epoch,
             Voted { epoch, ..} => epoch,
             Leader { epoch, ..} => epoch,
             Follower { epoch, ..} => epoch,
-        };
+        }
+    }
+
+    // methods generic over the all states
+    pub fn compare_epoch(&self, epoch: Epoch) -> Ordering {
+        let my_epoch = self.current_epoch();
         epoch.cmp(&my_epoch)
     }
     pub fn current_deadline(&self) -> Time {
@@ -96,10 +102,12 @@ impl Machine {
                 info!("[{}] Time passed. Elect me please", info.id);
                 start_election(epoch+1, now, &info.id)
             }
-            me @ Leader { .. } => {
+            Leader { epoch, .. } => {
+                // TODO(tailhook) see if we have slept just too much
+                //                give up leadership right now
                 let next_ping = now +
                     Duration::from_millis(HEARTBEAT_INTERVAL);
-                (me,
+                (Leader { epoch: epoch, next_ping_time: next_ping },
                  Action::PingAll.and_wait(next_ping))
             }
             Follower { epoch, .. } => {
