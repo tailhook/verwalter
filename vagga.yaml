@@ -64,6 +64,52 @@ commands:
     - --progress
     - --colors
 
+  trio: !Supervise
+    description: Runs three verwalter/cantals so you can test leader election
+    children:
+      n1: !Command
+        container: build
+        network: &n1
+          ip: 172.18.0.1
+          ports: {20001: 22682, 21001: 8379}
+        run: |
+          RUST_LOG=warn cantal-agent \
+            --config-dir=/work/example-configs/cantal \
+            --host=0.0.0.0 --override-machine-id=beef01 &
+          RUST_LOG=debug ./target/debug/verwalter --config-dir=tmp/cfg \
+            --override-machine-id=beef01
+      n2: !Command
+        container: build
+        network: &n2
+          ip: 172.18.0.2
+          ports: {20002: 22682, 21002: 8379}
+        run: |
+          RUST_LOG=warn cantal-agent \
+            --config-dir=/work/example-configs/cantal \
+            --host=0.0.0.0 --override-machine-id=beef02 &
+          RUST_LOG=debug ./target/debug/verwalter --config-dir=tmp/cfg \
+            --override-machine-id=beef02
+      n3: !Command
+        container: build
+        network: &n3
+          ip: 172.18.0.3
+          ports: {20003: 22682, 21003: 8379}
+        run: |
+          RUST_LOG=warn cantal-agent \
+            --config-dir=/work/example-configs/cantal \
+            --host=0.0.0.0 --override-machine-id=beef03 &
+          RUST_LOG=debug ./target/debug/verwalter --config-dir=tmp/cfg \
+            --override-machine-id=beef03
+      connector: !BridgeCommand
+        container: build
+        run: |
+          sleep 2
+          for i in $(seq 2 3); do
+            wget http://172.18.0.1:22682/add_host.json -nv -O- \
+              --method POST --body-data '{"addr": "172.18.0.'$i':22682"}'
+          done
+          sleep 100000
+
 containers:
 
   build:
@@ -79,9 +125,13 @@ containers:
       optional: true
 
     - !TarInstall
-      url: "http://static.rust-lang.org/dist/rust-1.6.0-x86_64-unknown-linux-gnu.tar.gz"
+      url: "http://static.rust-lang.org/dist/rust-1.7.0-x86_64-unknown-linux-gnu.tar.gz"
       script: "./install.sh --prefix=/usr \
                --components=rustc,rust-std-x86_64-unknown-linux-gnu,cargo"
+    - !Download
+      url: https://github.com/tailhook/cantal/releases/download/v0.3.6/cantal_0.3.6-1_amd64.deb
+      path: /tmp/cantal.deb
+    - !Sh "dpkg -i /tmp/cantal.deb"
     - !Sh |
         cargo install --root=/usr cargo-outdated
 
@@ -93,4 +143,3 @@ containers:
     setup:
     - !Alpine v3.2
     - !Install [py-sphinx, make]
-
