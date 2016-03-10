@@ -32,7 +32,7 @@ pub struct Election {
     socket: UdpSocket,
 }
 
-type Capsule = (Id, machine::Epoch, Message);
+pub type Capsule = (Id, machine::Epoch, Message);
 
 #[derive(Clone, Debug)]
 enum Message {

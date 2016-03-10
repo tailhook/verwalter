@@ -1,10 +1,10 @@
-use std::io::Write;
+use std::io::{Write, Read};
 use std::str::FromStr;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use cbor::{Encoder, EncodeResult};
+use cbor::{Encoder, EncodeResult, Decoder, DecodeResult};
 use rotor::Time;
 use rustc_serialize::hex::{FromHex, FromHexError};
 
@@ -17,6 +17,9 @@ impl Id {
     }
     pub fn encode<W: Write>(&self, enc: &mut Encoder<W>) -> EncodeResult {
         enc.bytes(&self.0[..])
+    }
+    pub fn decode<R: Read>(dec: &mut Decoder<R>) -> DecodeResult<Id> {
+        dec.bytes().map(|x| x.into_boxed_slice()).map(Id)
     }
 }
 

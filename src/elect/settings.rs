@@ -38,6 +38,9 @@ pub const HEARTBEAT_INTERVAL: u64 = 600;
 /// peers so on large clusters may impose some CPU overhead for serialization.
 pub const REFRESH_INTERVAL: u64 = 1000;
 
+/// Maximum packet size that may be generated or consumed by the verwalter
+pub const MAX_PACKET_SIZE: usize = 512;
+
 
 pub fn start_timeout() -> Duration {
     Duration::from_millis(START_TIMEOUT) + election_ivl()

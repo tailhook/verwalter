@@ -9,6 +9,7 @@ use rotor_cantal::Schedule;
 
 use net::Context;
 use super::{machine, encode};
+use super::settings::MAX_PACKET_SIZE;
 use super::action::Action;
 use super::machine::Epoch;
 use super::{Election, Info, Id, PeerInfo, Capsule, Message};
@@ -36,31 +37,45 @@ impl Election {
     }
 }
 
+fn send_all(msg: &[u8], info: &Info, socket: &UdpSocket) {
+    for (id, peer) in &info.all_hosts {
+        if let Some(ref addr) = peer.addr {
+            debug!("Sending Ping to {} ({:?})", addr, id);
+            socket.send_to(&msg, addr)
+            .map_err(|e| info!("Error sending message to {}: {}",
+                addr, e)).ok();
+        } else {
+            debug!("Can't send to {:?}, no address", id);
+        }
+    }
+}
+
 fn execute_action(action: Action, info: &Info, epoch: Epoch,
     socket: &UdpSocket)
 {
     use super::action::Action::*;
     match action {
         PingAll => {
-            info!("Ping all, epoch {}", epoch);
+            info!("[{}] Ping all", epoch);
             let msg = encode::ping(&info.id, epoch);
-
-            for (id, peer) in &info.all_hosts {
-                if let Some(ref addr) = peer.addr {
-                    debug!("Sending Ping to {} ({:?})", addr, id);
-                    socket.send_to(&msg, addr)
-                    .map_err(|e| info!("Error sending message to {}: {}",
-                        addr, e)).ok();
-                } else {
-                    debug!("Can't send to {:?}, no address", id);
-                }
+            send_all(&msg, info, socket);
+        }
+        Vote(id) => {
+            info!("[{}] Vote for {}", epoch, id);
+            let msg = encode::vote(&info.id, epoch, &id);
+            send_all(&msg, info, socket);
+        }
+        ConfirmVote(id) => {
+            info!("[{}] Confirm vote {}", epoch, id);
+            let msg = encode::vote(&info.id, epoch, &id);
+            if let Some(ref addr) = info.all_hosts.get(&id).and_then(|x| x.addr) {
+                debug!("Sending (confirm) vote to {} ({:?})", addr, id);
+                socket.send_to(&msg, addr)
+                .map_err(|e| info!("Error sending message to {}: {}",
+                    addr, e)).ok();
+            } else {
+                debug!("Error confirming vote to {:?}, no address", id);
             }
-        }
-        Vote(_) => {
-            unimplemented!();
-        }
-        ConfirmVote(_) => {
-            unimplemented!();
         }
         Pong => {
             unimplemented!();
@@ -79,15 +94,34 @@ impl Machine for Election {
     {
         unreachable(seed)
     }
-    fn ready(self, events: EventSet, _scope: &mut Scope<Context>)
+    fn ready(self, events: EventSet, scope: &mut Scope<Context>)
         -> Response<Self, Self::Seed>
     {
-        if events.is_readable() {
-            unimplemented!();
-        } else {
-            let dline = self.machine.current_deadline();
-            Response::ok(self).deadline(dline)
+        let mut me = self.machine;
+        {
+            let ref info = self.info;
+            let ref socket = self.socket;
+            if events.is_readable() {
+                let mut buf = [0u8; MAX_PACKET_SIZE];
+                while let Ok(Some((n, _))) = self.socket.recv_from(&mut buf) {
+                    // TODO(tailhook) check address?
+                    match encode::read_packet(&buf[..n]) {
+                        Ok(msg) => {
+                            let (m, act) = me.message(&self.info,
+                                msg, scope.now());
+                            me = m;
+                            act.action.map(|x| execute_action(x, &info,
+                                me.current_epoch(), &socket));
+                        }
+                        Err(e) => {
+                            info!("Error parsing packet {:?}", e);
+                        }
+                    }
+                }
+            }
         }
+        let dline = me.current_deadline();
+        Response::ok(Election { machine: me, ..self }).deadline(dline)
     }
     fn spawned(self, _scope: &mut Scope<Context>) -> Response<Self, Self::Seed>
     {
@@ -96,17 +130,19 @@ impl Machine for Election {
     fn timeout(mut self, scope: &mut Scope<Context>)
         -> Response<Self, Self::Seed>
     {
-        let (me, alst) = self.machine.time_passed(&self.info, scope.now());
-        debug!("Current state {:?} at {:?} -> {:?}", me, scope.now(), alst);
-        match alst.action {
-            Some(x) => {
-                execute_action(x, &self.info,
-                    me.current_epoch(), &self.socket);
-            }
-            None => {}
-        }
+        let (me, wakeup) = {
+            let ref info = self.info;
+            let ref socket = self.socket;
+            let (me, alst) = self.machine.time_passed(
+                &self.info, scope.now());
+            debug!("Current state {:?} at {:?} -> {:?}",
+                me, scope.now(), alst);
+            alst.action.map(|x| execute_action(x, &info,
+                    me.current_epoch(), &socket));
+            (me, alst.next_wakeup)
+        };
         Response::ok(Election { machine: me, ..self})
-        .deadline(alst.next_wakeup)
+        .deadline(wakeup)
     }
     fn wakeup(mut self, _scope: &mut Scope<Context>)
         -> Response<Self, Self::Seed>
