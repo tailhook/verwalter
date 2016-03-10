@@ -11,7 +11,7 @@
     "babel-es6-polyfill": "1.0.1"
   },
   "devDependencies": {
-    "webpack": "2.0.7-beta",
+    "webpack": "2.1.0-beta.4",
     "babel-loader": "6.2",
     "babel-plugin-transform-object-rest-spread": "6.3.13",
     "babel-plugin-transform-strict-mode": "6.3.13",
