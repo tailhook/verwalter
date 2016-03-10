@@ -8,7 +8,7 @@ pub enum Action {
     PingAll,
     Vote(Id),
     ConfirmVote(Id),
-    Pong,
+    Pong(Id),
     PingNew,
 }
 

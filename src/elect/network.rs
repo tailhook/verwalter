@@ -56,7 +56,7 @@ fn execute_action(action: Action, info: &Info, epoch: Epoch,
     use super::action::Action::*;
     match action {
         PingAll => {
-            info!("[{}] Ping all", epoch);
+            info!("[{}] Confirming leadership by pinging everybody", epoch);
             let msg = encode::ping(&info.id, epoch);
             send_all(&msg, info, socket);
         }
@@ -68,7 +68,8 @@ fn execute_action(action: Action, info: &Info, epoch: Epoch,
         ConfirmVote(id) => {
             info!("[{}] Confirm vote {}", epoch, id);
             let msg = encode::vote(&info.id, epoch, &id);
-            if let Some(ref addr) = info.all_hosts.get(&id).and_then(|x| x.addr) {
+            let dest = info.all_hosts.get(&id).and_then(|x| x.addr);
+            if let Some(ref addr) = dest {
                 debug!("Sending (confirm) vote to {} ({:?})", addr, id);
                 socket.send_to(&msg, addr)
                 .map_err(|e| info!("Error sending message to {}: {}",
@@ -77,8 +78,18 @@ fn execute_action(action: Action, info: &Info, epoch: Epoch,
                 debug!("Error confirming vote to {:?}, no address", id);
             }
         }
-        Pong => {
-            unimplemented!();
+        Pong(id) => {
+            info!("[{}] Pong to a leader {}", epoch, id);
+            let msg = encode::pong(&info.id, epoch);
+            let dest = info.all_hosts.get(&id).and_then(|x| x.addr);
+            if let Some(ref addr) = dest {
+                debug!("Sending pong to {} ({:?})", addr, id);
+                socket.send_to(&msg, addr)
+                .map_err(|e| info!("Error sending message to {}: {}",
+                    addr, e)).ok();
+            } else {
+                debug!("Error sending pong to {:?}, no address", id);
+            }
         }
         PingNew => {
             unimplemented!();

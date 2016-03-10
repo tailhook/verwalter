@@ -20,7 +20,7 @@ pub enum Machine {
     Electing { epoch: Epoch, votes_for_me: HashSet<Id>, deadline: Time },
     Voted { epoch: Epoch, peer: Id, election_deadline: Time },
     Leader { epoch: Epoch, next_ping_time: Time },
-    Follower { epoch: Epoch, leader_deadline: Time },
+    Follower { leader: Id, epoch: Epoch, leader_deadline: Time },
 }
 
 
@@ -141,7 +141,7 @@ impl Machine {
             }
             (Ping, Current, _) => {
                 // Ping in any other state, means we follow the leader
-                follow(msg_epoch, now)
+                follow(src, msg_epoch, now)
             }
             (Pong, Current, me @ Leader { .. }) => {
                 // It's just okay, should we count successful pongs?
@@ -186,7 +186,7 @@ impl Machine {
             }
             (Ping, Newer, _) => {
                 // We missed something, there is already a new leader
-                follow(msg_epoch, now)
+                follow(src, msg_epoch, now)
             }
             (Pong, Newer, _) => {
                 // Something terribly wrong: somebody thinks that we are leader
@@ -205,10 +205,11 @@ impl Machine {
     }
 }
 
-fn follow(epoch: Epoch, now: Time) -> (Machine, ActionList) {
+fn follow(leader: Id, epoch: Epoch, now: Time) -> (Machine, ActionList) {
     let dline = now + election_ivl();
-    (Machine::Follower { epoch: epoch, leader_deadline: dline },
-     Action::Pong.and_wait(dline))
+    (Machine::Follower { leader: leader.clone(), epoch: epoch,
+                         leader_deadline: dline },
+     Action::Pong(leader).and_wait(dline))
 }
 
 fn pass(me: Machine) -> (Machine, ActionList) {

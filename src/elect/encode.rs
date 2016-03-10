@@ -7,7 +7,8 @@ use super::{Id, Capsule, Message};
 use super::machine::Epoch;
 
 const PING: u8 = 1;
-const VOTE: u8 = 2;
+const PONG: u8 = 2;
+const VOTE: u8 = 3;
 
 
 pub fn ping(id: &Id, epoch: Epoch) -> Vec<u8> {
@@ -15,6 +16,14 @@ pub fn ping(id: &Id, epoch: Epoch) -> Vec<u8> {
     id.encode(&mut buf).unwrap();
     buf.u64(epoch).unwrap();
     buf.u8(PING).unwrap();
+    return buf.into_writer().into_inner();
+}
+
+pub fn pong(id: &Id, epoch: Epoch) -> Vec<u8> {
+    let mut buf = Encoder::new(Cursor::new(Vec::new()));
+    id.encode(&mut buf).unwrap();
+    buf.u64(epoch).unwrap();
+    buf.u8(PONG).unwrap();
     return buf.into_writer().into_inner();
 }
 
@@ -33,6 +42,7 @@ pub fn read_packet(buf: &[u8]) -> DecodeResult<Capsule> {
     let epoch = try!(dec.u64());
     match try!(dec.u8()) {
         x if x == PING => Ok((source, epoch, Message::Ping)),
+        x if x == PONG => Ok((source, epoch, Message::Pong)),
         x if x == VOTE => {
             let peer = try!(Id::decode(&mut dec));
             Ok((source, epoch, Message::Vote(peer)))
