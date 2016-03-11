@@ -22,11 +22,11 @@ rotor_compose!(pub enum Fsm/Seed<Context> {
 
 
 pub struct Context {
-    pub config: Arc<RwLock<Config>>,
+    pub config: Arc<Config>,
     pub schedule: Schedule,
 }
 
-pub fn main(addr: &SocketAddr, id: Id, cfg: Arc<RwLock<Config>>)
+pub fn main(addr: &SocketAddr, id: Id, cfg: Arc<Config>)
     -> Result<(), io::Error>
 {
     let mut creator = rotor::Loop::new(&rotor::Config::new())

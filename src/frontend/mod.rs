@@ -115,9 +115,7 @@ fn serve_api(context: &Context, route: &ApiRoute, format: Format,
 {
     match *route {
         ApiRoute::Config => {
-            respond(res, format, &context.config.read()
-                .expect("live configuration")
-                .to_json())
+            respond(res, format, context.config.to_json())
         }
         ApiRoute::Peers => {
             respond(res, format, &context.schedule.get_peers().as_ref()

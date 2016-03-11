@@ -5,7 +5,10 @@ use lua::{State, ThreadStatus, Type};
 use config::Config;
 
 mod config;
+mod main;
 mod lua_json;
+
+pub use self::main::{spawn, Settings};
 
 pub struct Scheduler {
     lua: State,

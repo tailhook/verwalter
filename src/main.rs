@@ -20,7 +20,6 @@ extern crate rotor_cantal;
 #[macro_use] extern crate matches;
 #[macro_use] extern crate quick_error;
 
-use rand::Rng;
 use time::now_utc;
 use std::net::ToSocketAddrs;
 use std::sync::{Arc, RwLock};
@@ -125,7 +124,7 @@ fn main() {
 
     let mut cfg_cache = config::Cache::new();
     let config = match config::read_configs(&options, &mut cfg_cache) {
-        Ok(cfg) => cfg,
+        Ok(cfg) => Arc::new(cfg),
         Err(e) => {
             error!("Fatal error while reading config: {}", e);
             exit(3);
@@ -136,73 +135,20 @@ fn main() {
         config.machine.as_ref().ok().and_then(|o| o.as_object())
             .map(|x| x.len()).unwrap_or(0),
         config.total_errors());
-    let mut scheduler = match scheduler::read(&options.config_dir) {
-        Ok(s) => s,
-        Err(e) => {
-            error!("Scheduler load failed: {}", e);
-            exit(4);
-        }
-    };
-    info!("Started with machine id {}", id);
     let addr = (&options.listen_host[..], options.listen_port)
         .to_socket_addrs().expect("Can't resolve hostname")
         .collect::<Vec<_>>()[0];
-    net::main(&addr, id, Arc::new(RwLock::new(config)))
+
+    scheduler::spawn(config.clone(), scheduler::Settings {
+        hostname: options.hostname
+                    .unwrap_or_else(|| info::hostname().expect("gethostname")),
+        dry_run: options.dry_run,
+        print_configs: options.print_configs,
+        log_dir: options.log_dir,
+        config_dir: options.config_dir,
+    });
+
+    info!("Started with machine id {}, listening {}", id, addr);
+    net::main(&addr, id, config)
         .expect("Error running main loop");
-}
-
-fn execute_scheduler(scheduler: &mut scheduler::Scheduler,
-                     config: &config::Config, options: &Options)
-{
-    debug!("Scheduler loaded");
-    let scheduler_result = match scheduler.execute(&config) {
-        Ok(j) => j,
-        Err(e) => {
-            error!("Initial scheduling failed: {}", e);
-            exit(5);
-        }
-    };
-    debug!("Got initial scheduling of {}", scheduler_result);
-    let apply_task = match render::render_all(&config,
-        &scheduler_result, &options.hostname.as_ref().unwrap(),
-                            options.print_configs)
-    {
-        Ok(res) => res,
-        Err(e) => {
-            error!("Initial configuration render failed: {}", e);
-            exit(5);
-        }
-    };
-    if log_enabled!(log::LogLevel::Debug) {
-        for (role, result) in &apply_task {
-            match result {
-                &Ok(ref v) => {
-                    debug!("Role {:?} has {} apply tasks", role, v.len());
-                }
-                &Err(render::Error::Skip) => {
-                    debug!("Role {:?} is skipped on the node", role);
-                }
-                &Err(ref e) => {
-                    debug!("Role {:?} has error: {}", role, e);
-                }
-            }
-        }
-    }
-
-    let id = rand::thread_rng().gen_ascii_chars().take(24).collect();
-    let mut index = apply::log::Index::new(&options.log_dir, options.dry_run);
-    let mut dlog = index.deployment(id);
-    dlog.object("config", &config);
-    dlog.json("scheduler_result", &scheduler_result);
-    let (rerrors, gerrs) = apply::apply_all(apply_task, dlog, options.dry_run);
-    if log_enabled!(log::LogLevel::Debug) {
-        for e in gerrs {
-            error!("Error when applying config: {}", e);
-        }
-        for (role, errs) in rerrors {
-            for e in errs {
-                error!("Error when applying config for {:?}: {}", role, e);
-            }
-        }
-    }
 }
