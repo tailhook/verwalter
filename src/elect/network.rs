@@ -136,7 +136,7 @@ impl Machine for Election {
     }
     fn spawned(self, _scope: &mut Scope<Context>) -> Response<Self, Self::Seed>
     {
-        unimplemented!();
+        unreachable!();
     }
     fn timeout(mut self, scope: &mut Scope<Context>)
         -> Response<Self, Self::Seed>
