@@ -1,0 +1,4 @@
+render:
+  lithos:
+    source: lithos.yaml.hbs
+    apply: !RootCommand [lithos_switch, "{{ appname }}", "{{ tmpfile }}"]

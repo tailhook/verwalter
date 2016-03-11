@@ -76,7 +76,9 @@ commands:
           RUST_LOG=warn cantal-agent \
             --config-dir=/work/example-configs/cantal \
             --host=0.0.0.0 --override-machine-id=beef01 &
-          RUST_LOG=debug ./target/debug/verwalter --config-dir=tmp/cfg \
+          RUST_LOG=debug ./target/debug/verwalter \
+            --config-dir=example-configs/pyapp \
+            --dry-run --print-configs \
             --host=0.0.0.0 --override-machine-id=beef01
       n2: !Command
         container: build
@@ -87,7 +89,9 @@ commands:
           RUST_LOG=warn cantal-agent \
             --config-dir=/work/example-configs/cantal \
             --host=0.0.0.0 --override-machine-id=beef02 &
-          RUST_LOG=debug ./target/debug/verwalter --config-dir=tmp/cfg \
+          RUST_LOG=debug ./target/debug/verwalter \
+            --config-dir=example-configs/pyapp \
+            --dry-run --print-configs \
             --host=0.0.0.0 --override-machine-id=beef02
       n3: !Command
         container: build
@@ -98,7 +102,9 @@ commands:
           RUST_LOG=warn cantal-agent \
             --config-dir=/work/example-configs/cantal \
             --host=0.0.0.0 --override-machine-id=beef03 &
-          RUST_LOG=debug ./target/debug/verwalter --config-dir=tmp/cfg \
+          RUST_LOG=debug ./target/debug/verwalter \
+            --config-dir=example-configs/pyapp \
+            --dry-run --print-configs \
             --host=0.0.0.0 --override-machine-id=beef03
       connector: !BridgeCommand
         container: build

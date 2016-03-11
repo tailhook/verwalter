@@ -1,0 +1,3 @@
+web: 10
+celery: 20
+celery-beat: 1
