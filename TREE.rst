@@ -31,7 +31,7 @@ The directory layout is still in flux. Here are somewhat current draft.
 
 * ``machine`` -- the current machine metadata
 
-    * ``NAME.yaml/json`` -- adds some metadata under key ``NAME``
+    * ``NAME.yaml``, ``NAME.json`` -- adds some metadata under key ``NAME``
 
 * ``frontend`` -- the files to render the frontend [2]_
 
