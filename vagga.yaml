@@ -48,7 +48,7 @@ commands:
         - --progress
         - --colors
 
-  docs: !Command
+  doc: !Command
     description: Build docs
     container: docs
     work-dir: doc
