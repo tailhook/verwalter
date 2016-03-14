@@ -22,7 +22,7 @@ extern crate rotor_cantal;
 
 use time::now_utc;
 use std::net::ToSocketAddrs;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc};
 use std::path::PathBuf;
 use std::process::exit;
 

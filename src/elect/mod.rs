@@ -1,7 +1,5 @@
 use std::net::SocketAddr;
-use std::sync::{Arc};
-use std::time::Duration;
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashMap};
 use rustc_serialize::hex::ToHex;
 
 use rotor::Time;
@@ -35,7 +33,7 @@ pub struct Election {
 pub type Capsule = (Id, machine::Epoch, Message);
 
 #[derive(Clone, Debug)]
-enum Message {
+pub enum Message {
     /// Ping message from leader to followers, reassures that leadership
     /// still holds
     Ping,
@@ -52,7 +50,7 @@ struct PeerInfo {
 }
 
 #[derive(Debug)]
-struct Info {
+pub struct Info {
     /// Unique identificator of the node, should be read from /etc/machine-id
     id: Id,
     /// This is used to find out whether hosts are actually valid

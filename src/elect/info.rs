@@ -1,8 +1,6 @@
 use std::io::{Write, Read};
 use std::str::FromStr;
 use std::collections::HashMap;
-use std::sync::Arc;
-use std::time::Duration;
 
 use cbor::{Encoder, EncodeResult, Decoder, DecodeResult};
 use rotor::Time;

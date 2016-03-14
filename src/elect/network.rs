@@ -12,7 +12,7 @@ use super::{machine, encode};
 use super::settings::MAX_PACKET_SIZE;
 use super::action::Action;
 use super::machine::Epoch;
-use super::{Election, Info, Id, PeerInfo, Capsule, Message};
+use super::{Election, Info, Id, PeerInfo};
 
 
 impl Election {
@@ -27,7 +27,7 @@ impl Election {
             Err(e) => return Response::error(Box::new(e)),
         };
         scope.register(&sock, EventSet::readable() | EventSet::writable(),
-            PollOpt::edge());
+            PollOpt::edge()).expect("register socket");
         Response::ok(Election {
             info: Info::new(id),
             schedule: schedule,
@@ -138,7 +138,7 @@ impl Machine for Election {
     {
         unreachable!();
     }
-    fn timeout(mut self, scope: &mut Scope<Context>)
+    fn timeout(self, scope: &mut Scope<Context>)
         -> Response<Self, Self::Seed>
     {
         let (me, wakeup) = {
@@ -167,7 +167,8 @@ impl Machine for Election {
             peers.peers.iter()
             .filter_map(|p| {
                 p.id.parse()
-                .map_err(|e| error!("Error parsing node id {:?}", p.id)).ok()
+                .map_err(|e| error!("Error parsing node id {:?}: {}",
+                                    p.id, e)).ok()
                 .map(|x| (x, p))
             }).map(|(id, p)| (id, PeerInfo {
                 addr: p.primary_addr.as_ref()

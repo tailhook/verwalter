@@ -4,9 +4,8 @@ use std::cmp::Ordering::{Less as Older, Equal as Current, Greater as Newer};
 use std::time::Duration;
 
 use rotor::Time;
-use rand::{thread_rng, Rng};
 
-use super::{Id, Message, Info, Capsule};
+use super::{Id, Info, Capsule};
 use super::settings::{start_timeout, election_ivl, HEARTBEAT_INTERVAL};
 use super::action::{Action, ActionList};
 
@@ -134,7 +133,7 @@ impl Machine {
             (_, Older, me) => { // discard old messages
                 pass(me)
             }
-            (Ping, Current, me @ Leader { .. }) => {
+            (Ping, Current, Leader { .. }) => {
                 // Another leader is here, restart the election
                 // This is valid when two partitions suddenly joined
                 start_election(msg_epoch+1, now, &info.id)
