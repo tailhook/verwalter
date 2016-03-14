@@ -1,7 +1,7 @@
 use std::io;
 use std::net::SocketAddr;
-use std::sync::{Arc, RwLock};
-use std::time::Duration;
+use std::path::PathBuf;
+use std::sync::Arc;
 
 use rotor;
 use rotor_http::server;
@@ -24,9 +24,10 @@ rotor_compose!(pub enum Fsm/Seed<Context> {
 pub struct Context {
     pub config: Arc<Config>,
     pub schedule: Schedule,
+    pub frontend_dir: PathBuf,
 }
 
-pub fn main(addr: &SocketAddr, id: Id, cfg: Arc<Config>)
+pub fn main(addr: &SocketAddr, id: Id, cfg: Arc<Config>, frontend_dir: PathBuf)
     -> Result<(), io::Error>
 {
     let mut creator = rotor::Loop::new(&rotor::Config::new())
@@ -37,6 +38,7 @@ pub fn main(addr: &SocketAddr, id: Id, cfg: Arc<Config>)
     schedule.set_peers_interval(peers_refresh());
     let mut loop_inst = creator.instantiate(Context {
         config: cfg,
+        frontend_dir: frontend_dir,
         schedule: schedule.clone(),
     });
     let listener = TcpListener::bind(&addr).expect("Can't bind address");

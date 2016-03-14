@@ -168,9 +168,8 @@ impl Server for Public {
         };
         let route = match path_component(&path[..]) {
             ("", _) => Some(Index),
-            ("js", _) | ("css", _) => Some(Static(path.to_string())),
             ("v1", suffix) => parse_api(suffix),
-            (_, _) => None,
+            (_, _) => Some(Static(path.to_string())),
         };
         debug!("Routed {:?} to {:?}", head, route);
         match route {
@@ -190,8 +189,9 @@ impl Server for Public {
     {
         use self::Route::*;
         let iores = match *&self.0 {
-            Index => read_file("public/index.html", res),
-            Static(ref x) => read_file(format!("public/{}", &x[1..]), res),
+            Index => read_file(scope.frontend_dir
+                               .join("common/index.html"), res),
+            Static(ref x) => read_file(scope.frontend_dir.join(&x[1..]), res),
             Api(ref route, fmt) => serve_api(scope, route, fmt, res),
         };
         match iores {

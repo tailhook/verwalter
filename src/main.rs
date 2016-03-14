@@ -145,10 +145,10 @@ fn main() {
         dry_run: options.dry_run,
         print_configs: options.print_configs,
         log_dir: options.log_dir,
-        config_dir: options.config_dir,
+        config_dir: options.config_dir.clone(),
     });
 
     info!("Started with machine id {}, listening {}", id, addr);
-    net::main(&addr, id, config)
+    net::main(&addr, id, config, options.config_dir.join("frontend"))
         .expect("Error running main loop");
 }
