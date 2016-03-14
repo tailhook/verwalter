@@ -51,12 +51,47 @@ Any tool can potentially replaced by some other tool. Currently, the only hard
 dependency is that you need cantal to run verwalter.
 
 Anyway this combination provides good robustness, security and ease of use.
-See :ref:`Concepts <concepts>` for more details about how these tools rely on each other
-to provide mentioned features.
+See :ref:`Concepts <concepts>` for more details about how these tools rely on
+each other to provide mentioned features.
 
 
+Container
+=========
+
+Usually you start with a vagga container that works locally. There is a
+tutorial_ for building a container for django application. We will skip this
+part and assume you have a working container. Please, don't skip this part
+even if you have development environment already set up (but not
+containerized). It is important for the following reasons:
+
+1. You need to know all dependencies and their versions, in may happen that
+   you don't know exact list of system dependencies if you are using
+   virtualenv for example.
+
+2. Vagga_ makes everything readonly by default, so as lithos_. This serves
+   as additional check of which filesystem paths are writable by the
+   application (hopefully you don't have any).
+
+3. We'll need the container for the next steps. We will base our deployment
+   container on the development one (see below)
+
+It's also good idea to make add a check of whether your application needs a
+writable ``/tmp``. Just add a volume to your vagga container config:
+
+.. code-block:: yaml
+
+    containers:
+      django:
+        ...
+        volumes:
+          /tmp: !Empty
+
+This makes ``/tmp`` read-only. So you can see errors when application tries
+to write there and either fix the application (preferred in my opinion) or
+provide valid ``/tmp`` mount in lithos configs later on.
 
 
+.. _tutorial: http://vagga.readthedocs.org/en/latest/examples/tutorials/django.html
 
 .. _django: https://www.djangoproject.com/
 .. _vagga: http://github.com/tailhook/vagga
