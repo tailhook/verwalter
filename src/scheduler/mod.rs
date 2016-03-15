@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 use rustc_serialize::json::{Json};
 use lua::{State, ThreadStatus, Type};
+use self::config::Input;
 use config::Config;
 
 mod config;
@@ -85,7 +86,10 @@ impl Scheduler {
                 return Err(Error::FunctionNotFound("scheduler", typ));
             }
         }
-        self.lua.push(config);
+        self.lua.push(Input {
+            machine: &config.machine,
+            roles: &config.roles,
+        });
         match self.lua.pcall(1, 1, 0) {
             ThreadStatus::Ok => {}
             ThreadStatus::Yield => return Err(Error::UnexpectedYield),

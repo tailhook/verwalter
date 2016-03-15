@@ -1,14 +1,22 @@
-use lua::{ToLua, State};
+use std::collections::HashMap;
 
-use config::Config;
+use lua::{ToLua, State};
+use config::{MetadataErrors, Role};
+use rustc_serialize::json::{Json};
+
 use super::lua_json::push_json;
 
+pub struct Input<'a> {
+    pub machine: &'a Result<Json, MetadataErrors>,
+    pub roles: &'a HashMap<String, Role>,
+}
 
-impl<'a> ToLua for &'a Config {
+
+impl<'a> ToLua for Input<'a> {
     fn to_lua(&self, lua: &mut State) {
         lua.new_table(); // Config
         let cfg = lua.get_top();
-        match &self.machine {
+        match self.machine {
             &Ok(ref metadata) => {
                 push_json(lua, &metadata);
                 lua.set_field(cfg, "machine");
