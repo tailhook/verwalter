@@ -132,8 +132,12 @@ sandbox config limits the directories on a host system that  application
 is able to read or write. We don't want any application that can reach
 verwalter's HTTP API to be able to change such fundamental constraints.
 
-On the other hand,
+On the other hand, the reasons above doesn't tell you can't automate deploying
+these files. You can easily use ansible_ to upload them or put them into
+virtual machine image, such as AMI.
 
+Cantal Configuration
+--------------------
 
 
 .. _tutorial: http://vagga.readthedocs.org/en/latest/examples/tutorials/django.html
@@ -157,3 +161,4 @@ On the other hand,
 .. _mesos: http://mesos.apache.org/
 .. _kubernetes: http://kubernetes.io/
 .. _rsync: https://rsync.samba.org/
+.. _ansible: http://ansible.com/
