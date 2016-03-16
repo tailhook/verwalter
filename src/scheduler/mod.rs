@@ -14,6 +14,7 @@ mod lua_json;
 pub use self::main::{spawn, Settings};
 
 pub struct Scheduler {
+    hostname: String, // Is it the right place?
     lua: State,
 }
 
@@ -55,7 +56,9 @@ quick_error! {
     }
 }
 
-pub fn read(base_dir: &Path) -> Result<Scheduler, ReadError> {
+pub fn read(hostname: String, base_dir: &Path)
+    -> Result<Scheduler, ReadError>
+{
     let mut lua = State::new();
 
     // TODO(tailhook) remove me!!!
@@ -75,6 +78,7 @@ pub fn read(base_dir: &Path) -> Result<Scheduler, ReadError> {
         });
     }
     Ok(Scheduler {
+        hostname: hostname,
         lua: lua,
     })
 }
@@ -94,6 +98,7 @@ impl Scheduler {
             machine: &config.machine,
             roles: &config.roles,
             peers: peers,
+            hostname: &self.hostname,
         });
         match self.lua.pcall(1, 1, 0) {
             ThreadStatus::Ok => {}

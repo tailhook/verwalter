@@ -81,7 +81,9 @@ fn execute_scheduler(scheduler: &mut Scheduler, config: &Config,
 }
 
 fn main(state: SharedState, settings: Settings) {
-    let mut scheduler = match super::read(&settings.config_dir) {
+    let mut scheduler = match super::read(settings.hostname.clone(),
+                                          &settings.config_dir)
+    {
         Ok(s) => s,
         Err(e) => {
             error!("Scheduler load failed: {}", e);

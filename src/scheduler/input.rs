@@ -13,6 +13,7 @@ pub struct Input<'a> {
     pub machine: &'a Result<Json, MetadataErrors>,
     pub roles: &'a HashMap<String, Role>,
     pub peers: &'a HashMap<Id, Peer>,
+    pub hostname: &'a str,
 }
 
 
@@ -22,8 +23,12 @@ impl<'a> ToLua for Input<'a> {
         lua.new_table(); // Config
         let cfg = lua.get_top();
 
+        // These make configuration non-idempotent, not sure of them
         lua.push_number(get_time().to_msec() as f64);
         lua.set_field(cfg, "now");
+        lua.push_string(self.hostname);
+        lua.set_field(cfg, "current_host");
+        // end
 
         match self.machine {
             &Ok(ref metadata) => {
