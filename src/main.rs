@@ -41,6 +41,7 @@ mod shared;
 mod time_util;
 
 use argparse::{ArgumentParser, Parse, ParseOption, StoreOption, StoreTrue};
+use argparse::{Print};
 
 pub struct Options {
     config_dir: PathBuf,
@@ -88,6 +89,9 @@ fn main() {
         ap.refer(&mut options.config_dir)
             .add_option(&["-D", "--config-dir"], Parse,
                 "Directory of configuration files");
+        ap.add_option(&["--version"],
+            Print(env!("CARGO_PKG_VERSION").to_string()),
+            "Show version and exit");
         ap.refer(&mut options.hostname)
             .add_option(&["--hostname"], ParseOption,
                 "Hostname of current server");
