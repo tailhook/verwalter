@@ -191,7 +191,10 @@ impl Machine for Election {
                     .map_err(|e| error!("Error parsing node id {:?}: {}",
                                         p.id, e)).ok()
                     .map(|x| (x, p))
-                }).map(|(id, p)| (id, Peer {
+                })
+                // Cantal has a bug (or a feature) of adding itself to peers
+                .filter(|&(ref id, _)| id != &self.id)
+                .map(|(id, p)| (id, Peer {
                     addr: p.primary_addr.as_ref()
                         .and_then(|x| x.parse().ok())
                         // TODO(tailhook) allow to override port
