@@ -46,6 +46,7 @@ use argparse::{Print};
 pub struct Options {
     config_dir: PathBuf,
     log_dir: PathBuf,
+    log_id: bool,
     dry_run: bool,
     print_configs: bool,
     hostname: Option<String>,
@@ -54,18 +55,20 @@ pub struct Options {
     machine_id: Option<Id>,
 }
 
-fn init_logging(id: &Id) {
+fn init_logging(id: &Id, log_id: bool) {
     use std::env;
     use log::{LogLevelFilter, LogRecord};
     use env_logger::LogBuilder;
 
-    let id = format!("{}", id);
-    let format = move |record: &LogRecord| {
-        format!("{} {} {}: {}", now_utc().rfc3339(),
-            id, record.level(), record.args())
-    };
     let mut builder = LogBuilder::new();
-    builder.format(format).filter(None, LogLevelFilter::Warn);
+    if log_id {
+        let id = format!("{}", id);
+        let format = move |record: &LogRecord| {
+            format!("{} {} {}: {}", now_utc().rfc3339(),
+                id, record.level(), record.args())
+        };
+        builder.format(format).filter(None, LogLevelFilter::Warn);
+    }
 
     if let Ok(val) = env::var("RUST_LOG") {
        builder.parse(&val);
@@ -77,6 +80,7 @@ fn main() {
     let mut options = Options {
         config_dir: PathBuf::from("/etc/verwalter"),
         log_dir: PathBuf::from("/var/log/verwalter"),
+        log_id: false,
         dry_run: false,
         print_configs: false,
         hostname: None,
@@ -111,6 +115,10 @@ fn main() {
                 Directory for log files. The directory must be owned by
                 verwalter, meaning that nobody should put any extra files
                 there (because verwalter may traverse the directory)");
+        ap.refer(&mut options.log_id)
+            .add_option(&["--log-id"], StoreTrue, "
+                Add own machine id to the log (Useful mostly for running
+                containerized test in containers");
         ap.refer(&mut options.print_configs)
             .add_option(&["--print-configs"], StoreTrue, "
                 Print all rendered configs to stdout. It's useful with dry-run
@@ -127,7 +135,7 @@ fn main() {
     }
 
     let id = options.machine_id.clone().unwrap_or_else(info::machine_id);
-    init_logging(&id);
+    init_logging(&id, options.log_id);
 
     let mut cfg_cache = config::Cache::new();
     let config = match config::read_configs(&options, &mut cfg_cache) {

@@ -65,6 +65,8 @@ impl Machine {
     {
         use self::Machine::*;
 
+        debug!("[{}] time {:?} passed (me: {:?})",
+            self.current_epoch(), self.current_deadline(), self);
         // In case of spurious time events
         if self.current_deadline() > now {
             return pass(self)
@@ -130,6 +132,8 @@ impl Machine {
         use super::Message::*;
         let (src, msg_epoch, data) = msg;
         let epoch_cmp = self.compare_epoch(msg_epoch);
+        debug!("[{}] Message {:?} from {} with epoch {:?} (me: {:?})",
+            self.current_epoch(), data, src, msg_epoch, self);
         let (machine, action) = match (data, epoch_cmp, self) {
             (_, Older, me) => { // discard old messages
                 pass(me)

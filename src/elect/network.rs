@@ -43,7 +43,7 @@ impl Election {
 fn send_all(msg: &[u8], info: &Info, socket: &UdpSocket) {
     for (id, peer) in info.all_hosts {
         if let Some(ref addr) = peer.addr {
-            debug!("Sending Ping to {} ({:?})", addr, id);
+            debug!("Sending Ping to {} ({})", addr, id);
             socket.send_to(&msg, addr)
             .map_err(|e| info!("Error sending message to {}: {}",
                 addr, e)).ok();
