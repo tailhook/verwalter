@@ -88,14 +88,18 @@ fn main(state: SharedState, settings: Settings) {
             exit(4);
         }
     };
-    let empty_map = HashMap::new();
     loop {
-        {
-            let peers = state.peers();
-            execute_scheduler(&mut scheduler, &*state.config(),
-                peers.as_ref().map(|x| &x.1).unwrap_or(&empty_map), &settings);
-        }
         thread::sleep(Duration::new(10, 0));
+        {
+            // TODO(tailhook) check if peers are outdated
+            // TODO(tailhook) check if we have leadership established
+            if let Some(peers) = state.peers() {
+                execute_scheduler(&mut scheduler, &*state.config(),
+                    &peers.1, &settings);
+            } else {
+                warn!("No peers data, don't try to rebuild config");
+            }
+        }
     }
 }
 
