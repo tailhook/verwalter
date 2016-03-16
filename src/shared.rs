@@ -16,7 +16,7 @@ use config::Config;
 pub struct SharedState(Arc<Mutex<State>>);
 
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Id(Box<[u8]>);
 
 impl Id {
@@ -44,6 +44,12 @@ impl FromStr for Id {
 impl ::std::fmt::Display for Id {
     fn fmt(&self, fmt: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
         write!(fmt, "{}", self.0.to_hex())
+    }
+}
+
+impl ::std::fmt::Debug for Id {
+    fn fmt(&self, fmt: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        write!(fmt, "Id({})", self.0.to_hex())
     }
 }
 
