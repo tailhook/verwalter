@@ -1,13 +1,11 @@
-use std::net::SocketAddr;
 use std::collections::{HashMap};
-use rustc_serialize::hex::ToHex;
 
 use rotor::Time;
 use rotor::mio::udp::UdpSocket;
 use rotor_cantal::Schedule;
-use time::Timespec;
 
 pub use self::settings::peers_refresh;
+use shared::{Id, Peer, SharedState};
 
 mod machine;
 mod action;
@@ -20,11 +18,9 @@ mod encode;
 #[cfg(test)] mod test_util;
 #[cfg(test)] mod test_split_brain;
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Id(Box<[u8]>);
-
 pub struct Election {
-    info: Info,
+    id: Id,
+    state: SharedState,
     machine: machine::Machine,
     schedule: Schedule,
     socket: UdpSocket,
@@ -43,24 +39,12 @@ pub enum Message {
     Vote(Id),
 }
 
-#[derive(Clone, Debug)]
-struct PeerInfo {
-     addr: Option<SocketAddr>,
-     last_report: Option<Timespec>,
-}
-
 #[derive(Debug)]
-pub struct Info {
+pub struct Info<'a> {
     /// Unique identificator of the node, should be read from /etc/machine-id
-    id: Id,
+    id: &'a Id,
     /// This is used to find out whether hosts are actually valid
     hosts_timestamp: Option<Time>,
     /// State machine of the leader election
-    all_hosts: HashMap<Id, PeerInfo>,
-}
-
-impl ::std::fmt::Display for Id {
-    fn fmt(&self, fmt: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        write!(fmt, "{}", self.0.to_hex())
-    }
+    all_hosts: &'a HashMap<Id, Peer>,
 }

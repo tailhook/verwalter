@@ -1,41 +1,9 @@
-use std::io::{Write, Read};
-use std::str::FromStr;
-use std::collections::HashMap;
-
-use cbor::{Encoder, EncodeResult, Decoder, DecodeResult};
 use rotor::Time;
-use rustc_serialize::hex::{FromHex, FromHexError};
 
-use super::{Info, Id, peers_refresh};
+use super::{Info, peers_refresh};
 
 
-impl Id {
-    pub fn new<S:AsRef<[u8]>>(id: S) -> Id {
-        Id(id.as_ref().to_owned().into_boxed_slice())
-    }
-    pub fn encode<W: Write>(&self, enc: &mut Encoder<W>) -> EncodeResult {
-        enc.bytes(&self.0[..])
-    }
-    pub fn decode<R: Read>(dec: &mut Decoder<R>) -> DecodeResult<Id> {
-        dec.bytes().map(|x| x.into_boxed_slice()).map(Id)
-    }
-}
-
-impl FromStr for Id {
-    type Err = FromHexError;
-    fn from_str(s: &str) -> Result<Id, Self::Err> {
-        s.from_hex().map(|x| x.into_boxed_slice()).map(Id)
-    }
-}
-
-impl Info {
-    pub fn new(id: Id) -> Info {
-        Info {
-            id: id,
-            all_hosts: HashMap::new(),
-            hosts_timestamp: None,
-        }
-    }
+impl<'a> Info<'a> {
     pub fn hosts_are_fresh(&self, now: Time) -> bool {
         self.hosts_timestamp
             .map(|x| x + peers_refresh()*3/2 > now)

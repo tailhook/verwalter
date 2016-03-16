@@ -1,6 +1,6 @@
 use rotor::Time;
 
-use super::{Id};
+use shared::Id;
 
 
 #[derive(PartialEq, Eq, Debug)]

@@ -1,11 +1,13 @@
 use std::path::{Path, PathBuf};
+use std::collections::HashMap;
 
 use rustc_serialize::json::{Json};
 use lua::{State, ThreadStatus, Type};
-use self::config::Input;
+use self::input::Input;
 use config::Config;
+use shared::{Id, Peer};
 
-mod config;
+mod input;
 mod main;
 mod lua_json;
 
@@ -78,7 +80,9 @@ pub fn read(base_dir: &Path) -> Result<Scheduler, ReadError> {
 }
 
 impl Scheduler {
-    pub fn execute(&mut self, config: &Config) -> Result<Json, Error> {
+    pub fn execute(&mut self, config: &Config, peers: &HashMap<Id, Peer>)
+        -> Result<Json, Error>
+    {
         match self.lua.get_global("scheduler") {
             Type::Function => {}
             typ => {
@@ -89,6 +93,7 @@ impl Scheduler {
         self.lua.push(Input {
             machine: &config.machine,
             roles: &config.roles,
+            peers: peers,
         });
         match self.lua.pcall(1, 1, 0) {
             ThreadStatus::Ok => {}

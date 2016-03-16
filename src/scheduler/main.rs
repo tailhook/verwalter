@@ -1,13 +1,14 @@
 use std::thread;
-use std::sync::Arc;
 use std::path::PathBuf;
 use std::time::Duration;
 use std::process::exit;
+use std::collections::HashMap;
 
 use log;
 use rand::{thread_rng, Rng};
 use super::{Scheduler};
 use config::Config;
+use shared::{Id, Peer, SharedState};
 use render;
 use apply;
 
@@ -22,10 +23,10 @@ pub struct Settings {
 
 
 fn execute_scheduler(scheduler: &mut Scheduler, config: &Config,
-    settings: &Settings)
+    hosts: &HashMap<Id, Peer>, settings: &Settings)
 {
     debug!("Scheduler loaded");
-    let scheduler_result = match scheduler.execute(&config) {
+    let scheduler_result = match scheduler.execute(config, hosts) {
         Ok(j) => j,
         Err(e) => {
             error!("Initial scheduling failed: {}", e);
@@ -33,7 +34,7 @@ fn execute_scheduler(scheduler: &mut Scheduler, config: &Config,
         }
     };
     debug!("Got initial scheduling of {}", scheduler_result);
-    let apply_task = match render::render_all(&config,
+    let apply_task = match render::render_all(config,
         &scheduler_result, &settings.hostname,
                             settings.print_configs)
     {
@@ -79,7 +80,7 @@ fn execute_scheduler(scheduler: &mut Scheduler, config: &Config,
     }
 }
 
-fn main(config: Arc<Config>, settings: Settings) {
+fn main(state: SharedState, settings: Settings) {
     let mut scheduler = match super::read(&settings.config_dir) {
         Ok(s) => s,
         Err(e) => {
@@ -87,14 +88,19 @@ fn main(config: Arc<Config>, settings: Settings) {
             exit(4);
         }
     };
+    let empty_map = HashMap::new();
     loop {
-        execute_scheduler(&mut scheduler, &config, &settings);
+        {
+            let peers = state.peers();
+            execute_scheduler(&mut scheduler, &*state.config(),
+                peers.as_ref().map(|x| &x.1).unwrap_or(&empty_map), &settings);
+        }
         thread::sleep(Duration::new(10, 0));
     }
 }
 
-pub fn spawn(config: Arc<Config>, settings: Settings) {
+pub fn spawn(state: SharedState, settings: Settings) {
     thread::spawn(|| {
-        main(config, settings)
+        main(state, settings)
     });
 }

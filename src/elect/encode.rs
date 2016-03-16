@@ -3,7 +3,8 @@ use cbor::{Encoder, Decoder, Config, DecodeResult};
 use cbor::{DecodeError};
 use cbor::types::Type;
 
-use super::{Id, Capsule, Message};
+use shared::Id;
+use super::{Capsule, Message};
 use super::machine::Epoch;
 
 const PING: u8 = 1;

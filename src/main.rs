@@ -20,11 +20,12 @@ extern crate rotor_cantal;
 #[macro_use] extern crate matches;
 #[macro_use] extern crate quick_error;
 
-use time::now_utc;
 use std::net::ToSocketAddrs;
-use std::sync::{Arc};
 use std::path::PathBuf;
 use std::process::exit;
+
+use time::now_utc;
+use shared::{Id, SharedState};
 
 mod path_util;
 mod fs_util;
@@ -36,6 +37,8 @@ mod elect;
 mod frontend;
 mod net;
 mod info;
+mod shared;
+mod time_util;
 
 use argparse::{ArgumentParser, Parse, ParseOption, StoreOption, StoreTrue};
 
@@ -47,10 +50,10 @@ pub struct Options {
     hostname: Option<String>,
     listen_host: String,
     listen_port: u16,
-    machine_id: Option<elect::Id>,
+    machine_id: Option<Id>,
 }
 
-fn init_logging(id: &elect::Id) {
+fn init_logging(id: &Id) {
     use std::env;
     use log::{LogLevelFilter, LogRecord};
     use env_logger::LogBuilder;
@@ -124,7 +127,7 @@ fn main() {
 
     let mut cfg_cache = config::Cache::new();
     let config = match config::read_configs(&options, &mut cfg_cache) {
-        Ok(cfg) => Arc::new(cfg),
+        Ok(cfg) => cfg,
         Err(e) => {
             error!("Fatal error while reading config: {}", e);
             exit(3);
@@ -139,7 +142,9 @@ fn main() {
         .to_socket_addrs().expect("Can't resolve hostname")
         .collect::<Vec<_>>()[0];
 
-    scheduler::spawn(config.clone(), scheduler::Settings {
+    let state = SharedState::new(config);
+
+    scheduler::spawn(state.clone(), scheduler::Settings {
         hostname: options.hostname
                     .unwrap_or_else(|| info::hostname().expect("gethostname")),
         dry_run: options.dry_run,
@@ -149,6 +154,6 @@ fn main() {
     });
 
     info!("Started with machine id {}, listening {}", id, addr);
-    net::main(&addr, id, config, options.config_dir.join("frontend"))
+    net::main(&addr, id, state, options.config_dir.join("frontend"))
         .expect("Error running main loop");
 }

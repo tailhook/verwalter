@@ -5,7 +5,8 @@ use std::time::Duration;
 
 use rotor::Time;
 
-use super::{Id, Info, Capsule};
+use shared::Id;
+use super::{Info, Capsule};
 use super::settings::{start_timeout, election_ivl, HEARTBEAT_INTERVAL};
 use super::action::{Action, ActionList};
 
@@ -159,7 +160,7 @@ impl Machine {
             }
             (Vote(id), Current, Electing {epoch, mut votes_for_me, deadline})
             => {
-                if id == info.id {
+                if id == *info.id {
                     votes_for_me.insert(src);
                     let need = minimum_votes(info.all_hosts.len());
                     if votes_for_me.len() >= need {
