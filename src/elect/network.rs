@@ -128,6 +128,10 @@ impl Machine for Election {
                     // TODO(tailhook) check address?
                     match encode::read_packet(&buf[..n]) {
                         Ok(msg) => {
+                            if &msg.0 == info.id {
+                                info!("Message from myself {:?}", msg);
+                                continue;
+                            }
                             let (m, act) = me.message(info, msg, scope.now());
                             me = m;
                             act.action.map(|x| execute_action(x, &info,
