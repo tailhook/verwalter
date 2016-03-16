@@ -1,3 +1,4 @@
+use std::net::SocketAddr;
 use std::collections::{HashMap};
 
 use rotor::Time;
@@ -20,6 +21,8 @@ mod encode;
 
 pub struct Election {
     id: Id,
+    addr: SocketAddr,
+    hostname: String,
     state: SharedState,
     machine: machine::Machine,
     schedule: Schedule,

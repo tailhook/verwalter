@@ -155,10 +155,11 @@ fn main() {
         .collect::<Vec<_>>()[0];
 
     let state = SharedState::new(config);
+    let hostname = options.hostname
+                   .unwrap_or_else(|| info::hostname().expect("gethostname"));
 
     scheduler::spawn(state.clone(), scheduler::Settings {
-        hostname: options.hostname
-                    .unwrap_or_else(|| info::hostname().expect("gethostname")),
+        hostname: hostname.clone(),
         dry_run: options.dry_run,
         print_configs: options.print_configs,
         log_dir: options.log_dir,
@@ -166,6 +167,6 @@ fn main() {
     });
 
     info!("Started with machine id {}, listening {}", id, addr);
-    net::main(&addr, id, state, options.config_dir.join("frontend"))
+    net::main(&addr, id, hostname, state, options.config_dir.join("frontend"))
         .expect("Error running main loop");
 }

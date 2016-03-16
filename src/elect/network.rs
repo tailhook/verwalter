@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 use std::collections::HashMap;
 
-use time::Timespec;
+use time::{Timespec, get_time};
 use rotor::{Machine, EventSet, Scope, Response, PollOpt};
 use rotor::mio::udp::UdpSocket;
 use rotor::void::{unreachable, Void};
@@ -18,7 +18,7 @@ use shared::{Peer, Id};
 
 
 impl Election {
-    pub fn new(id: Id, addr: &SocketAddr,
+    pub fn new(id: Id, hostname: String, addr: &SocketAddr,
         state: SharedState, schedule: Schedule, scope: &mut Scope<Context>)
         -> Response<Election, Void>
     {
@@ -32,6 +32,8 @@ impl Election {
             PollOpt::edge()).expect("register socket");
         Response::ok(Election {
             id: id,
+            addr: addr.clone(),
+            hostname: hostname,
             state: state,
             schedule: schedule,
             machine: mach,
@@ -42,6 +44,10 @@ impl Election {
 
 fn send_all(msg: &[u8], info: &Info, socket: &UdpSocket) {
     for (id, peer) in info.all_hosts {
+        if id == info.id {
+            // Don't send anything to myself
+            continue;
+        }
         if let Some(ref addr) = peer.addr {
             debug!("Sending Ping to {} ({})", addr, id);
             socket.send_to(&msg, addr)
@@ -181,11 +187,7 @@ impl Machine for Election {
         let oldpr = oldp.as_ref();
         let (recv, new_hosts) = if let Some(peers) = self.schedule.get_peers()
         {
-            if oldpr.map(|x| x.1.len() != peers.peers.len()).unwrap_or(true) {
-                info!("Peer number changed {} -> {}",
-                    oldpr.map(|x| x.1.len()).unwrap_or(0), peers.peers.len());
-            }
-            let map = peers.peers.iter()
+            let mut map = peers.peers.iter()
                 .filter_map(|p| {
                     p.id.parse()
                     .map_err(|e| error!("Error parsing node id {:?}: {}",
@@ -204,7 +206,18 @@ impl Machine for Election {
                                    nsec: ((x % 1000)*1_000_000) as i32 }
                     }),
                     hostname: p.hostname.clone(),
-                })).collect();
+                })).collect::<HashMap<_, _>>();
+            // We skip host there and add it here, to make sure
+            // we have correct host info in the list
+            map.insert(self.id.clone(), Peer {
+                addr: Some(self.addr),
+                last_report: Some(get_time()),
+                hostname: self.hostname.clone(),
+            }).map(|_| unreachable!());
+            if oldpr.map(|x| x.1.len() != map.len()).unwrap_or(true) {
+                info!("Peer number changed {} -> {}",
+                    oldpr.map(|x| x.1.len()).unwrap_or(0), map.len());
+            }
             (peers.received, map)
         } else {
             let dline = self.machine.current_deadline();

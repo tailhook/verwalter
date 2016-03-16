@@ -82,7 +82,7 @@ impl Machine {
         let (machine, action) = match self {
             Starting { .. } => {
                 info!("[{}] Time passed. Electing as a leader", info.id);
-                if info.all_hosts.len() == 0 {
+                if info.all_hosts.len() == 1 {
                     // No other hosts. May safefully become a leader
                     become_leader(1, now)
                 } else {
@@ -222,7 +222,7 @@ fn pass(me: Machine) -> (Machine, ActionList) {
 }
 
 fn minimum_votes(total_peers: usize) -> usize {
-    match total_peers + 1 {  // peers don't include myself
+    match total_peers {  // peers do include myself
         0 => 0,
         1 => 1,
         2 => 2,
