@@ -29,19 +29,19 @@ fn execute_scheduler(scheduler: &mut Scheduler, config: &Config,
     let scheduler_result = match scheduler.execute(config, hosts) {
         Ok(j) => j,
         Err(e) => {
-            error!("Initial scheduling failed: {}", e);
-            exit(5);
+            error!("Scheduling failed: {}", e);
+            return;
         }
     };
-    debug!("Got initial scheduling of {}", scheduler_result);
+    debug!("Got scheduling of {}", scheduler_result);
     let apply_task = match render::render_all(config,
         &scheduler_result, &settings.hostname,
                             settings.print_configs)
     {
         Ok(res) => res,
         Err(e) => {
-            error!("Initial configuration render failed: {}", e);
-            exit(5);
+            error!("Configuration render failed: {}", e);
+            return;
         }
     };
     if log_enabled!(log::LogLevel::Debug) {

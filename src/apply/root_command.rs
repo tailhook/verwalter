@@ -3,20 +3,25 @@ use std::process::Command;
 use libc::geteuid;
 
 use apply::{Task, Error};
+use apply::expand::Variables;
 
 
-pub fn execute(args: Vec<String>, mut task: Task) -> Result<(), Error>
+pub fn execute(args: Vec<String>, mut task: Task, variables: Variables)
+    -> Result<(), Error>
 {
     let uid = unsafe { geteuid() };
     let mut cmd = if uid != 0 {
         let mut cmd = Command::new("/usr/bin/sudo");
         cmd.arg("-n");
-        cmd.arg(&args[0]);
+        cmd.arg(&variables.expand(&args[0]));
         cmd
     } else {
         Command::new(&args[0])
     };
-    cmd.args(&args[1..]);
+    for arg in &args[1..] {
+        cmd.arg(variables.expand(arg));
+    }
+    // TODO(tailhook) redirect output
     task.log(format_args!("RootCommand {:#?}\n", cmd));
     if !task.dry_run {
         cmd.status()

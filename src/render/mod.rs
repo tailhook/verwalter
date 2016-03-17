@@ -83,6 +83,7 @@ fn render_role(meta: &BTreeMap<String, Json>, node: &BTreeMap<String, Json>,
     role_name: &String, role: &Role, print: bool)
     -> Result<Vec<(String, Action, Source)>, Error>
 {
+    println!("RENDER ROLE {:?} -> {:?}", meta, role_name);
     let role_meta = match meta.get(role_name) {
         Some(&Json::Object(ref ob)) => ob,
         Some(_) => {

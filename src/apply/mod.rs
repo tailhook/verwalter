@@ -10,6 +10,7 @@ use render::Error as RenderError;
 
 
 mod root_command;
+mod expand;
 pub mod log;
 
 
@@ -71,14 +72,14 @@ impl<'a, 'b, 'c, 'd> Task<'a, 'b, 'c, 'd> {
     }
 }
 
-pub fn apply_list(name: &String,
+pub fn apply_list(role: &String,
     task: Result<Vec<(String, Action, Source)>, RenderError>,
     log: &mut log::Deployment, dry_run: bool)
     -> Vec<Error>
 {
     use self::Action::*;
     let mut errors = Vec::new();
-    let mut role_log = match log.role(name) {
+    let mut role_log = match log.role(role) {
         Ok(l) => l,
         Err(e) => {
             errors.push(From::from(e));
@@ -91,12 +92,15 @@ pub fn apply_list(name: &String,
                 let mut action = role_log.action(&aname);
                 match cmd {
                     RootCommand(cmd) => {
+                        let vars = expand::Variables::new()
+                           .add("role_name", role)
+                           .add_source(&source);
                         root_command::execute(cmd, Task {
                             runner: &aname,
                             log: &mut action,
                             dry_run: dry_run,
                             source: source,
-                        }).map_err(|e| errors.push(e)).ok();
+                        }, vars).map_err(|e| errors.push(e)).ok();
                     }
                 }
             }
@@ -112,9 +116,9 @@ pub fn apply_list(name: &String,
 pub fn apply_all(task: ApplyTask, mut log: log::Deployment, dry_run: bool)
     -> (HashMap<String, Vec<Error>>, Vec<Error>)
 {
-    let roles = task.into_iter().map(|(name, items)| {
-        let apply_result = apply_list(&name, items, &mut log, dry_run);
-        (name, apply_result)
+    let roles = task.into_iter().map(|(role, items)| {
+        let apply_result = apply_list(&role, items, &mut log, dry_run);
+        (role, apply_result)
     }).collect();
     let glob = log.done().into_iter().map(From::from).collect();
     (roles, glob)
