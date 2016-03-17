@@ -16,7 +16,7 @@ pub use self::main::{spawn, Settings};
 pub struct Scheduler {
     hostname: String, // Is it the right place?
     lua: State,
-    previous_config: Option<String>,
+    previous_schedule_hash: Option<String>,
 }
 
 quick_error! {
@@ -78,10 +78,11 @@ pub fn read(hostname: String, base_dir: &Path)
             }
         });
     }
+    debug!("Scheduler loaded");
     Ok(Scheduler {
         hostname: hostname,
         lua: lua,
-        previous_config: None,
+        previous_schedule_hash: None,
     })
 }
 

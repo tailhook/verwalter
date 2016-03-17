@@ -8,6 +8,7 @@ use time::Timespec;
 use rotor::Time;
 use cbor::{Encoder, EncodeResult, Decoder, DecodeResult};
 use rustc_serialize::hex::{FromHex, ToHex, FromHexError};
+use rustc_serialize::json::Json;
 
 use config::Config;
 
@@ -64,6 +65,7 @@ pub struct Peer {
 struct State {
     config: Arc<Config>,
     peers: Option<Arc<(Time, HashMap<Id, Peer>)>>,
+    schedule: Arc<Json>,
 }
 
 impl SharedState {
@@ -71,6 +73,7 @@ impl SharedState {
         SharedState(Arc::new(Mutex::new(State {
             config: Arc::new(cfg),
             peers: None,
+            schedule: Arc::new(Json::Null),
         })))
     }
     pub fn peers(&self) -> Option<Arc<(Time, HashMap<Id, Peer>)>> {
@@ -79,6 +82,9 @@ impl SharedState {
     pub fn config(&self) -> Arc<Config> {
         self.0.lock().expect("shared state lock").config.clone()
     }
+    pub fn schedule(&self) -> Arc<Json> {
+        self.0.lock().expect("shared state lock").schedule.clone()
+    }
     pub fn set_peers(&self, time: Time, peers: HashMap<Id, Peer>) {
         self.0.lock().expect("shared state lock")
             .peers = Some(Arc::new((time, peers)));
@@ -86,5 +92,8 @@ impl SharedState {
     #[allow(unused)]
     pub fn set_config(&self, cfg: Config) {
         self.0.lock().expect("shared state lock").config = Arc::new(cfg);
+    }
+    pub fn set_schedule(&self, cfg: Json) {
+        self.0.lock().expect("shared state lock").schedule = Arc::new(cfg);
     }
 }

@@ -4,10 +4,12 @@ use std::time::Duration;
 use std::process::exit;
 use std::collections::HashMap;
 
+
 use log;
 use sha1::Sha1;
 use rand::{thread_rng, Rng};
-use super::{Scheduler};
+use rustc_serialize::json::Json;
+
 use config::Config;
 use shared::{Id, Peer, SharedState};
 use render;
@@ -29,27 +31,9 @@ fn sha1<S: AsRef<[u8]>>(obj: S) -> String {
 }
 
 
-fn execute_scheduler(scheduler: &mut Scheduler, config: &Config,
-    hosts: &HashMap<Id, Peer>, settings: &Settings)
+fn apply_schedule(config: &Config, hash: &String, scheduler_result: &Json,
+    peers: &HashMap<Id, Peer>, settings: &Settings)
 {
-    debug!("Scheduler loaded");
-    let scheduler_result = match scheduler.execute(config, hosts) {
-        Ok(j) => j,
-        Err(e) => {
-            error!("Scheduling failed: {}", e);
-            return;
-        }
-    };
-    let hash = sha1(scheduler_result.to_string());
-    if scheduler.previous_config.as_ref() == Some(&hash) {
-        debug!("Config did not change ({}) skipping render", hash);
-        return;
-    }
-    info!("Got scheduling of {}: {}", hash, scheduler_result);
-
-    // TODO(tailhook) what should we do if render or application failed?
-    scheduler.previous_config = Some(hash.clone());
-
     let apply_task = match render::render_all(config,
         &scheduler_result, &settings.hostname,
                             settings.print_configs)
@@ -80,8 +64,9 @@ fn execute_scheduler(scheduler: &mut Scheduler, config: &Config,
     let mut index = apply::log::Index::new(
         &settings.log_dir, settings.dry_run);
     let mut dlog = index.deployment(id);
-    dlog.string("config-hash", &hash);
+    dlog.string("schedule-hash", &hash);
     dlog.object("config", &config);
+    dlog.object("peers", &peers);
     dlog.json("scheduler_result", &scheduler_result);
     let (rerrors, gerrs) = apply::apply_all(apply_task, dlog,
         settings.dry_run);
@@ -109,15 +94,34 @@ fn main(state: SharedState, settings: Settings) {
     };
     loop {
         thread::sleep(Duration::new(10, 0));
-        {
-            // TODO(tailhook) check if peers are outdated
-            // TODO(tailhook) check if we have leadership established
-            if let Some(peers) = state.peers() {
-                execute_scheduler(&mut scheduler, &*state.config(),
-                    &peers.1, &settings);
-            } else {
-                warn!("No peers data, don't try to rebuild config");
+        // TODO(tailhook) check if peers are outdated
+        // TODO(tailhook) check if we have leadership established
+        if let Some(peers) = state.peers() {
+            let cfg = state.config();
+            let scheduler_result = match scheduler.execute(&*cfg, &peers.1) {
+                Ok(j) => j,
+                Err(e) => {
+                    error!("Scheduling failed: {}", e);
+                    continue;
+                }
+            };
+
+            let hash = sha1(scheduler_result.to_string());
+            if scheduler.previous_schedule_hash.as_ref() == Some(&hash) {
+                debug!("Config did not change ({}) skipping render", hash);
+                continue;
             }
+            info!("Got scheduling of {}: {}", hash, scheduler_result);
+
+            // TODO(tailhook) what should we do
+            //                if render or application failed?
+            scheduler.previous_schedule_hash = Some(hash.clone());
+
+            apply_schedule(&*cfg, &hash, &scheduler_result,
+                           &peers.1, &settings);
+            state.set_schedule(scheduler_result);
+        } else {
+            warn!("No peers data, don't try to rebuild config");
         }
     }
 }

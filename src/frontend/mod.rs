@@ -17,6 +17,7 @@ use net::Context;
 pub enum ApiRoute {
     Config,
     Peers,
+    Schedule,
 }
 
 #[derive(Clone, Debug, Copy)]
@@ -89,6 +90,8 @@ fn parse_api(path: &str) -> Option<Route> {
             if suffix(path) == "pretty" { Plain } else { Json })),
         ("peers", "") => Some(Api(Peers,
             if suffix(path) == "pretty" { Plain } else { Json })),
+        ("schedule", "") => Some(Api(Schedule,
+            if suffix(path) == "pretty" { Plain } else { Json })),
         _ => None,
     }
 }
@@ -120,6 +123,9 @@ fn serve_api(context: &Context, route: &ApiRoute, format: Format,
         ApiRoute::Peers => {
             respond(res, format, &context.schedule.get_peers().as_ref()
                 .map(|x| &x.peers))
+        }
+        ApiRoute::Schedule => {
+            respond(res, format, &context.state.schedule())
         }
     }
 }
