@@ -14,6 +14,7 @@ Contents:
    concepts
    running/index
    deploy-tutorial
+   glossary
 
 
 
