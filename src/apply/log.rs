@@ -204,6 +204,13 @@ impl<'a> Deployment<'a> {
             self.errors.push(Error::WriteGlobal(e));
         }
     }
+    pub fn string(&mut self, name: &str, value: &str) {
+        if let Err(e) = write!(&mut self.log,
+             "{name}: {value}\n", name=name, value=value)
+        {
+             self.errors.push(Error::WriteGlobal(e));
+        }
+    }
     pub fn object(&mut self, name: &str, value: &Debug) {
         if let Err(e) = write!(&mut self.log,
             "+++ debug start: {name:?} +++\n\

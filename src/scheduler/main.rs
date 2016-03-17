@@ -5,6 +5,7 @@ use std::process::exit;
 use std::collections::HashMap;
 
 use log;
+use sha1::Sha1;
 use rand::{thread_rng, Rng};
 use super::{Scheduler};
 use config::Config;
@@ -21,6 +22,12 @@ pub struct Settings {
     pub config_dir: PathBuf,
 }
 
+fn sha1<S: AsRef<[u8]>>(obj: S) -> String {
+    let mut sha = Sha1::new();
+    sha.update(obj.as_ref());
+    return sha.hexdigest();
+}
+
 
 fn execute_scheduler(scheduler: &mut Scheduler, config: &Config,
     hosts: &HashMap<Id, Peer>, settings: &Settings)
@@ -33,7 +40,16 @@ fn execute_scheduler(scheduler: &mut Scheduler, config: &Config,
             return;
         }
     };
-    debug!("Got scheduling of {}", scheduler_result);
+    let hash = sha1(scheduler_result.to_string());
+    if scheduler.previous_config.as_ref() == Some(&hash) {
+        debug!("Config did not change ({}) skipping render", hash);
+        return;
+    }
+    info!("Got scheduling of {}: {}", hash, scheduler_result);
+
+    // TODO(tailhook) what should we do if render or application failed?
+    scheduler.previous_config = Some(hash.clone());
+
     let apply_task = match render::render_all(config,
         &scheduler_result, &settings.hostname,
                             settings.print_configs)
@@ -64,6 +80,7 @@ fn execute_scheduler(scheduler: &mut Scheduler, config: &Config,
     let mut index = apply::log::Index::new(
         &settings.log_dir, settings.dry_run);
     let mut dlog = index.deployment(id);
+    dlog.string("config-hash", &hash);
     dlog.object("config", &config);
     dlog.json("scheduler_result", &scheduler_result);
     let (rerrors, gerrs) = apply::apply_all(apply_task, dlog,

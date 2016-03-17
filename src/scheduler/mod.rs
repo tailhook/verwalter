@@ -16,6 +16,7 @@ pub use self::main::{spawn, Settings};
 pub struct Scheduler {
     hostname: String, // Is it the right place?
     lua: State,
+    previous_config: Option<String>,
 }
 
 quick_error! {
@@ -80,6 +81,7 @@ pub fn read(hostname: String, base_dir: &Path)
     Ok(Scheduler {
         hostname: hostname,
         lua: lua,
+        previous_config: None,
     })
 }
 

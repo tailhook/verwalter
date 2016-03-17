@@ -37,6 +37,7 @@ nix = "0.5.0"
 cbor-codec = "0.4.2"
 regex = "0.1.58"
 lazy_static = "0.1.15"
+sha1 = "0.1.1"
 
 [[bin]]
 name = "verwalter"

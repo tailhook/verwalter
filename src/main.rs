@@ -13,6 +13,7 @@ extern crate scan_dir;
 extern crate yaml_rust;
 extern crate cbor;
 extern crate regex;
+extern crate sha1;
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate rotor;
 extern crate rotor_http;
