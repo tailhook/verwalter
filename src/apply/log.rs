@@ -338,17 +338,21 @@ impl<'a, 'b, 'c> Drop for Action<'a, 'b, 'c> {
 fn check_log(dir: &Path) -> Result<(String, File), io::Error> {
     let link = dir.join("latest");
     let seg = match read_link(&link) {
-        Ok(ref x) if x.starts_with("log.") && x.ends_with(".txt") => {
-            x.file_name().and_then(|fname| {
-                fname.to_str().and_then(|fstr| {
-                    Some(fstr[4..fname.as_bytes().len()-4]
-                        .to_string())
-                })
-            })
-        }
-        Ok(_) => {
-            error!("errorneous segment");
-            None
+        Ok(ref path) => {
+            let seg = path.file_name()
+                .and_then(|fname| fname.to_str())
+                .and_then(|fname| {
+                    if fname.starts_with("log.") && fname.ends_with(".txt") {
+                        Some(fname[4..fname.as_bytes().len()-4]
+                            .to_string())
+                    } else {
+                        None
+                    }
+                });
+            if seg.is_none() {
+                error!("errorneous segment {:?}", path);
+            }
+            seg
         }
         Err(ref e) if e.kind() == NotFound => { None }
         Err(e) => return Err(e),
@@ -373,7 +377,7 @@ fn open_segment(dir: &Path, name: &String) -> Result<File, io::Error> {
     let link = dir.join("latest");
     try!(raceless_symlink(name, &link));
     let file = try!(OpenOptions::new().write(true).create(true)
-        .open(&filename));
+        .append(true).open(&filename));
     Ok(file)
 }
 
