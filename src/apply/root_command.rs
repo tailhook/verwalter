@@ -24,6 +24,7 @@ pub fn execute(args: Vec<String>, mut task: Task, variables: Variables)
     // TODO(tailhook) redirect output
     task.log(format_args!("RootCommand {:#?}\n", cmd));
     if !task.dry_run {
+        try!(task.log.redirect_command(&mut cmd));
         cmd.status()
         .map_err(|e| {
             task.log.log(format_args!(

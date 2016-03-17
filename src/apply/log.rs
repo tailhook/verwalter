@@ -5,11 +5,14 @@ use std::io::{Write, Seek};
 use std::io::ErrorKind::NotFound;
 use std::fs::{OpenOptions, File, read_link};
 use std::os::unix::ffi::OsStrExt;
+use std::os::unix::io::{FromRawFd, AsRawFd};
 use std::io::SeekFrom::Current;
 use std::fmt::Arguments;
 use std::path::{Path, PathBuf};
 
+use nix;
 use time::now_utc;
+use std::process::{Command, Stdio};
 use rustc_serialize::json::{Json, as_json, as_pretty_json};
 
 use fs_util::{raceless_symlink, ensure_dir};
@@ -46,6 +49,11 @@ quick_error! {
             cause(err)
             display("can't write role log: {}", err)
             display("can't open file role log")
+        }
+        Dup(err: nix::Error) {
+            cause(err)
+            display("can't dup file descriptor for logging: {}", err)
+            display("can't dup file descriptor for logging")
         }
     }
 }
@@ -307,6 +315,17 @@ impl<'a, 'b> Drop for Role<'a, 'b> {
 impl<'a, 'b, 'c> Action<'a, 'b, 'c> {
     pub fn log(&mut self, args: Arguments) {
         add_err(&mut self.role.err, self.role.log.write_fmt(args).err());
+    }
+    pub fn redirect_command(&mut self, cmd: &mut Command)
+        -> Result<(), Error>
+    {
+        let file = try!(nix::unistd::dup(self.role.log.as_raw_fd())
+            .map_err(|e| Error::Dup(e)));
+        cmd.stdout(unsafe { Stdio::from_raw_fd(file) });
+        let file = try!(nix::unistd::dup(self.role.log.as_raw_fd())
+            .map_err(|e| Error::Dup(e)));
+        cmd.stderr(unsafe { Stdio::from_raw_fd(file) });
+        Ok(())
     }
 }
 
