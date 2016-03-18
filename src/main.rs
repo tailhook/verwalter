@@ -26,6 +26,8 @@ extern crate rotor_cantal;
 use std::net::ToSocketAddrs;
 use std::path::PathBuf;
 use std::process::exit;
+use std::sync::mpsc::sync_channel;
+use std::thread;
 
 use time::now_utc;
 use shared::{Id, SharedState};
@@ -42,6 +44,7 @@ mod net;
 mod info;
 mod shared;
 mod time_util;
+mod watchdog;
 
 use argparse::{ArgumentParser, Parse, ParseOption, StoreOption, StoreTrue};
 use argparse::{Print};
@@ -161,15 +164,24 @@ fn main() {
     let hostname = options.hostname
                    .unwrap_or_else(|| info::hostname().expect("gethostname"));
 
-    scheduler::spawn(state.clone(), scheduler::Settings {
+    let (alarm_tx, alarm_rx) = sync_channel(1);
+
+    let scheduler_settings = scheduler::Settings {
         hostname: hostname.clone(),
         dry_run: options.dry_run,
         print_configs: options.print_configs,
         log_dir: options.log_dir,
         config_dir: options.config_dir.clone(),
+    };
+    let scheduler_state = state.clone();
+    thread::spawn(move || {
+        let alarm = alarm_rx.recv().expect("received alarm");
+        scheduler::run(scheduler_state, scheduler_settings, alarm)
     });
 
     info!("Started with machine id {}, listening {}", id, addr);
-    net::main(&addr, id, hostname, state, options.config_dir.join("frontend"))
+    net::main(&addr, id, hostname, state,
+        options.config_dir.join("frontend"), alarm_tx)
         .expect("Error running main loop");
+    unreachable!();
 }

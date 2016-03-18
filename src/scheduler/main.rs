@@ -9,9 +9,11 @@ use log;
 use sha1::Sha1;
 use rand::{thread_rng, Rng};
 use rustc_serialize::json::Json;
+use time::get_time;
 
+use watchdog::{Alarm, ExitOnReturn};
 use config::Config;
-use shared::{Id, Peer, SharedState};
+use shared::{Id, Peer, SharedState, Schedule};
 use render;
 use apply;
 
@@ -82,14 +84,18 @@ fn apply_schedule(config: &Config, hash: &String, scheduler_result: &Json,
     }
 }
 
-fn main(state: SharedState, settings: Settings) {
-    let mut scheduler = match super::read(settings.hostname.clone(),
-                                          &settings.config_dir)
-    {
-        Ok(s) => s,
-        Err(e) => {
-            error!("Scheduler load failed: {}", e);
-            exit(4);
+pub fn main(state: SharedState, settings: Settings, mut alarm: Alarm) -> ! {
+    let _guard = ExitOnReturn(92);
+    let mut scheduler = {
+        let _alarm = alarm.after(Duration::from_secs(10));
+        match super::read(settings.hostname.clone(),
+                                              &settings.config_dir)
+        {
+            Ok(s) => s,
+            Err(e) => {
+                error!("Scheduler load failed: {}", e);
+                exit(4);
+            }
         }
     };
     loop {
@@ -98,6 +104,8 @@ fn main(state: SharedState, settings: Settings) {
         // TODO(tailhook) check if we have leadership established
         if let Some(peers) = state.peers() {
             let cfg = state.config();
+            let timestamp = get_time();
+            let _alarm = alarm.after(Duration::from_secs(1));
             let scheduler_result = match scheduler.execute(&*cfg, &peers.1) {
                 Ok(j) => j,
                 Err(e) => {
@@ -119,15 +127,13 @@ fn main(state: SharedState, settings: Settings) {
 
             apply_schedule(&*cfg, &hash, &scheduler_result,
                            &peers.1, &settings);
-            state.set_schedule(scheduler_result);
+            state.set_schedule(Schedule {
+                timestamp: timestamp,
+                hash: hash,
+                data: scheduler_result,
+            });
         } else {
             warn!("No peers data, don't try to rebuild config");
         }
     }
-}
-
-pub fn spawn(state: SharedState, settings: Settings) {
-    thread::spawn(|| {
-        main(state, settings)
-    });
 }

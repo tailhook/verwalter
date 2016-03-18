@@ -1,6 +1,7 @@
 use std::io;
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::sync::mpsc::SyncSender;
 
 use rotor;
 use rotor_http::server;
@@ -12,12 +13,14 @@ use shared::SharedState;
 use frontend::Public;
 use elect::{Election, peers_refresh};
 use shared::Id;
+use watchdog::{self, Watchdog, Alarm};
 
 
 rotor_compose!(pub enum Fsm/Seed<Context> {
     Frontend(server::Fsm<Public, TcpListener>),
     Cantal(CantalFsm<Context>),
     Election(Election),
+    Watchdog(Watchdog),
 });
 
 
@@ -28,7 +31,8 @@ pub struct Context {
 }
 
 pub fn main(addr: &SocketAddr, id: Id, hostname: String,
-    state: SharedState, frontend_dir: PathBuf)
+    state: SharedState, frontend_dir: PathBuf,
+    scheduler_alarm: SyncSender<Alarm>)
     -> Result<(), io::Error>
 {
     let mut creator = rotor::Loop::new(&rotor::Config::new())
@@ -36,6 +40,9 @@ pub fn main(addr: &SocketAddr, id: Id, hostname: String,
     let schedule = creator.add_and_fetch(Fsm::Cantal, |scope| {
         connect_localhost(scope)
     }).expect("create cantal endpoint");
+    let alarm = creator.add_and_fetch(Fsm::Watchdog, |s| watchdog::create(s))
+        .expect("create watchdog");
+    scheduler_alarm.send(alarm).expect("send alarm");
     schedule.set_peers_interval(peers_refresh());
     let mut loop_inst = creator.instantiate(Context {
         state: state.clone(),

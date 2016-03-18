@@ -11,7 +11,7 @@ mod input;
 mod main;
 mod lua_json;
 
-pub use self::main::{spawn, Settings};
+pub use self::main::{main as run, Settings};
 
 pub struct Scheduler {
     hostname: String, // Is it the right place?

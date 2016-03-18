@@ -9,7 +9,7 @@ use rotor::{Scope, Time};
 use rotor_http::server::{Server, Response, RecvMode, Head};
 use rotor_http::server::{Context as HttpContext};
 use rustc_serialize::Encodable;
-use rustc_serialize::json::{ToJson, as_json, as_pretty_json};
+use rustc_serialize::json::{ToJson, as_json, as_pretty_json, Json};
 
 use net::Context;
 
@@ -125,7 +125,12 @@ fn serve_api(context: &Context, route: &ApiRoute, format: Format,
                 .map(|x| &x.peers))
         }
         ApiRoute::Schedule => {
-            respond(res, format, &context.state.schedule())
+            if let Some(schedule) = context.state.schedule() {
+                respond(res, format, &schedule.data)
+            } else {
+                // TODO(tailhook) Should we return error code instead ?
+                respond(res, format, Json::Null)
+            }
         }
     }
 }

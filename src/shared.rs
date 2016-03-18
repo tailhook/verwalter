@@ -61,11 +61,18 @@ pub struct Peer {
      pub last_report: Option<Timespec>,
 }
 
+#[derive(Clone, Debug)]
+pub struct Schedule {
+    pub timestamp: Timespec,
+    pub hash: String,
+    pub data: Json,
+}
+
 #[derive(Debug)]
 struct State {
     config: Arc<Config>,
     peers: Option<Arc<(Time, HashMap<Id, Peer>)>>,
-    schedule: Arc<Json>,
+    schedule: Option<Arc<Schedule>>,
 }
 
 impl SharedState {
@@ -73,7 +80,7 @@ impl SharedState {
         SharedState(Arc::new(Mutex::new(State {
             config: Arc::new(cfg),
             peers: None,
-            schedule: Arc::new(Json::Null),
+            schedule: None,
         })))
     }
     pub fn peers(&self) -> Option<Arc<(Time, HashMap<Id, Peer>)>> {
@@ -82,7 +89,7 @@ impl SharedState {
     pub fn config(&self) -> Arc<Config> {
         self.0.lock().expect("shared state lock").config.clone()
     }
-    pub fn schedule(&self) -> Arc<Json> {
+    pub fn schedule(&self) -> Option<Arc<Schedule>> {
         self.0.lock().expect("shared state lock").schedule.clone()
     }
     pub fn set_peers(&self, time: Time, peers: HashMap<Id, Peer>) {
@@ -93,7 +100,8 @@ impl SharedState {
     pub fn set_config(&self, cfg: Config) {
         self.0.lock().expect("shared state lock").config = Arc::new(cfg);
     }
-    pub fn set_schedule(&self, cfg: Json) {
-        self.0.lock().expect("shared state lock").schedule = Arc::new(cfg);
+    pub fn set_schedule(&self, val: Schedule) {
+        self.0.lock().expect("shared state lock")
+            .schedule = Some(Arc::new(val));
     }
 }
