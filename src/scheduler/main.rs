@@ -43,7 +43,6 @@ pub fn main(state: SharedState, settings: Settings, mut alarm: Alarm) -> ! {
             continue;
         }
         // TODO(tailhook) check if peers are outdated
-        // TODO(tailhook) check if we have leadership established
         if let Some(peers) = state.peers() {
             let cfg = state.config();
             let timestamp = get_time();
