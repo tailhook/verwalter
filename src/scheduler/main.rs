@@ -67,6 +67,7 @@ pub fn main(state: SharedState, settings: Settings, mut alarm: Alarm) -> ! {
                 timestamp: timestamp,
                 hash: hash,
                 data: scheduler_result,
+                origin: true,
             });
         } else {
             warn!("No peers data, don't try to rebuild config");

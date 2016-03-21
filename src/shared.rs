@@ -74,6 +74,7 @@ pub struct Schedule {
     pub timestamp: Timespec,
     pub hash: String,
     pub data: Json,
+    pub origin: bool,
 }
 
 #[derive(Debug)]

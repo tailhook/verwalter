@@ -44,6 +44,10 @@ impl Machine {
         }
     }
 
+    pub fn is_leader(&self) -> bool {
+        matches!(self, &self::Machine::Leader {..})
+    }
+
     // methods generic over the all states
     pub fn compare_epoch(&self, epoch: Epoch) -> Ordering {
         let my_epoch = self.current_epoch();
@@ -138,12 +142,12 @@ impl Machine {
             (_, Older, me) => { // discard old messages
                 pass(me)
             }
-            (Ping, Current, Leader { .. }) => {
+            (Ping { .. }, Current, Leader { .. }) => {
                 // Another leader is here, restart the election
                 // This is valid when two partitions suddenly joined
                 start_election(msg_epoch+1, now, &info.id)
             }
-            (Ping, Current, _) => {
+            (Ping { .. }, Current, _) => {
                 // Ping in any other state, means we follow the leader
                 follow(src, msg_epoch, now)
             }
@@ -188,7 +192,7 @@ impl Machine {
                 // This vote is late for the party
                 pass(me)
             }
-            (Ping, Newer, _) => {
+            (Ping { .. }, Newer, _) => {
                 // We missed something, there is already a new leader
                 follow(src, msg_epoch, now)
             }

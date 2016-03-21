@@ -3,7 +3,7 @@ use std::collections::{HashMap};
 
 use rotor::Time;
 use rotor::mio::udp::UdpSocket;
-use rotor_cantal::Schedule;
+use rotor_cantal::Schedule as Cantal;
 
 pub use self::settings::peers_refresh;
 pub use self::state::ElectionState;
@@ -27,8 +27,9 @@ pub struct Election {
     addr: SocketAddr,
     hostname: String,
     state: SharedState,
+    last_schedule_sent: String,
     machine: machine::Machine,
-    schedule: Schedule,
+    cantal: Cantal,
     socket: UdpSocket,
 }
 
@@ -38,7 +39,7 @@ pub type Capsule = (Id, machine::Epoch, Message);
 pub enum Message {
     /// Ping message from leader to followers, reassures that leadership
     /// still holds
-    Ping,
+    Ping { config_hash: String },
     /// Pong message from follower to leader, confirm that node is a leader
     Pong,
     /// Vote for some node

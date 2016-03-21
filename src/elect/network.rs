@@ -5,7 +5,7 @@ use time::{Timespec, get_time};
 use rotor::{Machine, EventSet, Scope, Response, PollOpt};
 use rotor::mio::udp::UdpSocket;
 use rotor::void::{unreachable, Void};
-use rotor_cantal::Schedule;
+use rotor_cantal::{Schedule as Cantal};
 
 use net::Context;
 use shared::{SharedState};
@@ -20,7 +20,7 @@ use shared::{Peer, Id};
 
 impl Election {
     pub fn new(id: Id, hostname: String, addr: &SocketAddr,
-        state: SharedState, schedule: Schedule, scope: &mut Scope<Context>)
+        state: SharedState, cantal: Cantal, scope: &mut Scope<Context>)
         -> Response<Election, Void>
     {
         let mach = machine::Machine::new(scope.now());
@@ -36,7 +36,8 @@ impl Election {
             addr: addr.clone(),
             hostname: hostname,
             state: state,
-            schedule: schedule,
+            last_schedule_sent: String::new(),
+            cantal: cantal,
             machine: mach,
             socket: sock,
         }).deadline(dline)
@@ -61,14 +62,26 @@ fn send_all(msg: &[u8], info: &Info, socket: &UdpSocket) {
 }
 
 fn execute_action(action: Action, info: &Info, epoch: Epoch,
-    socket: &UdpSocket)
+    socket: &UdpSocket, state: &SharedState, last_sent_hash: &mut String)
 {
     use super::action::Action::*;
     match action {
         PingAll => {
-            info!("[{}] Confirming leadership by pinging everybody", epoch);
-            let msg = encode::ping(&info.id, epoch);
-            send_all(&msg, info, socket);
+            if let Some(schedule) = state.schedule() {
+                if schedule.origin == true {
+                    info!("[{}] Confirming leadership by sending shedule {}",
+                        epoch, schedule.hash);
+                    let msg = encode::ping(&info.id, epoch, &schedule.hash);
+                    send_all(&msg, info, socket);
+                    *last_sent_hash = schedule.hash.clone();
+                } else {
+                    info!("[{}] Skipping leadership confirmation, \
+                        because schedule is foreign yet", epoch);
+                }
+            } else {
+                info!("[{}] Skipping leadership confirmation, \
+                    because no schedule yet", epoch);
+            }
         }
         Vote(id) => {
             info!("[{}] Vote for {}", epoch, id);
@@ -115,7 +128,7 @@ impl Machine for Election {
     {
         unreachable(seed)
     }
-    fn ready(self, events: EventSet, scope: &mut Scope<Context>)
+    fn ready(mut self, events: EventSet, scope: &mut Scope<Context>)
         -> Response<Self, Self::Seed>
     {
         let mut me = self.machine;
@@ -129,6 +142,8 @@ impl Machine for Election {
                 all_hosts: &peers,
             };
             let ref socket = self.socket;
+            let ref state = self.state;
+            let ref mut hash = self.last_schedule_sent;
             if events.is_readable() {
                 let mut buf = [0u8; MAX_PACKET_SIZE];
                 while let Ok(Some((n, _))) = self.socket.recv_from(&mut buf) {
@@ -142,7 +157,7 @@ impl Machine for Election {
                             let (m, act) = me.message(info, msg, scope.now());
                             me = m;
                             act.action.map(|x| execute_action(x, &info,
-                                me.current_epoch(), &socket));
+                                me.current_epoch(), &socket, state, hash));
                         }
                         Err(e) => {
                             info!("Error parsing packet {:?}", e);
@@ -159,7 +174,7 @@ impl Machine for Election {
     {
         unreachable!();
     }
-    fn timeout(self, scope: &mut Scope<Context>)
+    fn timeout(mut self, scope: &mut Scope<Context>)
         -> Response<Self, Self::Seed>
     {
         let (me, wakeup) = {
@@ -172,23 +187,26 @@ impl Machine for Election {
                 all_hosts: &peers,
             };
             let ref socket = self.socket;
+            let ref state = self.state;
+            let ref mut hash = self.last_schedule_sent;
             let (me, alst) = self.machine.time_passed(info, scope.now());
             debug!("Current state {:?} at {:?} -> {:?}",
                 me, scope.now(), alst);
             alst.action.map(|x| execute_action(x, &info,
-                    me.current_epoch(), &socket));
+                    me.current_epoch(), &socket, state, hash));
             (me, alst.next_wakeup)
         };
         self.state.set_election(ElectionState::from(&me, scope));
         Response::ok(Election { machine: me, ..self})
         .deadline(wakeup)
     }
-    fn wakeup(self, _scope: &mut Scope<Context>)
+    fn wakeup(mut self, _scope: &mut Scope<Context>)
         -> Response<Self, Self::Seed>
     {
         let oldp = self.state.peers();
         let oldpr = oldp.as_ref();
-        let (recv, new_hosts) = if let Some(peers) = self.schedule.get_peers()
+        // TODO(tailhook) optimize peer copy when unneeded
+        let (recv, new_hosts) = if let Some(peers) = self.cantal.get_peers()
         {
             let mut map = peers.peers.iter()
                 .filter_map(|p| {
@@ -223,10 +241,34 @@ impl Machine for Election {
             }
             (peers.received, map)
         } else {
+            // Note we just return here, because the (owned) schedule can't be
+            // changed while there is no peers yet
             let dline = self.machine.current_deadline();
             return Response::ok(self).deadline(dline);
         };
         self.state.set_peers(recv, new_hosts);
+
+        if self.machine.is_leader() {
+            if let Some(schedule) = self.state.schedule() {
+                if self.last_schedule_sent != schedule.hash {
+                    let peers_opt = self.state.peers();
+                    let empty_map = HashMap::new();
+                    let peers = peers_opt.as_ref()
+                        .map(|x| &x.1).unwrap_or(&empty_map);
+                    let ref info = Info {
+                        id: &self.id,
+                        hosts_timestamp: peers_opt.as_ref().map(|x| x.0),
+                        all_hosts: &peers,
+                    };
+                    let ref socket = self.socket;
+                    let ref mut hash = self.last_schedule_sent;
+                    execute_action(Action::PingAll, info,
+                        self.machine.current_epoch(), socket, &self.state,
+                        hash);
+                }
+            }
+        }
+
         let dline = self.machine.current_deadline();
         Response::ok(self).deadline(dline)
     }

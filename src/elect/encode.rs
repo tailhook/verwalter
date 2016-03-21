@@ -12,11 +12,12 @@ const PONG: u8 = 2;
 const VOTE: u8 = 3;
 
 
-pub fn ping(id: &Id, epoch: Epoch) -> Vec<u8> {
+pub fn ping(id: &Id, epoch: Epoch, schedule_hash: &String) -> Vec<u8> {
     let mut buf = Encoder::new(Cursor::new(Vec::new()));
     id.encode(&mut buf).unwrap();
     buf.u64(epoch).unwrap();
     buf.u8(PING).unwrap();
+    buf.text(schedule_hash).unwrap();
     return buf.into_writer().into_inner();
 }
 
@@ -42,7 +43,10 @@ pub fn read_packet(buf: &[u8]) -> DecodeResult<Capsule> {
     let source = try!(Id::decode(&mut dec));
     let epoch = try!(dec.u64());
     match try!(dec.u8()) {
-        x if x == PING => Ok((source, epoch, Message::Ping)),
+        x if x == PING => {
+            let peer_id = try!(dec.text());
+            Ok((source, epoch, Message::Ping { config_hash: peer_id }))
+        }
         x if x == PONG => Ok((source, epoch, Message::Pong)),
         x if x == VOTE => {
             let peer = try!(Id::decode(&mut dec));
