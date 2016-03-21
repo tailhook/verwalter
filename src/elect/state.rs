@@ -10,19 +10,19 @@ use elect::machine::Machine;
 #[derive(Clone, RustcEncodable, Debug, Default)]
 pub struct ElectionState {
     /// Is current node a leader
-    is_leader: bool,
+    pub is_leader: bool,
     /// Is there a leader in a (visible) cluster
-    is_stable: bool,
+    pub is_stable: bool,
     /// A leader if there is one, only if we are not a leader
-    leader: Option<Id>,
+    pub leader: Option<Id>,
     /// A peer we are promoting if there is no leader and we are not electing
-    promoting: Option<Id>,
+    pub promoting: Option<Id>,
     /// Number of votes for this node to become a leader if it's electing
-    num_votes_for_me: Option<usize>,
+    pub num_votes_for_me: Option<usize>,
     /// Current epoch (for debugging)
-    epoch: Epoch,
+    pub epoch: Epoch,
     /// Current timeout (for debugging), JSON-friendly, in seconds
-    deadline: f64,
+    pub deadline: f64,
 }
 
 fn to_float(time: Timespec) -> f64 {

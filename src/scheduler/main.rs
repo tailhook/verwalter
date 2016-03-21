@@ -100,6 +100,10 @@ pub fn main(state: SharedState, settings: Settings, mut alarm: Alarm) -> ! {
     };
     loop {
         thread::sleep(Duration::new(10, 0));
+        if !state.election().is_leader {
+            trace!("Not a leader. Sleeping...");
+            continue;
+        }
         // TODO(tailhook) check if peers are outdated
         // TODO(tailhook) check if we have leadership established
         if let Some(peers) = state.peers() {
