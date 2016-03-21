@@ -1,13 +1,13 @@
 use std::io;
 use std::net::SocketAddr;
 use std::path::PathBuf;
-use std::sync::mpsc::SyncSender;
+use std::sync::mpsc::{Receiver, SyncSender};
 
 use rotor;
 use rotor_http::server;
 use rotor::mio::tcp::{TcpListener};
 use rotor_cantal::{Schedule, connect_localhost, Fsm as CantalFsm};
-use rotor_tools::loop_ext::LoopExt;
+use rotor_tools::loop_ext::{LoopExt, LoopInstanceExt};
 
 use shared::SharedState;
 use frontend::Public;
@@ -32,7 +32,7 @@ pub struct Context {
 
 pub fn main(addr: &SocketAddr, id: Id, hostname: String,
     state: SharedState, frontend_dir: PathBuf,
-    scheduler_alarm: SyncSender<Alarm>)
+    alarms: Receiver<SyncSender<Alarm>>)
     -> Result<(), io::Error>
 {
     let mut creator = rotor::Loop::new(&rotor::Config::new())
@@ -40,9 +40,7 @@ pub fn main(addr: &SocketAddr, id: Id, hostname: String,
     let schedule = creator.add_and_fetch(Fsm::Cantal, |scope| {
         connect_localhost(scope)
     }).expect("create cantal endpoint");
-    let alarm = creator.add_and_fetch(Fsm::Watchdog, |s| watchdog::create(s))
-        .expect("create watchdog");
-    scheduler_alarm.send(alarm).expect("send alarm");
+
     schedule.set_peers_interval(peers_refresh());
     let mut loop_inst = creator.instantiate(Context {
         state: state.clone(),
@@ -58,5 +56,15 @@ pub fn main(addr: &SocketAddr, id: Id, hostname: String,
         Election::new(id, hostname, addr,
                       state, schedule, scope).wrap(Fsm::Election)
     }).expect("Can't add a state machine");
+
+    debug!("Starting alarms");
+    while let Ok(snd) = alarms.recv() {
+        let alarm = loop_inst.add_and_fetch(
+            Fsm::Watchdog, |s| watchdog::create(s))
+            .expect("create watchdog");
+        snd.send(alarm).expect("send alarm");
+    }
+    debug!("All alarms received");
+
     loop_inst.run()
 }

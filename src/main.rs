@@ -26,7 +26,7 @@ extern crate rotor_cantal;
 use std::net::ToSocketAddrs;
 use std::path::PathBuf;
 use std::process::exit;
-use std::sync::mpsc::sync_channel;
+use std::sync::mpsc::{channel, sync_channel};
 use std::thread;
 
 use time::now_utc;
@@ -164,24 +164,43 @@ fn main() {
     let hostname = options.hostname
                    .unwrap_or_else(|| info::hostname().expect("gethostname"));
 
-    let (alarm_tx, alarm_rx) = sync_channel(1);
+    let (alarm_tx, alarm_rx) = channel();
 
     let scheduler_settings = scheduler::Settings {
         hostname: hostname.clone(),
-        dry_run: options.dry_run,
-        print_configs: options.print_configs,
-        log_dir: options.log_dir,
         config_dir: options.config_dir.clone(),
     };
     let scheduler_state = state.clone();
+    let scheduler_alarm_tx = alarm_tx.clone();
     thread::spawn(move || {
-        let alarm = alarm_rx.recv().expect("received alarm");
+        let alarm = {
+            let (tx, rx) = sync_channel(1);
+            {scheduler_alarm_tx}.send(tx).expect("sent alarm task");
+            rx.recv().expect("received alarm")
+        };
         scheduler::run(scheduler_state, scheduler_settings, alarm)
+    });
+
+    let apply_settings = apply::Settings {
+        dry_run: options.dry_run,
+        hostname: hostname.clone(),
+        print_configs: options.print_configs,
+        log_dir: options.log_dir,
+    };
+    let apply_state = state.clone();
+    let apply_alarm_tx = alarm_tx; // this is last one, no clone
+    thread::spawn(move || {
+        let alarm = {
+            let (tx, rx) = sync_channel(1);
+            {apply_alarm_tx}.send(tx).expect("sent alarm task");
+            rx.recv().expect("received alarm")
+        };
+        apply::run(apply_state, apply_settings, alarm);
     });
 
     info!("Started with machine id {}, listening {}", id, addr);
     net::main(&addr, id, hostname, state,
-        options.config_dir.join("frontend"), alarm_tx)
+        options.config_dir.join("frontend"), alarm_rx)
         .expect("Error running main loop");
     unreachable!();
 }

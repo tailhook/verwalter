@@ -1,7 +1,7 @@
 use std::io::{Read, Write};
 use std::str::FromStr;
 use std::net::SocketAddr;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, Condvar};
 use std::collections::HashMap;
 
 use time::Timespec;
@@ -15,8 +15,8 @@ use config::Config;
 use elect::ElectionState;
 
 
-#[derive(Clone, Debug)]
-pub struct SharedState(Arc<Mutex<State>>);
+#[derive(Clone)]
+pub struct SharedState(Arc<Mutex<State>>, Arc<Notifiers>);
 
 
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -84,6 +84,10 @@ struct State {
     election: Arc<ElectionState>,
 }
 
+struct Notifiers {
+    apply_schedule: Condvar,
+}
+
 impl SharedState {
     pub fn new(cfg: Config) -> SharedState {
         SharedState(Arc::new(Mutex::new(State {
@@ -91,8 +95,11 @@ impl SharedState {
             peers: None,
             schedule: None,
             election: Default::default(),
-        })))
+        })), Arc::new(Notifiers {
+            apply_schedule: Condvar::new(),
+        }))
     }
+    // Accessors
     pub fn peers(&self) -> Option<Arc<(Time, HashMap<Id, Peer>)>> {
         self.0.lock().expect("shared state lock").peers.clone()
     }
@@ -105,6 +112,7 @@ impl SharedState {
     pub fn election(&self) -> Arc<ElectionState> {
         self.0.lock().expect("shared state lock").election.clone()
     }
+    // Setters
     pub fn set_peers(&self, time: Time, peers: HashMap<Id, Peer>) {
         self.0.lock().expect("shared state lock")
             .peers = Some(Arc::new((time, peers)));
@@ -114,10 +122,26 @@ impl SharedState {
         self.0.lock().expect("shared state lock").config = Arc::new(cfg);
     }
     pub fn set_schedule(&self, val: Schedule) {
-        self.0.lock().expect("shared state lock")
-            .schedule = Some(Arc::new(val));
+        let mut guard = self.0.lock().expect("shared state lock");
+        guard.schedule = Some(Arc::new(val));
+        self.1.apply_schedule.notify_all();
     }
     pub fn set_election(&self, val: ElectionState) {
         self.0.lock().expect("shared state lock").election = Arc::new(val);
+    }
+    // Utility
+    pub fn wait_new_schedule(&self, hash: &str) -> Arc<Schedule> {
+        let mut guard = self.0.lock().expect("shared state lock");
+        if guard.schedule.as_ref().map(|x| x.hash != hash).unwrap_or(false) {
+            return guard.schedule.clone().unwrap();
+        }
+        loop {
+            guard = self.1.apply_schedule.wait(guard)
+                .expect("shared state lock");
+            if guard.schedule.as_ref().map(|x| x.hash != hash).unwrap_or(false)
+            {
+                return guard.schedule.clone().unwrap();
+            }
+        }
     }
 }
