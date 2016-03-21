@@ -11,7 +11,7 @@ documentation = "http://verwalter.readthedocs.org"
 authors = ["Paul Colomiets <paul@colomiets.name>"]
 
 [dependencies]
-rotor = "0.6.2"
+rotor = "0.6.3"
 rotor-http = { rev="e8f199b", git="git://github.com/tailhook/rotor-http" }
 rotor-tools = "0.3.1"
 rotor-cantal = { rev="f772b26", git="git://github.com/tailhook/rotor-cantal" }

@@ -18,6 +18,7 @@ pub enum ApiRoute {
     Config,
     Peers,
     Schedule,
+    Election,
 }
 
 #[derive(Clone, Debug, Copy)]
@@ -92,6 +93,8 @@ fn parse_api(path: &str) -> Option<Route> {
             if suffix(path) == "pretty" { Plain } else { Json })),
         ("schedule", "") => Some(Api(Schedule,
             if suffix(path) == "pretty" { Plain } else { Json })),
+        ("election", "") => Some(Api(Election,
+            if suffix(path) == "pretty" { Plain } else { Json })),
         _ => None,
     }
 }
@@ -131,6 +134,9 @@ fn serve_api(context: &Context, route: &ApiRoute, format: Format,
                 // TODO(tailhook) Should we return error code instead ?
                 respond(res, format, Json::Null)
             }
+        }
+        ApiRoute::Election => {
+            respond(res, format, &context.state.election())
         }
     }
 }

@@ -9,8 +9,10 @@ use rotor::Time;
 use cbor::{Encoder, EncodeResult, Decoder, DecodeResult};
 use rustc_serialize::hex::{FromHex, ToHex, FromHexError};
 use rustc_serialize::json::Json;
+use rustc_serialize::{Encodable, Encoder as RustcEncoder};
 
 use config::Config;
+use elect::ElectionState;
 
 
 #[derive(Clone, Debug)]
@@ -32,6 +34,12 @@ impl Id {
     }
     pub fn to_hex(&self) -> String {
         return self.0[..].to_hex();
+    }
+}
+
+impl Encodable for Id {
+    fn encode<S: RustcEncoder>(&self, s: &mut S) -> Result<(), S::Error> {
+        self.to_hex().encode(s)
     }
 }
 
@@ -73,6 +81,7 @@ struct State {
     config: Arc<Config>,
     peers: Option<Arc<(Time, HashMap<Id, Peer>)>>,
     schedule: Option<Arc<Schedule>>,
+    election: Arc<ElectionState>,
 }
 
 impl SharedState {
@@ -81,6 +90,7 @@ impl SharedState {
             config: Arc::new(cfg),
             peers: None,
             schedule: None,
+            election: Default::default(),
         })))
     }
     pub fn peers(&self) -> Option<Arc<(Time, HashMap<Id, Peer>)>> {
@@ -91,6 +101,9 @@ impl SharedState {
     }
     pub fn schedule(&self) -> Option<Arc<Schedule>> {
         self.0.lock().expect("shared state lock").schedule.clone()
+    }
+    pub fn election(&self) -> Arc<ElectionState> {
+        self.0.lock().expect("shared state lock").election.clone()
     }
     pub fn set_peers(&self, time: Time, peers: HashMap<Id, Peer>) {
         self.0.lock().expect("shared state lock")
@@ -103,5 +116,8 @@ impl SharedState {
     pub fn set_schedule(&self, val: Schedule) {
         self.0.lock().expect("shared state lock")
             .schedule = Some(Arc::new(val));
+    }
+    pub fn set_election(&self, val: ElectionState) {
+        self.0.lock().expect("shared state lock").election = Arc::new(val);
     }
 }

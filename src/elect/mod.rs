@@ -6,6 +6,8 @@ use rotor::mio::udp::UdpSocket;
 use rotor_cantal::Schedule;
 
 pub use self::settings::peers_refresh;
+pub use self::state::ElectionState;
+pub use self::machine::Epoch;
 use shared::{Id, Peer, SharedState};
 
 mod machine;
@@ -14,6 +16,7 @@ mod settings;
 mod info;
 mod network;
 mod encode;
+mod state;
 #[cfg(test)] mod test_node;
 #[cfg(test)] mod test_mesh;
 #[cfg(test)] mod test_util;

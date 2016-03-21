@@ -8,11 +8,12 @@ use rotor::void::{unreachable, Void};
 use rotor_cantal::Schedule;
 
 use net::Context;
-use shared::SharedState;
+use shared::{SharedState};
 use super::{machine, encode};
 use super::settings::MAX_PACKET_SIZE;
 use super::action::Action;
 use super::machine::Epoch;
+use super::state::ElectionState;
 use super::{Election, Info};
 use shared::{Peer, Id};
 
@@ -151,6 +152,7 @@ impl Machine for Election {
             }
         }
         let dline = me.current_deadline();
+        self.state.set_election(ElectionState::from(&me, scope));
         Response::ok(Election { machine: me, ..self }).deadline(dline)
     }
     fn spawned(self, _scope: &mut Scope<Context>) -> Response<Self, Self::Seed>
@@ -177,6 +179,7 @@ impl Machine for Election {
                     me.current_epoch(), &socket));
             (me, alst.next_wakeup)
         };
+        self.state.set_election(ElectionState::from(&me, scope));
         Response::ok(Election { machine: me, ..self})
         .deadline(wakeup)
     }
