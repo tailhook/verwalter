@@ -158,6 +158,14 @@ impl Machine for Election {
                             me = m;
                             act.action.map(|x| execute_action(x, &info,
                                 me.current_epoch(), &socket, state, hash));
+                            act.update_schedule.map(|x| {
+                                if state.schedule().map(|s| s.hash != x)
+                                    .unwrap_or(true)
+                                {
+                                    info!("Update of the schedule to {}\
+                                        required", x);
+                                }
+                            });
                         }
                         Err(e) => {
                             info!("Error parsing packet {:?}", e);
