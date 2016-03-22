@@ -4,6 +4,7 @@ use rotor::{GenericScope};
 use shared::Id;
 use elect::Epoch;
 use elect::machine::Machine;
+use time_util::ToMsec;
 
 /// This is same as elect::machine::Machine, but for easier publishing to
 /// API
@@ -25,10 +26,6 @@ pub struct ElectionState {
     pub deadline: f64,
 }
 
-fn to_float(time: Timespec) -> f64 {
-    return time.sec as f64 + time.nsec as f64 / 1_000_000_000.0;
-}
-
 impl ElectionState {
     pub fn from<S: GenericScope>(src: &Machine, scope: &mut S)
         -> ElectionState
@@ -42,7 +39,7 @@ impl ElectionState {
                 promoting: None,
                 num_votes_for_me: None,
                 epoch: 0,
-                deadline: to_float(scope.estimate_timespec(leader_deadline)),
+                deadline: scope.estimate_timespec(leader_deadline).to_msec(),
             },
             Electing { epoch, ref votes_for_me, deadline } => ElectionState {
                 is_leader: false,
@@ -51,7 +48,7 @@ impl ElectionState {
                 promoting: None,
                 num_votes_for_me: Some(votes_for_me.len()),
                 epoch: epoch,
-                deadline: to_float(scope.estimate_timespec(deadline)),
+                deadline: scope.estimate_timespec(deadline).to_msec(),
             },
             Voted { epoch, ref peer, election_deadline } => ElectionState {
                 is_leader: false,
@@ -60,7 +57,7 @@ impl ElectionState {
                 promoting: Some(peer.clone()),
                 num_votes_for_me: None,
                 epoch: epoch,
-                deadline: to_float(scope.estimate_timespec(election_deadline)),
+                deadline: scope.estimate_timespec(election_deadline).to_msec(),
             },
             Leader { epoch, next_ping_time } => ElectionState {
                 is_leader: true,
@@ -69,7 +66,7 @@ impl ElectionState {
                 promoting: None,
                 num_votes_for_me: None,
                 epoch: epoch,
-                deadline: to_float(scope.estimate_timespec(next_ping_time)),
+                deadline: scope.estimate_timespec(next_ping_time).to_msec(),
             },
             Follower { ref leader, epoch, leader_deadline } => ElectionState {
                 is_leader: false,
@@ -78,7 +75,7 @@ impl ElectionState {
                 promoting: None,
                 num_votes_for_me: None,
                 epoch: epoch,
-                deadline: to_float(scope.estimate_timespec(leader_deadline)),
+                deadline: scope.estimate_timespec(leader_deadline).to_msec(),
             },
         }
     }
