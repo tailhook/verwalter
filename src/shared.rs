@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex, Condvar};
 use std::collections::HashMap;
 
 use time::Timespec;
-use rotor::Time;
+use rotor::{Time, Notifier};
 use cbor::{Encoder, EncodeResult, Decoder, DecodeResult};
 use rustc_serialize::hex::{FromHex, ToHex, FromHexError};
 use rustc_serialize::json::Json;
@@ -69,9 +69,9 @@ pub struct Peer {
      pub last_report: Option<Timespec>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, RustcEncodable)]
 pub struct Schedule {
-    pub timestamp: Timespec,
+    pub timestamp: u64,
     pub hash: String,
     pub data: Json,
     pub origin: bool,
@@ -83,6 +83,8 @@ struct State {
     peers: Option<Arc<(Time, HashMap<Id, Peer>)>>,
     schedule: Option<Arc<Schedule>>,
     election: Arc<ElectionState>,
+    target_schedule_hash: Option<String>,
+    election_update: Option<Notifier>,
 }
 
 struct Notifiers {
@@ -96,6 +98,8 @@ impl SharedState {
             peers: None,
             schedule: None,
             election: Default::default(),
+            target_schedule_hash: None,
+            election_update: None, //unfortunately
         })), Arc::new(Notifiers {
             apply_schedule: Condvar::new(),
         }))
@@ -127,8 +131,28 @@ impl SharedState {
         guard.schedule = Some(Arc::new(val));
         self.1.apply_schedule.notify_all();
     }
+    pub fn set_schedule_if_matches(&self, val: Schedule) {
+        let mut guard = self.0.lock().expect("shared state lock");
+        if guard.target_schedule_hash.as_ref() == Some(&val.hash) {
+            guard.schedule = Some(Arc::new(val));
+            self.1.apply_schedule.notify_all();
+        }
+    }
     pub fn set_election(&self, val: ElectionState) {
-        self.0.lock().expect("shared state lock").election = Arc::new(val);
+        let mut guard = self.0.lock().expect("shared state lock");
+        if !val.is_stable {
+            guard.target_schedule_hash = None;
+        }
+        guard.election = Arc::new(val);
+        guard.election_update.as_mut()
+            .map(|x| x.wakeup().expect("election update notify"));
+    }
+    pub fn set_target_schedule(&self, hash: String) {
+        info!("Set target schedule to {}", hash);
+        let mut guard = self.0.lock().expect("shared state lock");
+        guard.target_schedule_hash = Some(hash);
+        guard.election_update.as_mut()
+            .map(|x| x.wakeup().expect("election update notify"));
     }
     // Utility
     pub fn wait_new_schedule(&self, hash: &str) -> Arc<Schedule> {
@@ -139,10 +163,23 @@ impl SharedState {
         loop {
             guard = self.1.apply_schedule.wait(guard)
                 .expect("shared state lock");
-            if guard.schedule.as_ref().map(|x| x.hash != hash).unwrap_or(false)
-            {
-                return guard.schedule.clone().unwrap();
-            }
+            match guard.target_schedule_hash {
+                Some(ref thash) => {
+                    if thash == &hash { // already up to date
+                        continue;
+                    }
+                    if guard.schedule.as_ref().map(|x| &x.hash == thash)
+                        .unwrap_or(false)
+                    {
+                        return guard.schedule.clone().unwrap();
+                    }
+                }
+                None => continue,
+            };
         }
+    }
+    pub fn set_update_notifier(&self, notifier: Notifier) {
+        let mut guard = self.0.lock().expect("shared state lock");
+        guard.election_update = Some(notifier);
     }
 }

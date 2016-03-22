@@ -1,4 +1,3 @@
-use time::{Timespec};
 use rotor::{GenericScope};
 
 use shared::Id;
@@ -23,7 +22,7 @@ pub struct ElectionState {
     /// Current epoch (for debugging)
     pub epoch: Epoch,
     /// Current timeout (for debugging), JSON-friendly, in seconds
-    pub deadline: f64,
+    pub deadline: u64,
 }
 
 impl ElectionState {

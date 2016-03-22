@@ -7,7 +7,6 @@ use std::time::{Duration};
 
 use rotor::{Scope, Time};
 use rotor_http::server::{Server, Response, RecvMode, Head};
-use rotor_http::server::{Context as HttpContext};
 use rustc_serialize::Encodable;
 use rustc_serialize::json::{ToJson, as_json, as_pretty_json, Json};
 
@@ -129,7 +128,7 @@ fn serve_api(context: &Context, route: &ApiRoute, format: Format,
         }
         ApiRoute::Schedule => {
             if let Some(schedule) = context.state.schedule() {
-                respond(res, format, &schedule.data)
+                respond(res, format, &schedule)
             } else {
                 // TODO(tailhook) Should we return error code instead ?
                 respond(res, format, Json::Null)
@@ -139,10 +138,6 @@ fn serve_api(context: &Context, route: &ApiRoute, format: Format,
             respond(res, format, &context.state.election())
         }
     }
-}
-
-impl HttpContext for Context {
-    // Defaults for now
 }
 
 
@@ -170,7 +165,8 @@ fn serve_error_page(code: u32, response: &mut Response) {
 
 impl Server for Public {
     type Context = Context;
-    fn headers_received(head: Head, res: &mut Response,
+    type Seed = ();
+    fn headers_received(_seed: (), head: Head, res: &mut Response,
         scope: &mut Scope<Context>)
         -> Option<(Self, RecvMode, Time)>
     {

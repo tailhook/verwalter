@@ -4,9 +4,10 @@ use std::time::Duration;
 use std::process::exit;
 
 
-use sha1::Sha1;
 use time::get_time;
 
+use time_util::ToMsec;
+use hash::hash;
 use watchdog::{Alarm, ExitOnReturn};
 use shared::{SharedState, Schedule};
 
@@ -16,11 +17,6 @@ pub struct Settings {
     pub config_dir: PathBuf,
 }
 
-fn sha1<S: AsRef<[u8]>>(obj: S) -> String {
-    let mut sha = Sha1::new();
-    sha.update(obj.as_ref());
-    return sha.hexdigest();
-}
 
 pub fn main(state: SharedState, settings: Settings, mut alarm: Alarm) -> ! {
     let _guard = ExitOnReturn(92);
@@ -55,7 +51,7 @@ pub fn main(state: SharedState, settings: Settings, mut alarm: Alarm) -> ! {
                 }
             };
 
-            let hash = sha1(scheduler_result.to_string());
+            let hash = hash(scheduler_result.to_string());
             if scheduler.previous_schedule_hash.as_ref() == Some(&hash) {
                 debug!("Config did not change ({})", hash);
                 continue;
@@ -64,7 +60,7 @@ pub fn main(state: SharedState, settings: Settings, mut alarm: Alarm) -> ! {
 
             scheduler.previous_schedule_hash = Some(hash.clone());
             state.set_schedule(Schedule {
-                timestamp: timestamp,
+                timestamp: timestamp.to_msec(),
                 hash: hash,
                 data: scheduler_result,
                 origin: true,

@@ -162,8 +162,7 @@ impl Machine for Election {
                                 if state.schedule().map(|s| s.hash != x)
                                     .unwrap_or(true)
                                 {
-                                    info!("Update of the schedule to {}\
-                                        required", x);
+                                    state.set_target_schedule(x);
                                 }
                             });
                         }

@@ -14,6 +14,7 @@ use frontend::Public;
 use elect::{Election, peers_refresh};
 use shared::Id;
 use watchdog::{self, Watchdog, Alarm};
+use fetch;
 
 
 rotor_compose!(pub enum Fsm/Seed<Context> {
@@ -21,6 +22,7 @@ rotor_compose!(pub enum Fsm/Seed<Context> {
     Cantal(CantalFsm<Context>),
     Election(Election),
     Watchdog(Watchdog),
+    AskLeader(fetch::LeaderFetcher),
 });
 
 
@@ -41,6 +43,11 @@ pub fn main(addr: &SocketAddr, id: Id, hostname: String,
         connect_localhost(scope)
     }).expect("create cantal endpoint");
 
+    let fetch_notifier = creator
+        .add_and_fetch(Fsm::AskLeader, |s| fetch::create(s))
+        .expect("create cantal endpoint");
+    state.set_update_notifier(fetch_notifier);
+
     schedule.set_peers_interval(peers_refresh());
     let mut loop_inst = creator.instantiate(Context {
         state: state.clone(),
@@ -49,7 +56,7 @@ pub fn main(addr: &SocketAddr, id: Id, hostname: String,
     });
     let listener = TcpListener::bind(&addr).expect("Can't bind address");
     loop_inst.add_machine_with(|scope| {
-        server::Fsm::<Public, _>::new(listener, scope).wrap(Fsm::Frontend)
+        server::Fsm::<Public, _>::new(listener, (), scope).wrap(Fsm::Frontend)
     }).expect("Can't add a state machine");
     loop_inst.add_machine_with(|scope| {
         schedule.add_listener(scope.notifier());

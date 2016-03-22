@@ -45,6 +45,8 @@ mod info;
 mod shared;
 mod time_util;
 mod watchdog;
+mod fetch;
+mod hash;
 
 use argparse::{ArgumentParser, Parse, ParseOption, StoreOption, StoreTrue};
 use argparse::{Print};
