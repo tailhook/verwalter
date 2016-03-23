@@ -147,5 +147,5 @@ containers:
 
   docs:
     setup:
-    - !Alpine v3.2
-    - !Install [py-sphinx, make]
+    - !Alpine v3.3
+    - !Install [py-sphinx, make, py-sphinx_rtd_theme]

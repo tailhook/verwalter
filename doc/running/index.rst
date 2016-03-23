@@ -1,5 +1,5 @@
-Welcome to Verwalter's documentation!
-=====================================
+Running
+=======
 
 Contents:
 
@@ -7,3 +7,4 @@ Contents:
    :maxdepth: 2
 
    exit_codes
+   tree

@@ -11,7 +11,7 @@ The directory layout is still in flux. Here are somewhat current draft.
     * ``scheduler/SCHEDULER_VERSION/main.lua`` -- the entry point of the
       scheduler (``scheduler`` function) [1]_
     * ``scheduler/SCHEDULER_VERSION/**/*.lua`` -- other files that are
-      ``require``d from scheduler
+      ``require``'d from scheduler
 
 * ``templates`` -- the templates to render configuration locally
 
