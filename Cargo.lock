@@ -22,7 +22,7 @@ dependencies = [
  "rotor 0.6.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "rotor-cantal 0.1.0 (git+git://github.com/tailhook/rotor-cantal?rev=f772b26)",
  "rotor-http 0.6.0 (git+git://github.com/tailhook/rotor-http?rev=feaf6af)",
- "rotor-tools 0.3.1 (git+git://github.com/tailhook/rotor-tools?rev=f7c47f2)",
+ "rotor-tools 0.3.1 (git+git://github.com/tailhook/rotor-tools?rev=f7989a2)",
  "rustc-serialize 0.3.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "scan_dir 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "sha1 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -515,7 +515,7 @@ dependencies = [
 [[package]]
 name = "rotor-tools"
 version = "0.3.1"
-source = "git+git://github.com/tailhook/rotor-tools?rev=f7c47f2#f7c47f264bf98f2983e1d25c117653c0b551d1f4"
+source = "git+git://github.com/tailhook/rotor-tools?rev=f7989a2#f7989a28aaf0280c48abeb4f2f42ee7306bdf829"
 dependencies = [
  "rotor 0.6.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

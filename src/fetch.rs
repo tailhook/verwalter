@@ -1,10 +1,13 @@
 use std::str::from_utf8;
+use std::net::SocketAddr;
 use std::time::Duration;
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering::SeqCst;
 
-use rotor::{Scope, Response, Time, GenericScope, Notifier};
-use rotor::void::{Void, unreachable};
+use rotor::{Scope, Response, Time, GenericScope, Notifier, Void};
 use rotor::mio::tcp::TcpStream;
-use rotor_tools::compose::Spawn;
+use rotor_tools::compose::{Spawn, Spawner};
 use rotor_tools::uniform::{Uniform, Action};
 use rotor_http;
 use rotor_http::client::{Fsm, Client, Requester, Task, Version};
@@ -13,60 +16,103 @@ use rustc_serialize::json::Json;
 
 use net::Context;
 use hash::hash;
-use shared::Schedule;
+use shared::{Schedule, Peer};
 
-pub type LeaderFetcher = Spawn<Uniform<Monitor>, Fsm<Connection, TcpStream>>;
+pub type LeaderFetcher = Spawn<Uniform<Monitor>>;
 
-pub struct Monitor;
-pub struct Connection;
+pub struct Monitor(Option<(SocketAddr, Arc<AtomicBool>)>);
+pub struct Connection(Arc<AtomicBool>);
 pub struct FetchSchedule;
+
+impl Spawner for Monitor {
+    type Child = Fsm<Connection, TcpStream>;
+    type Seed = (SocketAddr, Arc<AtomicBool>);
+    fn spawn((addr, arc): Self::Seed, scope: &mut Scope<Context>)
+        -> Response<Self::Child, Void>
+    {
+        let sock = match TcpStream::connect(&addr) {
+            Ok(sock) => sock,
+            Err(e) => {
+                error!("Error connecting to leader: {}", e);
+                // TODO(tailhook) reconnect now?
+                return Response::done();
+            }
+        };
+        return Fsm::new(sock, arc, scope);
+    }
+}
 
 impl Action for Monitor {
     type Context = Context;
-    type Seed = Void;
-    fn create(seed: Self::Seed, _scope: &mut Scope<Self::Context>)
+    type Seed = (SocketAddr, Arc<AtomicBool>);
+    fn create(_seed: Self::Seed, _scope: &mut Scope<Self::Context>)
         -> Response<Self, Void>
     {
-        unreachable(seed);
+        unreachable!();
     }
-    fn action(self, scope: &mut Scope<Self::Context>)
+    fn action(mut self, scope: &mut Scope<Self::Context>)
         -> Response<Self, Self::Seed>
     {
         let el = scope.state.election();
         if let Some(ref leader_id) = el.leader {
-            println!("Fetch from {:?}", leader_id);
+            if let Some(pair) = scope.state.peers() {
+                let peer = pair.1.get(leader_id);
+                if let Some(&Peer { addr: Some(addr), .. }) = peer {
+                    let changed = (self.0).as_ref().map(|x| x.0 != addr ||
+                        x.1.load(SeqCst) == false).unwrap_or(true);
+                    if changed {
+                        debug!("New fetch from {:?}", leader_id);
+                        self.0.map(|(_, x)| x.store(false, SeqCst));
+                        let arc = Arc::new(AtomicBool::new(true));
+                        self.0 = Some((addr, arc.clone()));
+                        return Response::spawn(self, (addr, arc));
+                    }
+                } else {
+                    error!("There is a leader ({}) but no address", leader_id);
+                }
+            } else {
+                error!("There is a leader ({}) but no peers", leader_id);
+            }
         }
         Response::ok(self)
     }
 }
 
 impl Connection {
-    fn check_initiate(self) -> Task<Connection> {
-        unimplemented!();
+    fn is_active(&self) -> bool {
+        self.0.load(SeqCst)
+    }
+    fn check_initiate(self, scope: &mut Scope<Context>) -> Task<Connection> {
+        if scope.state.should_schedule_update() && self.is_active() {
+            Task::Request(self, FetchSchedule)
+        } else {
+            let timeout = scope.now() + self.idle_timeout(scope);
+            Task::Sleep(self, timeout)
+        }
     }
 }
 
 impl Client for Connection {
-    type Seed = ();
+    type Seed = Arc<AtomicBool>;
     type Requester = FetchSchedule;
-    fn create(_seed: Self::Seed,
+    fn create(seed: Self::Seed,
         _scope: &mut Scope<<Self::Requester as Requester>::Context>)
         -> Self
     {
-        Connection
+        Connection(seed)
     }
     fn connection_idle(self, _connection: &rotor_http::client::Connection,
-        _scope: &mut Scope<Context>)
+        scope: &mut Scope<Context>)
         -> Task<Self>
     {
-        self.check_initiate()
+        self.check_initiate(scope)
     }
     fn wakeup(self, connection: &rotor_http::client::Connection,
         scope: &mut Scope<Context>)
         -> Task<Self>
     {
         if connection.is_idle() {
-            self.check_initiate()
+            self.check_initiate(scope)
         } else {
             let timeout = scope.now() + self.idle_timeout(scope);
             Task::Sleep(self, timeout)
@@ -184,7 +230,13 @@ pub fn create<S: GenericScope>(scope: &mut S)
     -> Response<(LeaderFetcher, Notifier), Void>
 {
     Response::ok((
-        Spawn::Spawner(Uniform(Monitor)),
+        Spawn::Spawner(Uniform(Monitor(None))),
         scope.notifier(),
     ))
+}
+
+impl Drop for Connection {
+    fn drop(&mut self) {
+        self.0.store(false, SeqCst);
+    }
 }

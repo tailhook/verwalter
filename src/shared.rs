@@ -84,7 +84,7 @@ struct State {
     schedule: Option<Arc<Schedule>>,
     election: Arc<ElectionState>,
     target_schedule_hash: Option<String>,
-    election_update: Option<Notifier>,
+    external_schedule_update: Option<Notifier>,
 }
 
 struct Notifiers {
@@ -99,7 +99,7 @@ impl SharedState {
             schedule: None,
             election: Default::default(),
             target_schedule_hash: None,
-            election_update: None, //unfortunately
+            external_schedule_update: None, //unfortunately
         })), Arc::new(Notifiers {
             apply_schedule: Condvar::new(),
         }))
@@ -116,6 +116,15 @@ impl SharedState {
     }
     pub fn election(&self) -> Arc<ElectionState> {
         self.0.lock().expect("shared state lock").election.clone()
+    }
+    pub fn should_schedule_update(&self) -> bool {
+        let guard = self.0.lock().expect("shared state lock");
+        // We don't check is_stable here, because target_schedule_hash is None
+        // when election is not stable
+        let hash = guard.target_schedule_hash.as_ref();
+        return hash.is_some() &&
+            guard.schedule.as_ref().map(|x| &x.hash) != hash &&
+            !guard.election.is_leader;
     }
     // Setters
     pub fn set_peers(&self, time: Time, peers: HashMap<Id, Peer>) {
@@ -144,14 +153,14 @@ impl SharedState {
             guard.target_schedule_hash = None;
         }
         guard.election = Arc::new(val);
-        guard.election_update.as_mut()
+        guard.external_schedule_update.as_mut()
             .map(|x| x.wakeup().expect("election update notify"));
     }
     pub fn set_target_schedule(&self, hash: String) {
         info!("Set target schedule to {}", hash);
         let mut guard = self.0.lock().expect("shared state lock");
         guard.target_schedule_hash = Some(hash);
-        guard.election_update.as_mut()
+        guard.external_schedule_update.as_mut()
             .map(|x| x.wakeup().expect("election update notify"));
     }
     // Utility
@@ -180,6 +189,6 @@ impl SharedState {
     }
     pub fn set_update_notifier(&self, notifier: Notifier) {
         let mut guard = self.0.lock().expect("shared state lock");
-        guard.election_update = Some(notifier);
+        guard.external_schedule_update = Some(notifier);
     }
 }
