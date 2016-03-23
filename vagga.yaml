@@ -70,7 +70,7 @@ commands:
       n1: !Command
         container: build
         network: &n1
-          ip: 172.18.0.1
+          ip: 172.23.0.1
           ports: {20001: 22682, 21001: 8379}
         run: |
           RUST_LOG=warn cantal-agent \
@@ -83,7 +83,7 @@ commands:
       n2: !Command
         container: build
         network: &n2
-          ip: 172.18.0.2
+          ip: 172.23.0.2
           ports: {20002: 22682, 21002: 8379}
         run: |
           RUST_LOG=warn cantal-agent \
@@ -96,7 +96,7 @@ commands:
       n3: !Command
         container: build
         network: &n3
-          ip: 172.18.0.3
+          ip: 172.23.0.3
           ports: {20003: 22682, 21003: 8379}
         run: |
           RUST_LOG=warn cantal-agent \
@@ -111,8 +111,8 @@ commands:
         run: |
           sleep 2
           for i in $(seq 2 3); do
-            wget http://172.18.0.1:22682/add_host.json -nv -O- \
-              --method POST --body-data '{"addr": "172.18.0.'$i':22682"}'
+            wget http://172.23.0.1:22682/add_host.json -nv -O- \
+              --method POST --body-data '{"addr": "172.23.0.'$i':22682"}'
           done
           sleep 100000
 
