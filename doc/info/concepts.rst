@@ -143,7 +143,7 @@ We use ansible_ and good old rsync_ for these things for now
 The Big Picture
 ===============
 
-.. figure:: pic/boxes.svg
+.. figure:: ../pic/boxes.svg
    :width: 300px
    :figwidth: 300px
    :align: right
@@ -163,7 +163,7 @@ by issuing a request::
 
 .. warning:: This is not a stable API, so it may change at any time.
 
-.. figure:: pic/cantal-gossip.svg
+.. figure:: ../pic/cantal-gossip.svg
    :width: 300px
    :figwidth: 310px
    :align: left
@@ -178,7 +178,7 @@ info will quickly propagate to other nodes via gossip protocol.
 As illustrated on the picture the discovery is random. But it tuned well to
 efficiently cover the whole network.
 
-.. figure:: pic/cantal-init.svg
+.. figure:: ../pic/cantal-init.svg
    :width: 300px
    :figwidth: 310px
    :align: right
@@ -368,7 +368,7 @@ YAML/JSON config to temporary location and calling ``lithos_switch`` utility.
 Cross Data Center
 =================
 
-.. figure:: pic/cross-data-center.svg
+.. figure:: ../pic/cross-data-center.svg
    :width: 500px
    :figwidth: 510px
    :align: right
@@ -405,7 +405,7 @@ requested resources, we just release them on a timeout by looking at
 appropriate metrics. So dialog between data center leaders translated to
 the human language may look like the following:
 
-.. image:: pic/cross-dc-dialog.svg
+.. image:: ../pic/cross-dc-dialog.svg
    :alt: a dialog between DC1 and DC2 where DC1 requests resources from DC2
    :width: 800px
 
