@@ -11,10 +11,9 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
-   concepts
+   info/index
    running/index
    deploy-tutorial
-   glossary
 
 
 
