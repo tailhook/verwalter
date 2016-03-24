@@ -62,3 +62,20 @@ deployment id
   Also multiple rolling updates of different applications may take place at
   the same time. And all of them correspond to a single configuration change
   at any point in time.
+
+role
+  A single deployment unit. A role has it's own configuration independent
+  of others(set of versions of containers, set of config templates).
+
+  A role may contain multiple containers. And multiple different setups on
+  different nodes. It's up to a lua configuration.
+
+  Usually single role refers to single "sandbox" in lithos_, but this limit is
+  not enforced.
+
+  Similarly blue/green deploy (or rolling update) between versions is
+  usually performed for a role. Which means each role has it's own state of
+  the deployment, and multiple roles can be migrated independently. But this
+  is not enforced either. With careful scripting you can do both: synchronize
+  updates of multiple roles or update different processes in single role using
+  some independent states.
