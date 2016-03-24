@@ -71,6 +71,8 @@ impl Machine {
 
         debug!("[{}] time {:?} passed (me: {:?})",
             self.current_epoch(), self.current_deadline(), self);
+        println!("[{}] time {:?}/{:?} passed (me: {:?})",
+            self.current_epoch(), now, self.current_deadline(), self);
         // In case of spurious time events
         if self.current_deadline() > now {
             return pass(self)
