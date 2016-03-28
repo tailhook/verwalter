@@ -6,7 +6,7 @@ use super::machine::Machine;
 use super::test_util::{Environ};
 
 fn ping() -> Message {
-    Message::Ping { config_hash: String::from("whatever") }
+    Message::Ping
 }
 
 #[test]

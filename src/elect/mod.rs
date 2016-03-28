@@ -39,7 +39,7 @@ pub type Capsule = (Id, machine::Epoch, Message);
 pub enum Message {
     /// Ping message from leader to followers, reassures that leadership
     /// still holds
-    Ping { config_hash: String },
+    Ping,
     /// Pong message from follower to leader, confirm that node is a leader
     Pong,
     /// Vote for some node

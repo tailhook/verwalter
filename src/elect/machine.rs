@@ -144,14 +144,14 @@ impl Machine {
             (_, Older, me) => { // discard old messages
                 pass(me)
             }
-            (Ping { .. }, Current, Leader { .. }) => {
+            (Ping, Current, Leader { .. }) => {
                 // Another leader is here, restart the election
                 // This is valid when two partitions suddenly joined
                 start_election(msg_epoch+1, now, &info.id)
             }
-            (Ping { config_hash }, Current, _) => {
+            (Ping, Current, _) => {
                 // Ping in any other state, means we follow the leader
-                follow(src, msg_epoch, now, config_hash)
+                follow(src, msg_epoch, now)
             }
             (Pong, Current, me @ Leader { .. }) => {
                 // It's just okay, should we count successful pongs?
@@ -194,9 +194,9 @@ impl Machine {
                 // This vote is late for the party
                 pass(me)
             }
-            (Ping { config_hash }, Newer, _) => {
+            (Ping, Newer, _) => {
                 // We missed something, there is already a new leader
-                follow(src, msg_epoch, now, config_hash)
+                follow(src, msg_epoch, now)
             }
             (Pong, Newer, _) => {
                 // Something terribly wrong: somebody thinks that we are leader
@@ -215,13 +215,13 @@ impl Machine {
     }
 }
 
-fn follow(leader: Id, epoch: Epoch, now: Time, config_hash: String)
+fn follow(leader: Id, epoch: Epoch, now: Time)
     -> (Machine, ActionList)
 {
     let dline = now + election_ivl();
     (Machine::Follower { leader: leader.clone(), epoch: epoch,
                          leader_deadline: dline },
-     Action::Pong(leader).and_wait(dline).and_update(config_hash))
+     Action::Pong(leader).and_wait(dline))
 }
 
 fn pass(me: Machine) -> (Machine, ActionList) {

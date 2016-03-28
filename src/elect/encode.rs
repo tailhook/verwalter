@@ -44,8 +44,7 @@ pub fn read_packet(buf: &[u8]) -> DecodeResult<Capsule> {
     let epoch = try!(dec.u64());
     match try!(dec.u8()) {
         x if x == PING => {
-            let peer_id = try!(dec.text());
-            Ok((source, epoch, Message::Ping { config_hash: peer_id }))
+            Ok((source, epoch, Message::Ping))
         }
         x if x == PONG => Ok((source, epoch, Message::Pong)),
         x if x == VOTE => {
