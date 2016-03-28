@@ -33,7 +33,20 @@ pub struct Election {
     socket: UdpSocket,
 }
 
-pub type Capsule = (Id, machine::Epoch, Message);
+#[derive(Debug)]
+pub struct ScheduleStamp {
+    pub timestamp: u64,
+    pub hash: String,
+    pub origin: bool,
+}
+
+#[derive(Debug)]
+pub struct Capsule {
+    source: Id,
+    epoch: Epoch,
+    message: Message,
+    schedule: Option<ScheduleStamp>,
+}
 
 #[derive(Clone, Debug)]
 pub enum Message {

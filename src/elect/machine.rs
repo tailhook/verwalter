@@ -6,7 +6,7 @@ use std::time::Duration;
 use rotor::Time;
 
 use shared::Id;
-use super::{Info, Capsule};
+use super::{Info, Message};
 use super::settings::{start_timeout, election_ivl, HEARTBEAT_INTERVAL};
 use super::action::{Action, ActionList};
 
@@ -131,7 +131,7 @@ impl Machine {
         };
         return (machine, action)
     }
-    pub fn message(self, info: &Info, msg: Capsule, now: Time)
+    pub fn message(self, info: &Info, msg: (Id, Epoch, Message), now: Time)
         -> (Machine, ActionList)
     {
         use self::Machine::*;

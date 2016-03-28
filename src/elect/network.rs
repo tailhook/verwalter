@@ -67,11 +67,12 @@ fn execute_action(action: Action, info: &Info, epoch: Epoch,
     use super::action::Action::*;
     match action {
         PingAll => {
-            if let Some(schedule) = state.schedule() {
+            let opt_schedule = state.schedule();
+            if let Some(ref schedule) = opt_schedule {
                 if schedule.origin == true {
                     info!("[{}] Confirming leadership by sending shedule {}",
                         epoch, schedule.hash);
-                    let msg = encode::ping(&info.id, epoch, &schedule.hash);
+                    let msg = encode::ping(&info.id, epoch, &opt_schedule);
                     send_all(&msg, info, socket);
                     *last_sent_hash = schedule.hash.clone();
                 } else {
@@ -85,12 +86,12 @@ fn execute_action(action: Action, info: &Info, epoch: Epoch,
         }
         Vote(id) => {
             info!("[{}] Vote for {}", epoch, id);
-            let msg = encode::vote(&info.id, epoch, &id);
+            let msg = encode::vote(&info.id, epoch, &id, &state.schedule());
             send_all(&msg, info, socket);
         }
         ConfirmVote(id) => {
             info!("[{}] Confirm vote {}", epoch, id);
-            let msg = encode::vote(&info.id, epoch, &id);
+            let msg = encode::vote(&info.id, epoch, &id, &state.schedule());
             let dest = info.all_hosts.get(&id).and_then(|x| x.addr);
             if let Some(ref addr) = dest {
                 debug!("Sending (confirm) vote to {} ({:?})", addr, id);
@@ -103,7 +104,7 @@ fn execute_action(action: Action, info: &Info, epoch: Epoch,
         }
         Pong(id) => {
             info!("[{}] Pong to a leader {}", epoch, id);
-            let msg = encode::pong(&info.id, epoch);
+            let msg = encode::pong(&info.id, epoch, &state.schedule());
             let dest = info.all_hosts.get(&id).and_then(|x| x.addr);
             if let Some(ref addr) = dest {
                 debug!("Sending pong to {} ({:?})", addr, id);
@@ -150,12 +151,21 @@ impl Machine for Election {
                     // TODO(tailhook) check address?
                     match encode::read_packet(&buf[..n]) {
                         Ok(msg) => {
-                            if &msg.0 == info.id {
+                            if &msg.source == info.id {
                                 info!("Message from myself {:?}", msg);
                                 continue;
                             }
-                            let (m, act) = me.message(info, msg, scope.now());
+                            let (m, act) = me.message(info,
+                                (msg.source, msg.epoch, msg.message),
+                                scope.now());
                             me = m;
+                            if matches!(act.action, Some(Action::Pong(..))) {
+                                // TODO(tailhook) is it the greatest way
+                                // to find out when to update target schedule?
+                                msg.schedule.map(|s| {
+                                    state.set_target_schedule(s.hash)
+                                });
+                            }
                             act.action.map(|x| execute_action(x, &info,
                                 me.current_epoch(), &socket, state, hash));
                         }
