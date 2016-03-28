@@ -11,7 +11,7 @@ dependencies = [
  "libc 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "liquid 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "lua 0.0.8 (git+https://github.com/jcmoyer/rust-lua53?rev=bb37294)",
+ "lua 0.0.8 (git+https://github.com/tailhook/rust-lua53?rev=9ff093b)",
  "matches 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "mio 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "nix 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -230,7 +230,7 @@ dependencies = [
 [[package]]
 name = "lua"
 version = "0.0.8"
-source = "git+https://github.com/jcmoyer/rust-lua53?rev=bb37294#bb372945c4ac992fa25a6c7fec25fa621492c7e4"
+source = "git+https://github.com/tailhook/rust-lua53?rev=9ff093b#9ff093b1a280fef4c2ec18ab32191948086e64e0"
 dependencies = [
  "bitflags 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "gcc 0.3.26 (registry+https://github.com/rust-lang/crates.io-index)",

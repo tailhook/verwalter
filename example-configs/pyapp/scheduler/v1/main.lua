@@ -1,6 +1,5 @@
--- TODO(tailhook) Fix loadfile mechanism to use correct (relative) paths
-JSON = (loadfile "example-configs/pyapp/scheduler/v1/JSON.lua")()
-inspect = (loadfile "example-configs/pyapp/scheduler/v1/inspect.lua")()
+JSON = require "JSON"
+inspect = require "inspect"
 
 function cycle(items)
     local i = 0

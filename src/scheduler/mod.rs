@@ -2,7 +2,8 @@ use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 
 use rustc_serialize::json::{Json};
-use lua::{State, ThreadStatus, Type};
+use lua::{State, ThreadStatus, Type, Library};
+use lua::ffi::{lua_upvalueindex};
 use self::input::Input;
 use config::Config;
 use shared::{Id, Peer};
@@ -57,16 +58,63 @@ quick_error! {
     }
 }
 
+fn lua_load_file(lua: &mut State) -> i32 {
+    let mut path = match lua.to_str(lua_upvalueindex(1)) {
+        Some(s) => PathBuf::from(s),
+        None => {
+            error!("Something wrong with upvalue 1");
+            return 0;
+        }
+    };
+    match lua.to_str(1) {
+        Some(ref s) => path.push(s),
+        None => {
+            error!("No module name. (`require` without arguments?)");
+            return 0;
+        }
+    }
+    path.set_extension("lua");
+    debug!("Loading {:?}", path);
+    let result = lua.load_file(&format!("{}", path.display()));
+    if result.is_err() {
+        error!("Error loading file: {}",
+            lua.to_str(-1).unwrap_or("unknown error"));
+        return result as i32;
+    }
+    return 1;
+}
+
 pub fn read(hostname: String, base_dir: &Path)
     -> Result<Scheduler, ReadError>
 {
+    let dir = &base_dir.join("scheduler/v1");
     let mut lua = State::new();
+    let tbl = lua.open_package();
+    lua.get_field(tbl, "searchers");
+    let srch = lua.get_top();
+    lua.push_integer(1);
+    lua.push_string(&format!("{}", dir.display()));
+    lua.push_closure(lua_func!(lua_load_file), 1);
+    lua.set_table(srch);
+    lua.push_integer(2);
+    lua.push_nil();
+    lua.set_table(srch);
+    lua.push_integer(3);
+    lua.push_nil();
+    lua.set_table(srch);
+    lua.push_integer(4);
+    lua.push_nil();
+    lua.set_table(srch);
+    lua.pop(1);
 
-    // TODO(tailhook) remove me!!!
-    // should have more control over which libraries to use
-    lua.open_libs();
+    //lua.load_library(Library::Package);
+    lua.load_library(Library::Base);
+    lua.load_library(Library::Table);
+    lua.load_library(Library::String);
+    lua.load_library(Library::Utf8);
+    lua.load_library(Library::Math);
 
-    let path = &base_dir.join("scheduler/v1/main.lua");
+    let path = dir.join("main.lua");
     {
         try!(match lua.do_file(&path.to_str().unwrap_or("undecodable")) {
             ThreadStatus::Ok => Ok(()),
