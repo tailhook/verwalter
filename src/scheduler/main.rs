@@ -35,7 +35,7 @@ pub fn main(state: SharedState, settings: Settings, mut alarm: Alarm) -> ! {
     };
     loop {
         thread::sleep(Duration::new(10, 0));
-        if !state.election().is_leader {
+        if !state.start_schedule_update() {
             trace!("Not a leader. Sleeping...");
             continue;
         }

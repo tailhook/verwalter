@@ -11,8 +11,8 @@ use rustc_serialize::hex::{FromHex, ToHex, FromHexError};
 use rustc_serialize::{Encodable, Encoder as RustcEncoder};
 
 use config::Config;
-use elect::ElectionState;
-use scheduler::{self, Schedule};
+use elect::{ElectionState, ScheduleStamp};
+use scheduler::{self, Schedule, BuildInfo};
 
 
 #[derive(Clone)]
@@ -165,30 +165,83 @@ impl SharedState {
         guard.last_known_schedule = Some(sched);
         self.1.apply_schedule.notify_all();
     }
-    pub fn follow_with_schedule(&self, leader: Id, target_hash: String) {
-        use scheduler::State::{Following};
-        use scheduler::FollowerState::{Fetching, Stable};
+    // TODO(tailhook) this method does too much, refactor it
+    pub fn update_election(&self, elect: ElectionState,
+                            peer_schedule: Option<ScheduleStamp>)
+    {
+        use scheduler::State::*;
+        use scheduler::LeaderState::Building;
+        use scheduler::FollowerState::*;
         let mut guard = self.lock();
-        match *guard.schedule.clone() {
-            Following(ref id, Fetching(ref hash))
-            if id == &leader && hash == &target_hash
-            => { } // already fetching
-            Following(ref id, Stable(ref sched))
-            if id == &leader && sched.hash == target_hash
-            => { } // already fetched
-            _ => {
-                debug!("Requesting schedule {:?} from {} (old state {:?})",
-                    target_hash, leader, guard.schedule);
-                guard.schedule = Arc::new(
-                    Following(leader.clone(), Fetching(target_hash)));
-                fetch_schedule(&mut guard);
+        if !elect.is_stable {
+            if !matches!(*guard.schedule, Unstable) {
+                guard.schedule = Arc::new(Unstable);
             }
+        } else if elect.is_leader {
+            match *guard.schedule.clone() {
+                Unstable | Following(..) => {
+                    let mut initial = BuildInfo::new();
+                    // TODO(tailhook) add contained data
+                    guard.schedule = Arc::new(
+                        Leading(Building(Mutex::new(initial))));
+                }
+                Leading(..) => { }
+            }
+        } else {
+            match *guard.schedule.clone() {
+                Following(ref id, ref status)
+                if Some(id) == elect.leader.as_ref()
+                => {
+                    if let Some(tstamp) = peer_schedule {
+                        match *status {
+                            Stable(ref schedule)
+                            if schedule.hash == tstamp.hash
+                            => {}  // up to date
+                            Fetching(ref hash) if hash == &tstamp.hash
+                            => {}  // already fetching
+                            _ => {
+                                guard.schedule = Arc::new(Following(
+                                    id.clone(),
+                                    Fetching(tstamp.hash)));
+                                fetch_schedule(&mut guard);
+                            }
+                        }
+                    }
+                }
+                _ => {
+                    guard.schedule = Arc::new(Following(
+                        elect.leader.clone().unwrap(),
+                        match peer_schedule {
+                            Some(x) => Fetching(x.hash),
+                            None => Waiting,
+                        }));
+                    fetch_schedule(&mut guard);
+                }
+            }
+
         }
-    }
-    pub fn set_election(&self, val: ElectionState) {
-        self.lock().election = Arc::new(val);
+        guard.election = Arc::new(elect);
     }
     // Utility
+
+    /// Returns true if we are leader and sets state to Calculating
+    pub fn start_schedule_update(&self) -> bool {
+        use scheduler::State::*;
+        use scheduler::LeaderState::*;
+        let mut guard = self.lock();
+        match *guard.schedule.clone() {
+            Leading(Building(..)) => {
+                unimplemented!();
+            }
+            Leading(Calculating) => true,
+            Leading(Stable(..)) => {
+                guard.schedule = Arc::new(Leading(Calculating));
+                true
+            }
+            _ => false,
+        }
+    }
+
     /// This is waited on in apply/render code
     pub fn wait_new_schedule(&self, hash: &str) -> Arc<Schedule> {
         let mut guard = self.lock();

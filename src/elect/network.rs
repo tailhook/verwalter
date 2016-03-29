@@ -152,20 +152,15 @@ impl Machine for Election {
                                 info!("Message from myself {:?}", msg);
                                 continue;
                             }
-                            let src = msg.source;
                             let (m, act) = me.message(info,
-                                (src.clone(), msg.epoch, msg.message),
+                                (msg.source, msg.epoch, msg.message),
                                 scope.now());
                             me = m;
-                            if matches!(act.action, Some(Action::Pong(..))) {
-                                // TODO(tailhook) is it the greatest way
-                                // to find out when to update target schedule?
-                                msg.schedule.map(|s| {
-                                    state.follow_with_schedule(src, s.hash)
-                                });
-                            }
                             act.action.map(|x| execute_action(x, &info,
                                 me.current_epoch(), &socket, state, hash));
+                            state.update_election(
+                                ElectionState::from(&me, scope),
+                                msg.schedule);
                         }
                         Err(e) => {
                             info!("Error parsing packet {:?}", e);
@@ -175,7 +170,6 @@ impl Machine for Election {
             }
         }
         let dline = me.current_deadline();
-        self.state.set_election(ElectionState::from(&me, scope));
         Response::ok(Election { machine: me, ..self }).deadline(dline)
     }
     fn spawned(self, _scope: &mut Scope<Context>) -> Response<Self, Self::Seed>
@@ -204,11 +198,12 @@ impl Machine for Election {
                     me.current_epoch(), &socket, state, hash));
             (me, alst.next_wakeup)
         };
-        self.state.set_election(ElectionState::from(&me, scope));
+        let elect = ElectionState::from(&me, scope);
+        scope.state.update_election(elect, None);
         Response::ok(Election { machine: me, ..self})
         .deadline(wakeup)
     }
-    fn wakeup(mut self, _scope: &mut Scope<Context>)
+    fn wakeup(self, _scope: &mut Scope<Context>)
         -> Response<Self, Self::Seed>
     {
         let oldp = self.state.peers();
@@ -255,27 +250,6 @@ impl Machine for Election {
             return Response::ok(self).deadline(dline);
         };
         self.state.set_peers(recv, new_hosts);
-
-        if self.machine.is_leader() {
-            if let Some(schedule) = self.state.schedule() {
-                if self.last_schedule_sent != schedule.hash {
-                    let peers_opt = self.state.peers();
-                    let empty_map = HashMap::new();
-                    let peers = peers_opt.as_ref()
-                        .map(|x| &x.1).unwrap_or(&empty_map);
-                    let ref info = Info {
-                        id: &self.id,
-                        hosts_timestamp: peers_opt.as_ref().map(|x| x.0),
-                        all_hosts: &peers,
-                    };
-                    let ref socket = self.socket;
-                    let ref mut hash = self.last_schedule_sent;
-                    execute_action(Action::PingAll, info,
-                        self.machine.current_epoch(), socket, &self.state,
-                        hash);
-                }
-            }
-        }
 
         let dline = self.machine.current_deadline();
         Response::ok(self).deadline(dline)

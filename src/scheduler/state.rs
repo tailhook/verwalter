@@ -59,6 +59,16 @@ pub enum State {
     Leading(LeaderState),
 }
 
+impl BuildInfo {
+    pub fn new() -> BuildInfo {
+        BuildInfo {
+            all_hashes: HashSet::new(),
+            todo: HashMap::new(),
+            working_set: HashMap::new(),
+        }
+    }
+}
+
 impl Encodable for LeaderState {
      fn encode<E: Encoder>(&self, e: &mut E) -> Result<(), E::Error> {
         use self::LeaderState::*;

@@ -44,10 +44,6 @@ impl Machine {
         }
     }
 
-    pub fn is_leader(&self) -> bool {
-        matches!(self, &self::Machine::Leader {..})
-    }
-
     // methods generic over the all states
     pub fn compare_epoch(&self, epoch: Epoch) -> Ordering {
         let my_epoch = self.current_epoch();
