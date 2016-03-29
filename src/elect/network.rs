@@ -155,15 +155,16 @@ impl Machine for Election {
                                 info!("Message from myself {:?}", msg);
                                 continue;
                             }
+                            let src = msg.source;
                             let (m, act) = me.message(info,
-                                (msg.source, msg.epoch, msg.message),
+                                (src.clone(), msg.epoch, msg.message),
                                 scope.now());
                             me = m;
                             if matches!(act.action, Some(Action::Pong(..))) {
                                 // TODO(tailhook) is it the greatest way
                                 // to find out when to update target schedule?
                                 msg.schedule.map(|s| {
-                                    state.set_target_schedule(s.hash)
+                                    state.follow_with_schedule(src, s.hash)
                                 });
                             }
                             act.action.map(|x| execute_action(x, &info,

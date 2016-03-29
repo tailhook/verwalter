@@ -5,9 +5,10 @@ use cbor::{Encoder, Decoder, Config, DecodeResult};
 use cbor::{DecodeError, EncodeResult, opt};
 use cbor::types::Type;
 
-use shared::{Id, Schedule};
+use shared::{Id};
 use super::{Capsule, Message, ScheduleStamp};
 use super::machine::Epoch;
+use scheduler::Schedule;
 
 const PING: u8 = 1;
 const PONG: u8 = 2;
@@ -33,7 +34,7 @@ pub fn ping(id: &Id, epoch: Epoch, schedule: &Option<Arc<Schedule>>)
     -> Vec<u8>
 {
     let mut buf = Encoder::new(Cursor::new(Vec::new()));
-    id.encode(&mut buf).unwrap();
+    id.encode_cbor(&mut buf).unwrap();
     buf.u64(epoch).unwrap();
     buf.u8(PING).unwrap();
     write_metadata(&mut buf, schedule).unwrap();
@@ -42,7 +43,7 @@ pub fn ping(id: &Id, epoch: Epoch, schedule: &Option<Arc<Schedule>>)
 
 pub fn pong(id: &Id, epoch: Epoch, schedule: &Option<Arc<Schedule>>) -> Vec<u8> {
     let mut buf = Encoder::new(Cursor::new(Vec::new()));
-    id.encode(&mut buf).unwrap();
+    id.encode_cbor(&mut buf).unwrap();
     buf.u64(epoch).unwrap();
     buf.u8(PONG).unwrap();
     write_metadata(&mut buf, schedule).unwrap();
@@ -53,10 +54,10 @@ pub fn vote(id: &Id, epoch: Epoch, peer: &Id, schedule: &Option<Arc<Schedule>>)
     -> Vec<u8>
 {
     let mut buf = Encoder::new(Cursor::new(Vec::new()));
-    id.encode(&mut buf).unwrap();
+    id.encode_cbor(&mut buf).unwrap();
     buf.u64(epoch).unwrap();
     buf.u8(VOTE).unwrap();
-    peer.encode(&mut buf).unwrap();
+    peer.encode_cbor(&mut buf).unwrap();
     write_metadata(&mut buf, schedule).unwrap();
     return buf.into_writer().into_inner();
 }

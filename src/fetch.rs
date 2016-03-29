@@ -16,7 +16,8 @@ use rustc_serialize::json::Json;
 
 use net::Context;
 use hash::hash;
-use shared::{Schedule, Peer};
+use scheduler::{Schedule};
+use shared::{Peer};
 
 pub type LeaderFetcher = Spawn<Uniform<Monitor>>;
 

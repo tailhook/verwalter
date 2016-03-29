@@ -17,6 +17,7 @@ pub enum ApiRoute {
     Config,
     Peers,
     Schedule,
+    Scheduler,
     Election,
 }
 
@@ -92,6 +93,8 @@ fn parse_api(path: &str) -> Option<Route> {
             if suffix(path) == "pretty" { Plain } else { Json })),
         ("schedule", "") => Some(Api(Schedule,
             if suffix(path) == "pretty" { Plain } else { Json })),
+        ("scheduler", "") => Some(Api(Scheduler,
+            if suffix(path) == "pretty" { Plain } else { Json })),
         ("election", "") => Some(Api(Election,
             if suffix(path) == "pretty" { Plain } else { Json })),
         _ => None,
@@ -133,6 +136,9 @@ fn serve_api(context: &Context, route: &ApiRoute, format: Format,
                 // TODO(tailhook) Should we return error code instead ?
                 respond(res, format, Json::Null)
             }
+        }
+        ApiRoute::Scheduler => {
+            respond(res, format, &context.state.scheduler_state())
         }
         ApiRoute::Election => {
             respond(res, format, &context.state.election())

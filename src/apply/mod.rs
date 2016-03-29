@@ -193,7 +193,7 @@ fn apply_schedule(config: &Config, hash: &String, scheduler_result: &Json,
 pub fn run(state: SharedState, settings: Settings, mut alarm: Alarm) -> ! {
     let _guard = ExitOnReturn(93);
     let mut prev_schedule = String::new();
-    if let Some(schedule) = state.schedule() {
+    if let Some(schedule) = state.stable_schedule() {
         let _alarm = alarm.after(Duration::from_secs(180));
         apply_schedule(&*state.config(),
             &schedule.hash, &schedule.data,

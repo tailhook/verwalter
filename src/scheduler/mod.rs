@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 
 use rustc_serialize::json::{Json};
-use lua::{State, ThreadStatus, Type, Library};
+use lua::{State as Lua, ThreadStatus, Type, Library};
 use lua::ffi::{lua_upvalueindex};
 use self::input::Input;
 use config::Config;
@@ -11,12 +11,14 @@ use shared::{Id, Peer};
 mod input;
 mod main;
 mod lua_json;
+mod state;
 
+pub use self::state::{Schedule, State, LeaderState, FollowerState};
 pub use self::main::{main as run, Settings};
 
 pub struct Scheduler {
     hostname: String, // Is it the right place?
-    lua: State,
+    lua: Lua,
     previous_schedule_hash: Option<String>,
 }
 
@@ -58,7 +60,7 @@ quick_error! {
     }
 }
 
-fn lua_load_file(lua: &mut State) -> i32 {
+fn lua_load_file(lua: &mut Lua) -> i32 {
     let mut path = match lua.to_str(lua_upvalueindex(1)) {
         Some(s) => PathBuf::from(s),
         None => {
@@ -88,7 +90,7 @@ pub fn read(hostname: String, base_dir: &Path)
     -> Result<Scheduler, ReadError>
 {
     let dir = &base_dir.join("scheduler/v1");
-    let mut lua = State::new();
+    let mut lua = Lua::new();
     let tbl = lua.open_package();
     lua.get_field(tbl, "searchers");
     let srch = lua.get_top();

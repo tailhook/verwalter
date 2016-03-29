@@ -9,7 +9,8 @@ use time::get_time;
 use time_util::ToMsec;
 use hash::hash;
 use watchdog::{Alarm, ExitOnReturn};
-use shared::{SharedState, Schedule};
+use shared::{SharedState};
+use scheduler::Schedule;
 
 
 pub struct Settings {
@@ -59,7 +60,7 @@ pub fn main(state: SharedState, settings: Settings, mut alarm: Alarm) -> ! {
             info!("Got scheduling of {}: {}", hash, scheduler_result);
 
             scheduler.previous_schedule_hash = Some(hash.clone());
-            state.set_schedule(Schedule {
+            state.set_schedule_by_leader(Schedule {
                 timestamp: timestamp.to_msec(),
                 hash: hash,
                 data: scheduler_result,
