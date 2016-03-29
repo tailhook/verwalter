@@ -115,9 +115,6 @@ fn execute_action(action: Action, info: &Info, epoch: Epoch,
                 debug!("Error sending pong to {:?}, no address", id);
             }
         }
-        PingNew => {
-            unimplemented!();
-        }
     }
 }
 

@@ -9,7 +9,6 @@ pub enum Action {
     Vote(Id),
     ConfirmVote(Id),
     Pong(Id),
-    PingNew,
 }
 
 #[derive(PartialEq, Eq, Debug)]
