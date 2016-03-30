@@ -12,8 +12,10 @@ mod input;
 mod main;
 mod lua_json;
 mod state;
+mod prefetch;
 
-pub use self::state::{Schedule, State, LeaderState, FollowerState, BuildInfo};
+pub use self::state::{Schedule, State, LeaderState, FollowerState};
+pub use self::prefetch::PrefetchInfo;
 pub use self::main::{main as run, Settings};
 
 pub struct Scheduler {

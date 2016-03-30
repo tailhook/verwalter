@@ -12,7 +12,7 @@ use rustc_serialize::{Encodable, Encoder as RustcEncoder};
 
 use config::Config;
 use elect::{ElectionState, ScheduleStamp};
-use scheduler::{self, Schedule, BuildInfo};
+use scheduler::{self, Schedule, PrefetchInfo};
 
 
 #[derive(Clone)]
@@ -170,7 +170,7 @@ impl SharedState {
                             peer_schedule: Option<ScheduleStamp>)
     {
         use scheduler::State::*;
-        use scheduler::LeaderState::Building;
+        use scheduler::LeaderState::Prefetching;
         use scheduler::FollowerState::*;
         let mut guard = self.lock();
         if !elect.is_stable {
@@ -180,10 +180,10 @@ impl SharedState {
         } else if elect.is_leader {
             match *guard.schedule.clone() {
                 Unstable | Following(..) => {
-                    let mut initial = BuildInfo::new();
+                    let mut initial = PrefetchInfo::new();
                     // TODO(tailhook) add contained data
                     guard.schedule = Arc::new(
-                        Leading(Building(Mutex::new(initial))));
+                        Leading(Prefetching(Mutex::new(initial))));
                 }
                 Leading(..) => { }
             }
@@ -230,7 +230,7 @@ impl SharedState {
         use scheduler::LeaderState::*;
         let mut guard = self.lock();
         match *guard.schedule.clone() {
-            Leading(Building(..)) => {
+            Leading(Prefetching(..)) => {
                 unimplemented!();
             }
             Leading(Calculating) => true,

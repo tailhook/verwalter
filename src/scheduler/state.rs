@@ -1,31 +1,10 @@
 use std::sync::{Arc, Mutex};
-use std::collections::{HashSet, HashMap};
 
 use rustc_serialize::json::Json;
 use rustc_serialize::{Encodable, Encoder};
 
 use shared::Id;
-
-
-#[derive(Clone, Debug, RustcEncodable)]
-pub struct BuildInfo {
-    /// All hashes that can be reached from working set
-    pub all_hashes: HashSet<(u64, String)>,
-    /// Can download the following hashes from the following peers
-    pub todo: HashMap<(u64, String), Vec<Id>>,
-    /// All different schedules that must be taken into account
-    ///
-    /// While gathering data we start with either nothing in working_set or
-    /// only local schedule in the working set. As we download them and
-    /// find them as non-reachable from current working set we add schedules.
-    ///
-    /// Also we remove things from workingset if they are reachable from the
-    /// the schedules which we are going to add.
-    ///
-    /// Then either todo is empty or if a timeout passes we send all the
-    /// schedules in the working set to the scheduler algorithm
-    pub working_set: HashMap<(u64, String), Schedule>,
-}
+use super::prefetch::PrefetchInfo;
 
 
 #[derive(Clone, Debug, RustcEncodable)]
@@ -45,7 +24,7 @@ pub enum FollowerState {
 
 #[derive(Debug)]
 pub enum LeaderState {
-    Building(Mutex<BuildInfo>),
+    Prefetching(Mutex<PrefetchInfo>),
     Calculating,
     Stable(Arc<Schedule>),
 }
@@ -59,23 +38,13 @@ pub enum State {
     Leading(LeaderState),
 }
 
-impl BuildInfo {
-    pub fn new() -> BuildInfo {
-        BuildInfo {
-            all_hashes: HashSet::new(),
-            todo: HashMap::new(),
-            working_set: HashMap::new(),
-        }
-    }
-}
-
 impl Encodable for LeaderState {
      fn encode<E: Encoder>(&self, e: &mut E) -> Result<(), E::Error> {
         use self::LeaderState::*;
         e.emit_enum("LeaderState", |e| {
             match *self {
-                Building(ref x) => {
-                    e.emit_enum_variant("Building", 0, 1, |e| {
+                Prefetching(ref x) => {
+                    e.emit_enum_variant("Prefetching", 0, 1, |e| {
                         e.emit_enum_variant_arg(0, |e| {
                             x.lock().expect("buildinfo lock").encode(e)
                         })
