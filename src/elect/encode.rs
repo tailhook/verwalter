@@ -23,7 +23,7 @@ fn write_metadata<W: Write>(enc: &mut Encoder<W>,
         try!(enc.text("schedule"));
         try!(enc.u64(schedule.timestamp));
         try!(enc.text(&schedule.hash));
-        try!(enc.bool(schedule.origin));
+        try!(schedule.origin.encode_cbor(enc));
     } else {
         try!(enc.null());
     }
@@ -84,7 +84,7 @@ pub fn read_packet(buf: &[u8]) -> DecodeResult<Capsule> {
                 "schedule" => {
                     let tstamp = try!(dec.u64());
                     let hash = try!(dec.text());
-                    let origin = try!(dec.bool());
+                    let origin = try!(Id::decode(&mut dec));
                     Some(ScheduleStamp {
                         timestamp: tstamp,
                         hash: hash,

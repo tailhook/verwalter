@@ -2,6 +2,7 @@ use std::io::{Read, Write};
 use std::str::FromStr;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex, Condvar, MutexGuard};
+use std::time::Duration;
 use std::collections::HashMap;
 
 use time::Timespec;
@@ -15,6 +16,26 @@ use elect::{ElectionState, ScheduleStamp};
 use scheduler::{self, Schedule, PrefetchInfo};
 
 
+/// Things that are shared across the application threads
+///
+/// WARNING: this lock is a subject of Global Lock Ordering.
+/// This lock should be help FIRST to the
+///   LeaderState::Prefeching(Mutex<..>)
+///
+/// Currently this is the only constraint, but we are not sure it holds.
+///
+/// There are design patterns we obey here to hold that to true:
+///
+/// 1. We do our best to make this shared state a collection of Arcs so
+///    you can pick up the arc'd object and work with it instead of holding
+///    the lock
+/// 2. We only hold this lock in inherent methods of the SharedState and
+///    return only Arc'd values from here.
+/// 3. All the dependencies in this structure that needs modify multiple
+///    things in state at once are encoded here
+/// 4. Keep all inherent methods FAST! So it's fine that they hold such
+///    coarse-grained lock
+///
 #[derive(Clone)]
 pub struct SharedState(Arc<Mutex<State>>, Arc<Notifiers>);
 
@@ -83,6 +104,7 @@ struct State {
 
 struct Notifiers {
     apply_schedule: Condvar,
+    run_scheduler: Condvar,
 }
 
 fn stable_schedule(guard: &mut MutexGuard<State>) -> Option<Arc<Schedule>> {
@@ -112,6 +134,7 @@ impl SharedState {
             external_schedule_update: None, //unfortunately
         })), Arc::new(Notifiers {
             apply_schedule: Condvar::new(),
+            run_scheduler: Condvar::new(),
         }))
     }
     fn lock(&self) -> MutexGuard<State> {
@@ -134,6 +157,14 @@ impl SharedState {
     pub fn stable_schedule(&self) -> Option<Arc<Schedule>> {
         stable_schedule(&mut self.lock())
     }
+    pub fn owned_schedule(&self) -> Option<Arc<Schedule>> {
+        use scheduler::State::Leading;
+        use scheduler::LeaderState::Stable;
+        match *self.lock().schedule {
+            Leading(Stable(ref x)) => Some(x.clone()),
+            _ => None,
+        }
+    }
     pub fn election(&self) -> Arc<ElectionState> {
         self.0.lock().expect("shared state lock").election.clone()
     }
@@ -147,8 +178,9 @@ impl SharedState {
     }
     // Setters
     pub fn set_peers(&self, time: Time, peers: HashMap<Id, Peer>) {
-        self.0.lock().expect("shared state lock")
-            .peers = Some(Arc::new((time, peers)));
+        let mut guard = self.lock();
+        guard.peers = Some(Arc::new((time, peers)));
+        self.1.run_scheduler.notify_all();
     }
     #[allow(unused)]
     pub fn set_config(&self, cfg: Config) {
@@ -167,7 +199,7 @@ impl SharedState {
     }
     // TODO(tailhook) this method does too much, refactor it
     pub fn update_election(&self, elect: ElectionState,
-                            peer_schedule: Option<ScheduleStamp>)
+                            peer_schedule: Option<(Id, ScheduleStamp)>)
     {
         use scheduler::State::*;
         use scheduler::LeaderState::Prefetching;
@@ -180,10 +212,26 @@ impl SharedState {
         } else if elect.is_leader {
             match *guard.schedule.clone() {
                 Unstable | Following(..) => {
-                    let mut initial = PrefetchInfo::new();
-                    // TODO(tailhook) add contained data
+                    let empty_map = HashMap::new();
+                    let mut initial = PrefetchInfo::new(
+                        guard.peers.as_ref()
+                        .map(|x| &x.1).unwrap_or(&empty_map)
+                        .keys().cloned());
+                    peer_schedule.map(|(id, stamp)| {
+                        initial.peer_report(id, (stamp.timestamp, stamp.hash))
+                    });
                     guard.schedule = Arc::new(
                         Leading(Prefetching(Mutex::new(initial))));
+                    fetch_schedule(&mut guard);
+                }
+                Leading(Prefetching(ref pref)) => {
+                    peer_schedule.map(|(id, stamp)| {
+                        let mut p = pref.lock().expect("prefetching lock");
+                        if p.peer_report(id, (stamp.timestamp, stamp.hash)) {
+                            fetch_schedule(&mut guard);
+                        }
+                    });
+
                 }
                 Leading(..) => { }
             }
@@ -192,7 +240,8 @@ impl SharedState {
                 Following(ref id, ref status)
                 if Some(id) == elect.leader.as_ref()
                 => {
-                    if let Some(tstamp) = peer_schedule {
+                    if let Some((schid, tstamp)) = peer_schedule {
+                        debug_assert!(id == &schid);
                         match *status {
                             Stable(ref schedule)
                             if schedule.hash == tstamp.hash
@@ -212,7 +261,11 @@ impl SharedState {
                     guard.schedule = Arc::new(Following(
                         elect.leader.clone().unwrap(),
                         match peer_schedule {
-                            Some(x) => Fetching(x.hash),
+                            Some((schid, x)) => {
+                                debug_assert!(elect.leader.as_ref() ==
+                                              Some(&schid));
+                                Fetching(x.hash)
+                            }
                             None => Waiting,
                         }));
                     fetch_schedule(&mut guard);
@@ -224,21 +277,28 @@ impl SharedState {
     }
     // Utility
 
-    /// Returns true if we are leader and sets state to Calculating
-    pub fn start_schedule_update(&self) -> bool {
+    pub fn wait_schedule_update(&self, max_interval: Duration) {
         use scheduler::State::*;
         use scheduler::LeaderState::*;
         let mut guard = self.lock();
-        match *guard.schedule.clone() {
-            Leading(Prefetching(..)) => {
-                unimplemented!();
+        loop {
+            guard = self.1.run_scheduler
+                .wait_timeout(guard, max_interval)
+                .expect("shared state lock")
+                .0;
+            match *guard.schedule.clone() {
+                Leading(Prefetching(..)) => {
+                    // TODO(tailhook) determine timeout
+                    guard.schedule = Arc::new(Leading(Calculating));
+                    return;
+                }
+                Leading(Calculating) => return,
+                Leading(Stable(..)) => {
+                    guard.schedule = Arc::new(Leading(Calculating));
+                    return;
+                }
+                _ => {},
             }
-            Leading(Calculating) => true,
-            Leading(Stable(..)) => {
-                guard.schedule = Arc::new(Leading(Calculating));
-                true
-            }
-            _ => false,
         }
     }
 

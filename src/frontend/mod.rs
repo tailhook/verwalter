@@ -110,6 +110,7 @@ fn respond<T: Encodable>(res: &mut Response, format: Format, data: T)
         Format::Json => format!("{}", as_json(&data)),
         Format::Plain => format!("{}", as_pretty_json(&data)),
     };
+    println!("DATA <<<{}>>>", data);
     res.add_length(data.as_bytes().len() as u64).unwrap();
     res.done_headers().unwrap();
     res.write_body(data.as_bytes());

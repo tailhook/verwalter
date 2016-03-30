@@ -169,6 +169,7 @@ fn main() {
     let (alarm_tx, alarm_rx) = channel();
 
     let scheduler_settings = scheduler::Settings {
+        id: id.clone(),
         hostname: hostname.clone(),
         config_dir: options.config_dir.clone(),
     };

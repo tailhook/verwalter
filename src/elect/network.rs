@@ -67,22 +67,13 @@ fn execute_action(action: Action, info: &Info, epoch: Epoch,
     use super::action::Action::*;
     match action {
         PingAll => {
-            let opt_schedule = state.schedule();
-            if let Some(ref schedule) = opt_schedule {
-                if schedule.origin == true {
-                    info!("[{}] Confirming leadership by sending shedule {}",
-                        epoch, schedule.hash);
-                    let msg = encode::ping(&info.id, epoch, &opt_schedule);
-                    send_all(&msg, info, socket);
-                    *last_sent_hash = schedule.hash.clone();
-                } else {
-                    info!("[{}] Skipping leadership confirmation, \
-                        because schedule is foreign yet", epoch);
-                }
-            } else {
-                info!("[{}] Skipping leadership confirmation, \
-                    because no schedule yet", epoch);
-            }
+            let opt_schedule = state.owned_schedule();
+            info!("[{}] Confirming leadership by sending shedule {:?}",
+                epoch, opt_schedule.as_ref().map(|x| &x.hash));
+            let msg = encode::ping(&info.id, epoch, &opt_schedule);
+            send_all(&msg, info, socket);
+            *last_sent_hash = opt_schedule.as_ref().map(|x| &x.hash[..])
+                .unwrap_or("").to_string();
         }
         Vote(id) => {
             info!("[{}] Vote for {}", epoch, id);
@@ -152,15 +143,16 @@ impl Machine for Election {
                                 info!("Message from myself {:?}", msg);
                                 continue;
                             }
+                            let src = msg.source;
                             let (m, act) = me.message(info,
-                                (msg.source, msg.epoch, msg.message),
+                                (src.clone(), msg.epoch, msg.message),
                                 scope.now());
                             me = m;
                             act.action.map(|x| execute_action(x, &info,
                                 me.current_epoch(), &socket, state, hash));
                             state.update_election(
                                 ElectionState::from(&me, scope),
-                                msg.schedule);
+                                msg.schedule.map(|x| (src, x)));
                         }
                         Err(e) => {
                             info!("Error parsing packet {:?}", e);

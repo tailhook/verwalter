@@ -37,7 +37,7 @@ pub struct Election {
 pub struct ScheduleStamp {
     pub timestamp: u64,
     pub hash: String,
-    pub origin: bool,
+    pub origin: Id,
 }
 
 #[derive(Debug)]

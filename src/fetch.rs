@@ -174,10 +174,12 @@ impl Requester for FetchSchedule {
             }
         };
         let hashvalue = j.remove("hash");
+        let origin = j.remove("origin")
+            .and_then(|x| x.as_string().and_then(|x| x.parse().ok()));
         let timestamp = j.remove("timestamp").and_then(|x| x.as_u64());
         let data = j.remove("data");
-        match (hashvalue, timestamp, data) {
-            (Some(Json::String(h)), Some(t), Some(d)) => {
+        match (hashvalue, timestamp, data, origin) {
+            (Some(Json::String(h)), Some(t), Some(d), Some(o)) => {
                 let hash = hash(d.to_string());
                 if hash != h {
                     error!("Invalid hash {:?} data {}", h, d);
@@ -188,13 +190,13 @@ impl Requester for FetchSchedule {
                     timestamp: t,
                     hash: h.to_string(),
                     data: d,
-                    origin: false,
+                    origin: o,
                 });
             }
-            (hash, tstamp, data) => {
+            (hash, tstamp, data, origin) => {
                 error!("Wrong data in the schedule, \
-                    values: {:?} -- {:?} -- {:?}",
-                    hash, tstamp, data);
+                    values: {:?} -- {:?} -- {:?} -- {:?}",
+                    hash, tstamp, data, origin);
                 return;
             }
         }

@@ -12,7 +12,7 @@ pub struct Schedule {
     pub timestamp: u64,
     pub hash: String,
     pub data: Json,
-    pub origin: bool,
+    pub origin: Id,
 }
 
 #[derive(Clone, Debug, RustcEncodable)]
@@ -24,7 +24,13 @@ pub enum FollowerState {
 
 #[derive(Debug)]
 pub enum LeaderState {
+    /// This is mutexed prefetch info to not to copy that large structure
+    ///
+    /// WARNING: this lock is a subject of Global Lock Ordering.
+    /// Which means: if you want to lock this one and shared::SharedState
+    /// you must lock SharedState first! And this one second!
     Prefetching(Mutex<PrefetchInfo>),
+
     Calculating,
     Stable(Arc<Schedule>),
 }

@@ -19,6 +19,7 @@ pub use self::prefetch::PrefetchInfo;
 pub use self::main::{main as run, Settings};
 
 pub struct Scheduler {
+    id: Id,
     hostname: String, // Is it the right place?
     lua: Lua,
     previous_schedule_hash: Option<String>,
@@ -88,7 +89,7 @@ fn lua_load_file(lua: &mut Lua) -> i32 {
     return 1;
 }
 
-pub fn read(hostname: String, base_dir: &Path)
+pub fn read(id: Id, hostname: String, base_dir: &Path)
     -> Result<Scheduler, ReadError>
 {
     let dir = &base_dir.join("scheduler/v1");
@@ -132,6 +133,7 @@ pub fn read(hostname: String, base_dir: &Path)
     }
     debug!("Scheduler loaded");
     Ok(Scheduler {
+        id: id,
         hostname: hostname,
         lua: lua,
         previous_schedule_hash: None,
@@ -153,6 +155,7 @@ impl Scheduler {
             machine: &config.machine,
             roles: &config.roles,
             peers: peers,
+            id: &self.id,
             hostname: &self.hostname,
         });
         match self.lua.pcall(1, 1, 0) {

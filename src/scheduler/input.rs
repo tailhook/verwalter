@@ -14,6 +14,7 @@ pub struct Input<'a> {
     pub roles: &'a HashMap<String, Role>,
     pub peers: &'a HashMap<Id, Peer>,
     pub hostname: &'a str,
+    pub id: &'a Id,
 }
 
 
@@ -28,6 +29,8 @@ impl<'a> ToLua for Input<'a> {
         lua.set_field(cfg, "now");
         lua.push_string(self.hostname);
         lua.set_field(cfg, "current_host");
+        lua.push_string(&self.id.to_string());
+        lua.set_field(cfg, "current_id");
         // end
 
         match self.machine {
