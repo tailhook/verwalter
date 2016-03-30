@@ -218,7 +218,7 @@ impl SharedState {
                         .map(|x| &x.1).unwrap_or(&empty_map)
                         .keys().cloned());
                     peer_schedule.map(|(id, stamp)| {
-                        initial.peer_report(id, (stamp.timestamp, stamp.hash))
+                        initial.peer_report(id, stamp)
                     });
                     guard.schedule = Arc::new(
                         Leading(Prefetching(Mutex::new(initial))));
@@ -227,7 +227,7 @@ impl SharedState {
                 Leading(Prefetching(ref pref)) => {
                     peer_schedule.map(|(id, stamp)| {
                         let mut p = pref.lock().expect("prefetching lock");
-                        if p.peer_report(id, (stamp.timestamp, stamp.hash)) {
+                        if p.peer_report(id, stamp) {
                             fetch_schedule(&mut guard);
                         }
                     });

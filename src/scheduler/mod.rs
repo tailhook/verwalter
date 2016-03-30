@@ -18,11 +18,13 @@ pub use self::state::{Schedule, State, LeaderState, FollowerState};
 pub use self::prefetch::PrefetchInfo;
 pub use self::main::{main as run, Settings};
 
+pub type Hash = String;
+
 pub struct Scheduler {
     id: Id,
     hostname: String, // Is it the right place?
     lua: Lua,
-    previous_schedule_hash: Option<String>,
+    previous_schedule_hash: Option<Hash>,
 }
 
 quick_error! {
