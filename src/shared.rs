@@ -318,9 +318,10 @@ impl SharedState {
                 .expect("shared state lock");
         }
     }
-    pub fn set_schedule_if_matches(&self, schedule: Schedule) {
-        use scheduler::State::{Following};
+    pub fn fetched_schedule(&self, schedule: Schedule) {
+        use scheduler::State::{Following, Leading};
         use scheduler::FollowerState::{Fetching, Stable};
+        use scheduler::LeaderState::{Prefetching};
         let ref mut guard = *self.lock();
         match *guard.schedule.clone() {
             Following(ref id, Fetching(ref hash)) if &schedule.hash == hash
@@ -330,6 +331,9 @@ impl SharedState {
                     Following(id.clone(), Stable(sched.clone())));
                 guard.last_known_schedule = Some(sched);
                 self.1.apply_schedule.notify_all();
+            }
+            Leading(Prefetching(ref mutex)) => {
+                unimplemented!();
             }
             _ => {
                 debug!("Received outdated schedule");

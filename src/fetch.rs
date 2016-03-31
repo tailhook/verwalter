@@ -17,12 +17,22 @@ use rustc_serialize::json::Json;
 use net::Context;
 use hash::hash;
 use scheduler::{Schedule};
-use shared::{Peer};
+use shared::{Peer, Id};
 
 pub type LeaderFetcher = Spawn<Uniform<Monitor>>;
 
-pub struct Monitor(Option<(SocketAddr, Arc<AtomicBool>)>);
-pub struct Connection(Arc<AtomicBool>);
+pub enum Monitor {
+    Inactive,
+    Copying { addr: SocketAddr, active: Arc<AtomicBool> },
+    Prefetching,
+}
+
+#[derive(Clone)]
+pub enum Connection {
+    Follower { active: Arc<AtomicBool> },
+    Prefetch,
+}
+
 pub struct FetchSchedule;
 
 impl Spawner for Monitor {
@@ -39,7 +49,7 @@ impl Spawner for Monitor {
                 return Response::done();
             }
         };
-        return Fsm::new(sock, arc, scope);
+        return Fsm::new(sock, Connection::Follower { active: arc }, scope);
     }
 }
 
@@ -54,53 +64,99 @@ impl Action for Monitor {
     fn action(mut self, scope: &mut Scope<Self::Context>)
         -> Response<Self, Self::Seed>
     {
-        let el = scope.state.election();
-        if let Some(ref leader_id) = el.leader {
-            if let Some(pair) = scope.state.peers() {
-                let peer = pair.1.get(leader_id);
-                if let Some(&Peer { addr: Some(addr), .. }) = peer {
-                    let changed = (self.0).as_ref().map(|x| x.0 != addr ||
-                        x.1.load(SeqCst) == false).unwrap_or(true);
-                    if changed {
-                        debug!("New fetch from {:?}", leader_id);
-                        self.0.map(|(_, x)| x.store(false, SeqCst));
-                        let arc = Arc::new(AtomicBool::new(true));
-                        self.0 = Some((addr, arc.clone()));
-                        return Response::spawn(self, (addr, arc));
+        use self::Monitor::*;
+        use scheduler::State::{Unstable, Following, Leading};
+        use scheduler::FollowerState;
+        use scheduler::LeaderState::Prefetching as Fetching;
+        match *scope.state.scheduler_state() {
+            Leading(Fetching(ref mutex)) => {
+                self.stop_copying();
+                unimplemented!();
+                //Response::ok(Prefetching)
+            }
+            Leading(_) | Unstable => {
+                self.stop_copying();
+                Response::ok(Inactive)
+            }
+            Following(ref id, _) => {
+                match Monitor::get_addr(scope, id) {
+                    Some(naddr) => {
+                        let still_valid = match self {
+                            Copying { addr, ref active }
+                            if addr == naddr && active.load(SeqCst)
+                            => {
+                                // TODO(tailhook) notifier.wakeup();
+                                true
+                            }
+                            _ => false,
+                        };
+                        if still_valid {
+                            Response::ok(Inactive)
+                        } else {
+                            self.stop_copying();
+                            let arc = Arc::new(AtomicBool::new(true));
+                            return Response::spawn(Copying {
+                                addr: naddr,
+                                active: arc.clone(),
+                            }, (naddr, arc));
+                        }
                     }
-                } else {
-                    error!("There is a leader ({}) but no address", leader_id);
+                    None => {
+                        self.stop_copying();
+                        Response::ok(Inactive)
+                    }
                 }
-            } else {
-                error!("There is a leader ({}) but no peers", leader_id);
             }
         }
-        Response::ok(self)
+    }
+}
+
+impl Monitor {
+    fn stop_copying(self) {
+        use self::Monitor::*;
+        match self {
+            Inactive|Prefetching => {}
+            Copying { active, .. } => {
+                active.store(false, SeqCst);
+                // TODO(tailhook) notifier.wakeup();
+            }
+        }
+    }
+    fn get_addr(scope: &mut Scope<Context>, leader_id: &Id)
+        -> Option<SocketAddr>
+    {
+        if let Some(pair) = scope.state.peers() {
+            let peer = pair.1.get(leader_id);
+            if let Some(&Peer { addr: Some(addr), .. }) = peer {
+                return Some(addr);
+            }
+        }
+        return None;
     }
 }
 
 impl Connection {
-    fn is_active(&self) -> bool {
-        self.0.load(SeqCst)
-    }
     fn check_initiate(self, scope: &mut Scope<Context>) -> Task<Connection> {
+        /*
         if scope.state.should_schedule_update() && self.is_active() {
             Task::Request(self, FetchSchedule)
         } else {
             let timeout = scope.now() + self.idle_timeout(scope);
             Task::Sleep(self, timeout)
         }
+        */
+        unimplemented!();
     }
 }
 
 impl Client for Connection {
-    type Seed = Arc<AtomicBool>;
+    type Seed = Connection;
     type Requester = FetchSchedule;
     fn create(seed: Self::Seed,
         _scope: &mut Scope<<Self::Requester as Requester>::Context>)
         -> Self
     {
-        Connection(seed)
+        seed
     }
     fn connection_idle(self, _connection: &rotor_http::client::Connection,
         scope: &mut Scope<Context>)
@@ -186,7 +242,7 @@ impl Requester for FetchSchedule {
                     return;
                 }
                 debug!("Fetched schedule {:?}", hash);
-                scope.state.set_schedule_if_matches(Schedule {
+                scope.state.fetched_schedule(Schedule {
                     timestamp: t,
                     hash: h.to_string(),
                     data: d,
@@ -233,13 +289,17 @@ pub fn create<S: GenericScope>(scope: &mut S)
     -> Response<(LeaderFetcher, Notifier), Void>
 {
     Response::ok((
-        Spawn::Spawner(Uniform(Monitor(None))),
+        Spawn::Spawner(Uniform(Monitor::Inactive)),
         scope.notifier(),
     ))
 }
 
 impl Drop for Connection {
     fn drop(&mut self) {
-        self.0.store(false, SeqCst);
+        match *self {
+            Connection::Follower { ref active } => active.store(false, SeqCst),
+            Connection::Prefetch => {},
+        }
     }
+
 }
