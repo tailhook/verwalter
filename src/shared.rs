@@ -12,7 +12,7 @@ use rustc_serialize::hex::{FromHex, ToHex, FromHexError};
 use rustc_serialize::{Encodable, Encoder as RustcEncoder};
 
 use config::Config;
-use elect::{ElectionState, ScheduleStamp};
+use elect::{ElectionState, ScheduleStamp, Epoch};
 use scheduler::{self, Schedule, PrefetchInfo, MAX_PREFETCH_TIME};
 
 
@@ -38,6 +38,11 @@ use scheduler::{self, Schedule, PrefetchInfo, MAX_PREFETCH_TIME};
 ///
 #[derive(Clone)]
 pub struct SharedState(Arc<Mutex<State>>, Arc<Notifiers>);
+
+pub struct LeaderCookie {
+    epoch: Epoch,
+    pub parent_schedules: Vec<Arc<Schedule>>,
+}
 
 
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -200,14 +205,19 @@ impl SharedState {
     }
     pub fn set_schedule_by_leader(&self, val: Schedule) {
         use scheduler::State::{Leading};
-        use scheduler::LeaderState::Stable;
+        use scheduler::LeaderState::{Stable, Calculating};
         let mut guard = self.lock();
-        let sched = Arc::new(val);
-        // TODO(tailhook) should we check current scheduling state?
-        // We definitely should!!!
-        guard.schedule = Arc::new(Leading(Stable(sched.clone())));
-        guard.last_known_schedule = Some(sched);
-        self.1.apply_schedule.notify_all();
+        match *guard.schedule {
+            Leading(Calculating) => {
+                let sched = Arc::new(val);
+                guard.schedule = Arc::new(Leading(Stable(sched.clone())));
+                guard.last_known_schedule = Some(sched);
+                self.1.apply_schedule.notify_all();
+            }
+            _ => {
+                debug!("Calculated a schedule when not a leader already");
+            }
+        }
     }
     // TODO(tailhook) this method does too much, refactor it
     pub fn update_election(&self, elect: ElectionState,
@@ -289,7 +299,9 @@ impl SharedState {
     }
     // Utility
 
-    pub fn wait_schedule_update(&self, max_interval: Duration) {
+    pub fn wait_schedule_update(&self, max_interval: Duration)
+        -> LeaderCookie
+    {
         use scheduler::State::*;
         use scheduler::LeaderState::*;
         let mut guard = self.lock();
@@ -311,19 +323,31 @@ impl SharedState {
                         mutex.lock().expect("prefetch lock").done()
                     {
                         guard.schedule = Arc::new(Leading(Calculating));
-                        return;
+                        return LeaderCookie {
+                            epoch: guard.election.epoch,
+                            parent_schedules:
+                                mutex.lock().expect("prefetch lock")
+                                .get_schedules(),
+                        };
                     } else {
                         Duration::from_millis(
                             time_left.num_milliseconds() as u64)
                     }
                 }
-                Leading(Stable(..)) | Leading(Calculating) => {
+                Leading(Stable(ref x)) => {
                     guard.schedule = Arc::new(Leading(Calculating));
-                    return;
+                    return LeaderCookie {
+                        epoch: guard.election.epoch,
+                        parent_schedules: vec![x.clone()],
+                    };
                 }
+                Leading(Calculating) => unreachable!(),
                 _ => max_interval,
             };
         }
+    }
+    pub fn is_cookie_valid(&self, cookie: &LeaderCookie) -> bool {
+        cookie.epoch == self.lock().election.epoch
     }
 
     /// This is waited on in apply/render code

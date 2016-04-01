@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 use std::time::Duration;
+use std::thread::sleep;
 use std::process::exit;
 
 
@@ -35,37 +36,37 @@ pub fn main(state: SharedState, settings: Settings, mut alarm: Alarm) -> ! {
         }
     };
     loop {
-        state.wait_schedule_update(Duration::from_secs(5));
+        let cookie = state.wait_schedule_update(Duration::from_secs(5));
 
-        // TODO(tailhook) check if peers are outdated
-        if let Some(peers) = state.peers() {
-            let cfg = state.config();
+        while state.is_cookie_valid(&cookie) {
+            let peers = state.peers().expect("peers are ready for scheduler");
+            // TODO(tailhook) check if peers are outdated
+
             let timestamp = get_time();
             let _alarm = alarm.after(Duration::from_secs(1));
-            let scheduler_result = match scheduler.execute(&*cfg, &peers.1) {
+
+            let scheduler_result = scheduler.execute(
+                &*state.config(),
+                &peers.1,
+                &cookie.parent_schedules);
+
+            let scheduler_result = match scheduler_result {
                 Ok(j) => j,
                 Err(e) => {
                     error!("Scheduling failed: {}", e);
+                    sleep(Duration::from_secs(1));
                     continue;
                 }
             };
 
             let hash = hash(scheduler_result.to_string());
-            if scheduler.previous_schedule_hash.as_ref() == Some(&hash) {
-                debug!("Config did not change ({})", hash);
-                continue;
-            }
-            info!("Got scheduling of {}: {}", hash, scheduler_result);
-
-            scheduler.previous_schedule_hash = Some(hash.clone());
             state.set_schedule_by_leader(Schedule {
                 timestamp: timestamp.to_msec(),
                 hash: hash,
                 data: scheduler_result,
                 origin: scheduler.id.clone(),
             });
-        } else {
-            warn!("No peers data, don't try to rebuild config");
+            break;
         }
     }
 }

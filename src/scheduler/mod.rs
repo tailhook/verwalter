@@ -1,18 +1,15 @@
 use std::path::{Path, PathBuf};
-use std::collections::HashMap;
 
-use rustc_serialize::json::{Json};
 use lua::{State as Lua, ThreadStatus, Type, Library};
 use lua::ffi::{lua_upvalueindex};
-use self::input::Input;
-use config::Config;
-use shared::{Id, Peer};
+use shared::Id;
 
 mod input;
 mod main;
 mod lua_json;
 mod state;
 mod prefetch;
+mod execute;
 
 pub use self::state::{Schedule, State, LeaderState, FollowerState};
 pub use self::prefetch::PrefetchInfo;
@@ -35,7 +32,6 @@ pub struct Scheduler {
     id: Id,
     hostname: String, // Is it the right place?
     lua: Lua,
-    previous_schedule_hash: Option<Hash>,
 }
 
 quick_error! {
@@ -149,40 +145,5 @@ pub fn read(id: Id, hostname: String, base_dir: &Path)
         id: id,
         hostname: hostname,
         lua: lua,
-        previous_schedule_hash: None,
     })
-}
-
-impl Scheduler {
-    pub fn execute(&mut self, config: &Config, peers: &HashMap<Id, Peer>)
-        -> Result<Json, Error>
-    {
-        match self.lua.get_global("scheduler") {
-            Type::Function => {}
-            typ => {
-                // TODO(tailhook) should we pop stack? Or pop only if not None
-                return Err(Error::FunctionNotFound("scheduler", typ));
-            }
-        }
-        self.lua.push(Input {
-            machine: &config.machine,
-            roles: &config.roles,
-            peers: peers,
-            id: &self.id,
-            hostname: &self.hostname,
-        });
-        match self.lua.pcall(1, 1, 0) {
-            ThreadStatus::Ok => {}
-            ThreadStatus::Yield => return Err(Error::UnexpectedYield),
-            err => {
-                return Err(Error::Lua(err,
-                    self.lua.to_str(-1).unwrap_or("undefined").to_string()))
-            }
-        }
-        let top = self.lua.get_top();
-        match self.lua.to_type::<String>(top) {
-            Some(ref x) => Json::from_str(x).map_err(|_| Error::Conversion),
-            None => Err(Error::Conversion),
-        }
-    }
 }

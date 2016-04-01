@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::collections::HashMap;
 
 use time::get_time;
@@ -7,6 +8,7 @@ use rustc_serialize::json::{Json};
 use config::{MetadataErrors, Role};
 use shared::{Id, Peer};
 use time_util::ToMsec;
+use super::Schedule;
 use super::lua_json::push_json;
 
 pub struct Input<'a> {
@@ -15,6 +17,7 @@ pub struct Input<'a> {
     pub peers: &'a HashMap<Id, Peer>,
     pub hostname: &'a str,
     pub id: &'a Id,
+    pub parents: &'a Vec<Arc<Schedule>>,
 }
 
 
@@ -32,6 +35,16 @@ impl<'a> ToLua for Input<'a> {
         lua.push_string(&self.id.to_string());
         lua.set_field(cfg, "current_id");
         // end
+
+        {
+            lua.create_table(self.parents.len() as i32, 0);
+            let tbl = lua.get_top();
+            for (i, item) in self.parents.iter().enumerate() {
+                push_json(lua, &item.data);
+                lua.raw_seti(tbl, i as i64);
+            }
+            lua.set_field(cfg, "parents");
+        }
 
         match self.machine {
             &Ok(ref metadata) => {

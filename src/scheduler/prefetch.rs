@@ -100,6 +100,12 @@ impl PrefetchInfo {
     pub fn done(&self) -> bool {
         self.fetching.len() == 0 && self.peers_left.len() == 0
     }
+    pub fn get_schedules(&self) -> Vec<Arc<Schedule>> {
+        self.leader_stamps
+        .iter().map(|(_, &(_, ref x))| x).collect::<HashSet<_>>()
+        .into_iter().filter_map(|x| self.all_schedules.get(x))
+        .cloned().collect()
+    }
 }
 
 impl Fetching {
