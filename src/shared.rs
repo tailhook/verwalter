@@ -333,7 +333,11 @@ impl SharedState {
                 self.1.apply_schedule.notify_all();
             }
             Leading(Prefetching(ref mutex)) => {
-                unimplemented!();
+                let mut lock = mutex.lock().expect("prefetch lock");
+                if !lock.all_schedules.contains_key(&schedule.hash) {
+                    lock.all_schedules.insert(schedule.hash.clone(),
+                        Arc::new(schedule));
+                }
             }
             _ => {
                 debug!("Received outdated schedule");

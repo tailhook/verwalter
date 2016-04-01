@@ -5,6 +5,7 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::SeqCst;
 
+use time::{SteadyTime, Duration as Dur};
 use rotor::{Scope, Response, Time, GenericScope, Notifier, Void};
 use rotor::mio::tcp::TcpStream;
 use rotor_tools::compose::{Spawn, Spawner};
@@ -21,6 +22,10 @@ use shared::{Peer, Id};
 
 pub type LeaderFetcher = Spawn<Uniform<Monitor>>;
 
+/// A number of milliseconds after which we consider peer slow, and try
+/// to fetch same data from another peer
+pub const FETCH_TIME_HINT: i64 = 500;
+
 pub enum Monitor {
     Inactive,
     Copying { addr: SocketAddr, active: Arc<AtomicBool> },
@@ -30,15 +35,15 @@ pub enum Monitor {
 #[derive(Clone)]
 pub enum Connection {
     Follower { active: Arc<AtomicBool> },
-    Prefetch,
+    Prefetch { done: bool },
 }
 
 pub struct FetchSchedule;
 
 impl Spawner for Monitor {
     type Child = Fsm<Connection, TcpStream>;
-    type Seed = (SocketAddr, Arc<AtomicBool>);
-    fn spawn((addr, arc): Self::Seed, scope: &mut Scope<Context>)
+    type Seed = (SocketAddr, Connection);
+    fn spawn((addr, connection): Self::Seed, scope: &mut Scope<Context>)
         -> Response<Self::Child, Void>
     {
         let sock = match TcpStream::connect(&addr) {
@@ -49,30 +54,54 @@ impl Spawner for Monitor {
                 return Response::done();
             }
         };
-        return Fsm::new(sock, Connection::Follower { active: arc }, scope);
+        return Fsm::new(sock, connection, scope);
     }
 }
 
 impl Action for Monitor {
     type Context = Context;
-    type Seed = (SocketAddr, Arc<AtomicBool>);
+    type Seed = (SocketAddr, Connection);
     fn create(_seed: Self::Seed, _scope: &mut Scope<Self::Context>)
         -> Response<Self, Void>
     {
         unreachable!();
     }
-    fn action(mut self, scope: &mut Scope<Self::Context>)
+    fn action(self, scope: &mut Scope<Self::Context>)
         -> Response<Self, Self::Seed>
     {
         use self::Monitor::*;
         use scheduler::State::{Unstable, Following, Leading};
-        use scheduler::FollowerState;
         use scheduler::LeaderState::Prefetching as Fetching;
         match *scope.state.scheduler_state() {
             Leading(Fetching(ref mutex)) => {
                 self.stop_copying();
-                unimplemented!();
-                //Response::ok(Prefetching)
+                let now = SteadyTime::now();
+                let time_cut = now - Dur::milliseconds(FETCH_TIME_HINT);
+                let lock = &mut *mutex.lock().expect("prefech info locked");
+                for (ref hash, ref mut fetching) in lock.fetching.iter_mut() {
+                    if lock.all_schedules.contains_key(*hash) {
+                        continue;
+                    }
+                    if fetching.time.map(|x| x < time_cut).unwrap_or(true) {
+                        let mut result = None;
+                        for id in &fetching.sources {
+                            if let Some(addr) = Monitor::get_addr(scope, &id) {
+                                fetching.time = Some(now);
+                                result = Some((addr, id.clone()));
+                            }
+                        }
+                        if let Some((addr, id)) = result {
+                            fetching.sources.remove(&id);
+                            return Response::spawn(Prefetching,
+                                (addr, Connection::Prefetch { done: false }));
+                        } else {
+                            warn!("Can't find peer to download {}", hash);
+                        }
+                    }
+                }
+                Response::ok(Prefetching)
+                    .deadline(scope.now() +
+                              Duration::from_millis(FETCH_TIME_HINT as u64/2))
             }
             Leading(_) | Unstable => {
                 self.stop_copying();
@@ -98,7 +127,7 @@ impl Action for Monitor {
                             return Response::spawn(Copying {
                                 addr: naddr,
                                 active: arc.clone(),
-                            }, (naddr, arc));
+                            }, (naddr, Connection::Follower { active: arc }));
                         }
                     }
                     None => {
@@ -137,15 +166,24 @@ impl Monitor {
 
 impl Connection {
     fn check_initiate(self, scope: &mut Scope<Context>) -> Task<Connection> {
-        /*
-        if scope.state.should_schedule_update() && self.is_active() {
+        use self::Connection::*;
+        let fetch = match self {
+            Follower { ref active } => {
+                scope.state.should_schedule_update() && active.load(SeqCst)
+            }
+            Prefetch { done: false } => {
+                true
+            }
+            Prefetch { done: true } => {
+                return Task::Close
+            }
+        };
+        if fetch {
             Task::Request(self, FetchSchedule)
         } else {
             let timeout = scope.now() + self.idle_timeout(scope);
             Task::Sleep(self, timeout)
         }
-        */
-        unimplemented!();
     }
 }
 
@@ -298,7 +336,7 @@ impl Drop for Connection {
     fn drop(&mut self) {
         match *self {
             Connection::Follower { ref active } => active.store(false, SeqCst),
-            Connection::Prefetch => {},
+            Connection::Prefetch {..} => {},
         }
     }
 

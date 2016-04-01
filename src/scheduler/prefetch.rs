@@ -104,7 +104,7 @@ impl Encodable for Fetching {
                 // in milliseconds for javascript
                 self.time.map(|tm| {
                     (precise_time_ns() / 1_000_000) as i64 -
-                        (SteadyTime::now() - tm).num_milliseconds()
+                        (SteadyTime::now() - tm).num_milliseconds() as i64
                 }).encode(e)
             }));
             try!(e.emit_struct_field("sources", 1, |e| {
