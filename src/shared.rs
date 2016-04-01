@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex, Condvar, MutexGuard};
 use std::time::Duration;
 use std::collections::HashMap;
 
-use time::Timespec;
+use time::{SteadyTime, Timespec, Duration as Dur};
 use rotor::{Time, Notifier};
 use cbor::{Encoder, EncodeResult, Decoder, DecodeResult};
 use rustc_serialize::hex::{FromHex, ToHex, FromHexError};
@@ -13,7 +13,7 @@ use rustc_serialize::{Encodable, Encoder as RustcEncoder};
 
 use config::Config;
 use elect::{ElectionState, ScheduleStamp};
-use scheduler::{self, Schedule, PrefetchInfo};
+use scheduler::{self, Schedule, PrefetchInfo, MAX_PREFETCH_TIME};
 
 
 /// Things that are shared across the application threads
@@ -180,6 +180,18 @@ impl SharedState {
     pub fn set_peers(&self, time: Time, peers: HashMap<Id, Peer>) {
         let mut guard = self.lock();
         guard.peers = Some(Arc::new((time, peers)));
+
+        // TODO(tailhook) should we bother to run it every time?
+        //
+        // Maybe either:
+        //
+        // 1. Notify when first data available
+        // 2. Notify when anything changed
+        //
+        // Note: while comparison is definitely cheaper than a new scheduling
+        // but we should compare smartly. I.e. peers are always changed (i.e.
+        // ping timestamps and similar things). We should check for meaningful
+        // changes.
         self.1.run_scheduler.notify_all();
     }
     #[allow(unused)]
@@ -221,17 +233,17 @@ impl SharedState {
                         initial.peer_report(id, stamp)
                     });
                     guard.schedule = Arc::new(
-                        Leading(Prefetching(Mutex::new(initial))));
+                        Leading(Prefetching(SteadyTime::now(),
+                                            Mutex::new(initial))));
                     fetch_schedule(&mut guard);
                 }
-                Leading(Prefetching(ref pref)) => {
+                Leading(Prefetching(_, ref pref)) => {
                     peer_schedule.map(|(id, stamp)| {
                         let mut p = pref.lock().expect("prefetching lock");
                         if p.peer_report(id, stamp) {
                             fetch_schedule(&mut guard);
                         }
                     });
-
                 }
                 Leading(..) => { }
             }
@@ -281,24 +293,36 @@ impl SharedState {
         use scheduler::State::*;
         use scheduler::LeaderState::*;
         let mut guard = self.lock();
+        let mut wait_time = max_interval;
         loop {
             guard = self.1.run_scheduler
-                .wait_timeout(guard, max_interval)
+                .wait_timeout(guard, wait_time)
                 .expect("shared state lock")
                 .0;
-            match *guard.schedule.clone() {
-                Leading(Prefetching(..)) => {
-                    // TODO(tailhook) determine timeout
-                    guard.schedule = Arc::new(Leading(Calculating));
-                    return;
-                }
-                Leading(Calculating) => return,
-                Leading(Stable(..)) => {
-                    guard.schedule = Arc::new(Leading(Calculating));
-                    return;
-                }
-                _ => {},
+            if guard.peers.is_none() {
+                // Don't care even checking anything if we have no peers
+                continue;
             }
+            wait_time = match *guard.schedule.clone() {
+                Leading(Prefetching(time, ref mutex)) => {
+                    let time_left = time + Dur::milliseconds(MAX_PREFETCH_TIME)
+                        - SteadyTime::now();
+                    if time_left <= Dur::zero() ||
+                        mutex.lock().expect("prefetch lock").done()
+                    {
+                        guard.schedule = Arc::new(Leading(Calculating));
+                        return;
+                    } else {
+                        Duration::from_millis(
+                            time_left.num_milliseconds() as u64)
+                    }
+                }
+                Leading(Stable(..)) | Leading(Calculating) => {
+                    guard.schedule = Arc::new(Leading(Calculating));
+                    return;
+                }
+                _ => max_interval,
+            };
         }
     }
 
@@ -332,11 +356,11 @@ impl SharedState {
                 guard.last_known_schedule = Some(sched);
                 self.1.apply_schedule.notify_all();
             }
-            Leading(Prefetching(ref mutex)) => {
+            Leading(Prefetching(_, ref mutex)) => {
                 let mut lock = mutex.lock().expect("prefetch lock");
-                if !lock.all_schedules.contains_key(&schedule.hash) {
-                    lock.all_schedules.insert(schedule.hash.clone(),
-                        Arc::new(schedule));
+                lock.add_schedule(schedule);
+                if lock.done() {
+                    self.1.run_scheduler.notify_all();
                 }
             }
             _ => {

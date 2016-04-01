@@ -2,12 +2,13 @@ use std::sync::Arc;
 use std::collections::{HashSet, HashMap};
 use std::collections::hash_map::Entry::{Vacant, Occupied};
 
-use time::{SteadyTime, precise_time_ns};
+use time::{SteadyTime};
 use rustc_serialize::{Encodable, Encoder};
 
 use shared::{Id};
 use elect::ScheduleStamp;
 use super::{Schedule, Hash};
+use time_util::ToMsec;
 
 
 #[derive(Clone, Debug)]
@@ -79,12 +80,25 @@ impl PrefetchInfo {
                 false
             }
         };
-        if updated {
+        if updated && !self.all_schedules.contains_key(&schedule.hash) {
             self.fetching.entry(schedule.hash)
                 .or_insert_with(Fetching::new)
                 .sources.insert(id);
         }
         return updated;
+    }
+
+    /// Adds schedule to the working set
+    pub fn add_schedule(&mut self, schedule: Schedule) {
+        if !self.all_schedules.contains_key(&schedule.hash) {
+            self.fetching.remove(&schedule.hash);
+            self.all_schedules.insert(schedule.hash.clone(),
+                Arc::new(schedule));
+        }
+    }
+
+    pub fn done(&self) -> bool {
+        self.fetching.len() == 0 && self.peers_left.len() == 0
     }
 }
 
@@ -102,10 +116,7 @@ impl Encodable for Fetching {
         e.emit_struct("Fetching", 2, |e| {
             try!(e.emit_struct_field("time", 0, |e| {
                 // in milliseconds for javascript
-                self.time.map(|tm| {
-                    (precise_time_ns() / 1_000_000) as i64 -
-                        (SteadyTime::now() - tm).num_milliseconds() as i64
-                }).encode(e)
+                self.time.map(|x| x.to_msec()).encode(e)
             }));
             try!(e.emit_struct_field("sources", 1, |e| {
                 self.sources.encode(e)

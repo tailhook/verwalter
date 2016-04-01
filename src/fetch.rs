@@ -73,7 +73,7 @@ impl Action for Monitor {
         use scheduler::State::{Unstable, Following, Leading};
         use scheduler::LeaderState::Prefetching as Fetching;
         match *scope.state.scheduler_state() {
-            Leading(Fetching(ref mutex)) => {
+            Leading(Fetching(_, ref mutex)) => {
                 self.stop_copying();
                 let now = SteadyTime::now();
                 let time_cut = now - Dur::milliseconds(FETCH_TIME_HINT);
@@ -101,6 +101,7 @@ impl Action for Monitor {
                 }
                 Response::ok(Prefetching)
                     .deadline(scope.now() +
+                              // TODO(tailhook) find out exact timeout, maybe
                               Duration::from_millis(FETCH_TIME_HINT as u64/2))
             }
             Leading(_) | Unstable => {

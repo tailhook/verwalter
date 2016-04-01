@@ -2,9 +2,11 @@ use std::sync::{Arc, Mutex};
 
 use rustc_serialize::json::Json;
 use rustc_serialize::{Encodable, Encoder};
+use time::SteadyTime;
 
 use shared::Id;
 use super::prefetch::PrefetchInfo;
+use time_util::ToMsec;
 
 
 #[derive(Clone, Debug, RustcEncodable)]
@@ -29,7 +31,7 @@ pub enum LeaderState {
     /// WARNING: this lock is a subject of Global Lock Ordering.
     /// Which means: if you want to lock this one and shared::SharedState
     /// you must lock SharedState first! And this one second!
-    Prefetching(Mutex<PrefetchInfo>),
+    Prefetching(SteadyTime, Mutex<PrefetchInfo>),
 
     Calculating,
     Stable(Arc<Schedule>),
@@ -49,11 +51,15 @@ impl Encodable for LeaderState {
         use self::LeaderState::*;
         e.emit_enum("LeaderState", |e| {
             match *self {
-                Prefetching(ref x) => {
-                    e.emit_enum_variant("Prefetching", 0, 1, |e| {
-                        e.emit_enum_variant_arg(0, |e| {
+                Prefetching(time_started, ref x) => {
+                    e.emit_enum_variant("Prefetching", 0, 2, |e| {
+                        try!(e.emit_enum_variant_arg(1, |e| {
+                            time_started.to_msec().encode(e)
+                        }));
+                        try!(e.emit_enum_variant_arg(0, |e| {
                             x.lock().expect("buildinfo lock").encode(e)
-                        })
+                        }));
+                        Ok(())
                     })
                 }
                 Calculating => {
