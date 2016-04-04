@@ -152,7 +152,9 @@ fn main() {
     init_logging(&id, options.log_id);
 
     let mut cfg_cache = config::Cache::new();
-    let config = match config::read_configs(&options, &mut cfg_cache) {
+    let config = match config::read_configs(
+        &options.config_dir, &mut cfg_cache)
+    {
         Ok(cfg) => cfg,
         Err(e) => {
             error!("Fatal error while reading config: {}", e);
@@ -194,6 +196,7 @@ fn main() {
         id: id.clone(),
         hostname: hostname.clone(),
         config_dir: options.config_dir.clone(),
+        config_cache: cfg_cache,
     };
     let scheduler_state = state.clone();
     let scheduler_alarm_tx = alarm_tx.clone();

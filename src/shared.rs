@@ -212,7 +212,6 @@ impl SharedState {
         // changes.
         self.1.run_scheduler.notify_all();
     }
-    #[allow(unused)]
     pub fn set_config(&self, cfg: Config) {
         self.0.lock().expect("shared state lock").config = Arc::new(cfg);
     }

@@ -6,6 +6,7 @@ use std::process::exit;
 
 use time::get_time;
 
+use config;
 use time_util::ToMsec;
 use hash::hash;
 use watchdog::{Alarm, ExitOnReturn};
@@ -17,15 +18,17 @@ pub struct Settings {
     pub id: Id,
     pub hostname: String,
     pub config_dir: PathBuf,
+    pub config_cache: config::Cache,
 }
 
 
-pub fn main(state: SharedState, settings: Settings, mut alarm: Alarm) -> ! {
+pub fn main(state: SharedState, mut settings: Settings, mut alarm: Alarm) -> !
+{
     let _guard = ExitOnReturn(92);
     let mut scheduler = {
         let _alarm = alarm.after(Duration::from_secs(10));
-        match super::read(settings.id,
-                          settings.hostname,
+        match super::read(settings.id.clone(),
+                          settings.hostname.clone(),
                           &settings.config_dir)
         {
             Ok(s) => s,
@@ -39,6 +42,36 @@ pub fn main(state: SharedState, settings: Settings, mut alarm: Alarm) -> ! {
         let mut cookie = state.wait_schedule_update(Duration::from_secs(5));
 
         while state.refresh_cookie(&mut cookie) {
+
+            // TODO(tailhook) we reread everything on every iteration this
+            // is waste of resources but for small configurations will be
+            // negligible. Let's implement inotify later on
+            if true {
+                let _alarm = alarm.after(Duration::from_secs(10));
+                match super::read(settings.id.clone(),
+                                  settings.hostname.clone(),
+                                  &settings.config_dir)
+                {
+                    Ok(s) => {
+                        scheduler = s;
+                    }
+                    Err(e) => {
+                        error!("Scheduler load failed: {}. Using the old one.",
+                               e);
+                    }
+                }
+                match config::read_configs(
+                    &settings.config_dir, &mut settings.config_cache)
+                {
+                    Ok(cfg) => {
+                        state.set_config(cfg);
+                    }
+                    Err(e) => {
+                        error!("Fatal error while reading config: {}. \
+                            Using the old one", e);
+                    }
+                };
+            }
 
             let peers = state.peers().expect("peers are ready for scheduler");
             // TODO(tailhook) check if peers are outdated

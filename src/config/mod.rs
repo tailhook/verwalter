@@ -1,7 +1,7 @@
 use std::io;
 use std::io::Read;
 use std::num::ParseFloatError;
-use std::path::{PathBuf};
+use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 
 use rustc_serialize::json::Json;
@@ -13,7 +13,6 @@ use scan_dir;
 
 use super::render::RenderSet;
 use self::render::read_renderers;
-use Options;
 
 pub use self::version::Version;
 //pub use self::template::Template;
@@ -121,13 +120,13 @@ impl Cache {
     }
 }
 
-pub fn read_configs(options: &Options, _cache: &mut Cache)
+pub fn read_configs(dir: &Path, _cache: &mut Cache)
     -> Result<Config, scan_dir::Error>
 {
-    let meta = meta::read_dir(&options.config_dir.join("machine"));
+    let meta = meta::read_dir(&dir.join("machine"));
     let mut roles = HashMap::new();
 
-    let tpldir = options.config_dir.join("templates");
+    let tpldir = dir.join("templates");
     try!(scan_dir::ScanDir::dirs().read(tpldir, |iter| {
         for (entry, name) in iter {
             let mut role = Role {
@@ -147,7 +146,7 @@ pub fn read_configs(options: &Options, _cache: &mut Cache)
         Ok(())
     }).and_then(|x| x));
 
-    let tpldir = options.config_dir.join("runtime");
+    let tpldir = dir.join("runtime");
     try!(scan_dir::ScanDir::dirs().read(tpldir, |iter| {
         for (entry, name) in iter {
             if let Some(ref mut role) = roles.get_mut(&name) {
@@ -167,10 +166,19 @@ pub fn read_configs(options: &Options, _cache: &mut Cache)
         Ok(())
     }).and_then(|x| x));
 
-    Ok(Config {
+    let config = Config {
         machine: meta,
         roles: roles,
-    })
+    };
+
+    debug!("Configuration read with, \
+            roles: {}, meta items: {}, errors: {}",
+        config.roles.len(),
+        config.machine.as_ref().ok().and_then(|o| o.as_object())
+            .map(|x| x.len()).unwrap_or(0),
+        config.total_errors());
+
+    Ok(config)
 }
 
 impl Config {
