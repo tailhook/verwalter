@@ -36,9 +36,10 @@ pub fn main(state: SharedState, settings: Settings, mut alarm: Alarm) -> ! {
         }
     };
     loop {
-        let cookie = state.wait_schedule_update(Duration::from_secs(5));
+        let mut cookie = state.wait_schedule_update(Duration::from_secs(5));
 
-        while state.is_cookie_valid(&cookie) {
+        while state.refresh_cookie(&mut cookie) {
+
             let peers = state.peers().expect("peers are ready for scheduler");
             // TODO(tailhook) check if peers are outdated
 
@@ -48,7 +49,8 @@ pub fn main(state: SharedState, settings: Settings, mut alarm: Alarm) -> ! {
             let scheduler_result = scheduler.execute(
                 &*state.config(),
                 &peers.1,
-                &cookie.parent_schedules);
+                &cookie.parent_schedules,
+                &cookie.actions);
 
             let scheduler_result = match scheduler_result {
                 Ok(j) => j,
@@ -60,7 +62,7 @@ pub fn main(state: SharedState, settings: Settings, mut alarm: Alarm) -> ! {
             };
 
             let hash = hash(scheduler_result.to_string());
-            state.set_schedule_by_leader(Schedule {
+            state.set_schedule_by_leader(cookie, Schedule {
                 timestamp: timestamp.to_msec(),
                 hash: hash,
                 data: scheduler_result,

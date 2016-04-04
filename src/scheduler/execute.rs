@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use std::collections::HashMap;
+use std::collections::{HashMap, BTreeMap};
 
 use lua::{ThreadStatus, Type};
 use rustc_serialize::json::Json;
@@ -12,7 +12,8 @@ use scheduler::input::Input;
 
 impl Scheduler {
     pub fn execute(&mut self, config: &Config, peers: &HashMap<Id, Peer>,
-        parents: &Vec<Arc<Schedule>>)
+        parents: &Vec<Arc<Schedule>>,
+        actions: &BTreeMap<u64, Arc<Json>>)
         -> Result<Json, Error>
     {
         match self.lua.get_global("scheduler") {
@@ -29,6 +30,7 @@ impl Scheduler {
             id: &self.id,
             hostname: &self.hostname,
             parents: parents,
+            actions: actions,
         });
         match self.lua.pcall(1, 1, 0) {
             ThreadStatus::Ok => {}

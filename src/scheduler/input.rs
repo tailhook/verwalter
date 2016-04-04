@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use std::collections::HashMap;
+use std::collections::{HashMap, BTreeMap};
 
 use time::get_time;
 use lua::{ToLua, State};
@@ -9,7 +9,7 @@ use config::{MetadataErrors, Role};
 use shared::{Id, Peer};
 use time_util::ToMsec;
 use super::Schedule;
-use super::lua_json::push_json;
+use super::lua_json::{push_json, push_json_object_with_id};
 
 pub struct Input<'a> {
     pub machine: &'a Result<Json, MetadataErrors>,
@@ -18,6 +18,7 @@ pub struct Input<'a> {
     pub hostname: &'a str,
     pub id: &'a Id,
     pub parents: &'a Vec<Arc<Schedule>>,
+    pub actions: &'a BTreeMap<u64, Arc<Json>>,
 }
 
 
@@ -44,6 +45,16 @@ impl<'a> ToLua for Input<'a> {
                 lua.raw_seti(tbl, i as i64);
             }
             lua.set_field(cfg, "parents");
+        }
+
+        {
+            lua.create_table(self.actions.len() as i32, 0);
+            let tbl = lua.get_top();
+            for (i, (id, value)) in self.actions.iter().enumerate() {
+                push_json_object_with_id(lua, &value, *id);
+                lua.raw_seti(tbl, i as i64);
+            }
+            lua.set_field(cfg, "actions");
         }
 
         match self.machine {

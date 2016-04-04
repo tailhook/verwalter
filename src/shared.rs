@@ -3,13 +3,15 @@ use std::str::FromStr;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex, Condvar, MutexGuard};
 use std::time::Duration;
-use std::collections::HashMap;
+use std::collections::{HashMap, BTreeMap};
+use std::collections::btree_map::Entry::{Occupied, Vacant};
 
-use time::{SteadyTime, Timespec, Duration as Dur};
+use time::{SteadyTime, Timespec, Duration as Dur, get_time};
 use rotor::{Time, Notifier};
 use cbor::{Encoder, EncodeResult, Decoder, DecodeResult};
 use rustc_serialize::hex::{FromHex, ToHex, FromHexError};
 use rustc_serialize::{Encodable, Encoder as RustcEncoder};
+use rustc_serialize::json::Json;
 
 use config::Config;
 use elect::{ElectionState, ScheduleStamp, Epoch};
@@ -42,11 +44,17 @@ pub struct SharedState(Arc<Mutex<State>>, Arc<Notifiers>);
 pub struct LeaderCookie {
     epoch: Epoch,
     pub parent_schedules: Vec<Arc<Schedule>>,
+    pub actions: BTreeMap<u64, Arc<Json>>,
 }
 
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Id(Box<[u8]>);
+
+pub enum PushActionError {
+    TooManyRequests,
+    NotALeader,
+}
 
 impl Id {
     pub fn new<S:AsRef<[u8]>>(id: S) -> Id {
@@ -103,6 +111,7 @@ struct State {
     // TODO(tailhook) rename schedule -> scheduleR
     schedule: Arc<scheduler::State>,
     election: Arc<ElectionState>,
+    actions: BTreeMap<u64, Arc<Json>>,
     /// Fetch update notifier
     external_schedule_update: Option<Notifier>,
 }
@@ -136,6 +145,7 @@ impl SharedState {
             schedule: Arc::new(scheduler::State::Unstable),
             last_known_schedule: None,
             election: Default::default(),
+            actions: BTreeMap::new(),
             external_schedule_update: None, //unfortunately
         })), Arc::new(Notifiers {
             apply_schedule: Condvar::new(),
@@ -181,6 +191,9 @@ impl SharedState {
             _ => false,
         }
     }
+    pub fn pending_actions(&self) -> BTreeMap<u64, Arc<Json>> {
+        self.lock().actions.clone()
+    }
     // Setters
     pub fn set_peers(&self, time: Time, peers: HashMap<Id, Peer>) {
         let mut guard = self.lock();
@@ -203,7 +216,7 @@ impl SharedState {
     pub fn set_config(&self, cfg: Config) {
         self.0.lock().expect("shared state lock").config = Arc::new(cfg);
     }
-    pub fn set_schedule_by_leader(&self, val: Schedule) {
+    pub fn set_schedule_by_leader(&self, cookie: LeaderCookie, val: Schedule) {
         use scheduler::State::{Leading};
         use scheduler::LeaderState::{Stable, Calculating};
         let mut guard = self.lock();
@@ -212,6 +225,9 @@ impl SharedState {
                 let sched = Arc::new(val);
                 guard.schedule = Arc::new(Leading(Stable(sched.clone())));
                 guard.last_known_schedule = Some(sched);
+                for (aid, _) in cookie.actions {
+                    guard.actions.remove(&aid);
+                }
                 self.1.apply_schedule.notify_all();
             }
             _ => {
@@ -228,6 +244,7 @@ impl SharedState {
         use scheduler::FollowerState::*;
         let mut guard = self.lock();
         if !elect.is_stable {
+            guard.actions.clear();
             if !matches!(*guard.schedule, Unstable) {
                 guard.schedule = Arc::new(Unstable);
             }
@@ -258,6 +275,7 @@ impl SharedState {
                 Leading(..) => { }
             }
         } else {
+            guard.actions.clear();
             match *guard.schedule.clone() {
                 Following(ref id, ref status)
                 if Some(id) == elect.leader.as_ref()
@@ -328,6 +346,7 @@ impl SharedState {
                             parent_schedules:
                                 mutex.lock().expect("prefetch lock")
                                 .get_schedules(),
+                            actions: guard.actions.clone(),
                         };
                     } else {
                         Duration::from_millis(
@@ -339,6 +358,7 @@ impl SharedState {
                     return LeaderCookie {
                         epoch: guard.election.epoch,
                         parent_schedules: vec![x.clone()],
+                        actions: guard.actions.clone(),
                     };
                 }
                 Leading(Calculating) => unreachable!(),
@@ -346,8 +366,15 @@ impl SharedState {
             };
         }
     }
-    pub fn is_cookie_valid(&self, cookie: &LeaderCookie) -> bool {
-        cookie.epoch == self.lock().election.epoch
+    pub fn refresh_cookie(&self, cookie: &mut LeaderCookie) -> bool {
+        let guard = self.lock();
+        if cookie.epoch == guard.election.epoch {
+            // TODO(tailhook) update only changed items
+            cookie.actions = guard.actions.clone();
+            return true;
+        } else {
+            return false;
+        }
     }
 
     /// This is waited on in apply/render code
@@ -395,5 +422,35 @@ impl SharedState {
     pub fn set_update_notifier(&self, notifier: Notifier) {
         let mut guard = self.0.lock().expect("shared state lock");
         guard.external_schedule_update = Some(notifier);
+    }
+    pub fn push_action(&self, data: Json) -> Result<u64, PushActionError> {
+        use scheduler::State::{Following, Leading, Unstable};
+        let mut guard = self.lock();
+
+        match *guard.schedule.clone() {
+            Unstable | Following(..) => {
+                return Err(PushActionError::NotALeader);
+            }
+            Leading(..) => {}
+        }
+
+        let millis = (get_time().sec * 1000) as u64;
+
+        // Note we intentionally limit actions to 1000 per second
+        // Usually there is no more than *one*
+        // TODO(tailhook) we can look at max element rather than iterating
+        for i in 0..1000 {
+            match guard.actions.entry(millis + i) {
+                Occupied(_) => continue,
+                Vacant(x) => {
+                    x.insert(Arc::new(data));
+                    return Ok(millis + i);
+                }
+            }
+        }
+        return Err(PushActionError::TooManyRequests);
+    }
+    pub fn check_action(&self, action: u64) -> bool {
+        self.lock().actions.get(&action).is_some()
     }
 }
