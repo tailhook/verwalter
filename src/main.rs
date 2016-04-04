@@ -53,6 +53,7 @@ use argparse::{Print};
 
 pub struct Options {
     config_dir: PathBuf,
+    storage_dir: PathBuf,
     log_dir: PathBuf,
     log_id: bool,
     dry_run: bool,
@@ -87,6 +88,7 @@ fn init_logging(id: &Id, log_id: bool) {
 fn main() {
     let mut options = Options {
         config_dir: PathBuf::from("/etc/verwalter"),
+        storage_dir: PathBuf::from("/etc/verwalter"),
         log_dir: PathBuf::from("/var/log/verwalter"),
         log_id: false,
         dry_run: false,
@@ -99,8 +101,12 @@ fn main() {
     {
         let mut ap = ArgumentParser::new();
         ap.refer(&mut options.config_dir)
-            .add_option(&["-D", "--config-dir"], Parse,
-                "Directory of configuration files");
+            .add_option(&["--config-dir"], Parse,
+                "Directory of configuration files (default /etc/verwalter)");
+        ap.refer(&mut options.storage_dir)
+            .add_option(&["--storage-dir"], Parse,
+                "Directory of configuration files \
+                 (default /var/lib/verwalter)");
         ap.add_option(&["--version"],
             Print(env!("CARGO_PKG_VERSION").to_string()),
             "Show version and exit");
@@ -162,7 +168,23 @@ fn main() {
         .to_socket_addrs().expect("Can't resolve hostname")
         .collect::<Vec<_>>()[0];
 
-    let state = SharedState::new(config);
+    let schedule_file = options.storage_dir.join("schedule/schedule.json");
+    debug!("Loading old schedule from {:?}", schedule_file);
+    let old_schedule = match fs_util::read_json(&schedule_file)
+        .map(scheduler::from_json)
+    {
+        Ok(Ok(x)) => Some(x),
+        Ok(Err(e)) => {
+            error!("Error decoding saved schedule: {}", e);
+            None
+        }
+        Err(e) => {
+            error!("Error reading schedule: {}", e);
+            None
+        }
+    };
+
+    let state = SharedState::new(config, old_schedule);
     let hostname = options.hostname
                    .unwrap_or_else(|| info::hostname().expect("gethostname"));
 
@@ -189,6 +211,7 @@ fn main() {
         hostname: hostname.clone(),
         print_configs: options.print_configs,
         log_dir: options.log_dir,
+        schedule_file: schedule_file,
     };
     let apply_state = state.clone();
     let apply_alarm_tx = alarm_tx; // this is last one, no clone

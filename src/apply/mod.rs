@@ -15,6 +15,7 @@ use shared::{Id, Peer, SharedState};
 use config::Config;
 use render::Error as RenderError;
 use watchdog::{ExitOnReturn, Alarm};
+use fs_util::write_file;
 
 
 mod root_command;
@@ -26,6 +27,7 @@ pub struct Settings {
     pub hostname: String,
     pub dry_run: bool,
     pub log_dir: PathBuf,
+    pub schedule_file: PathBuf,
 }
 
 pub type ApplyTask = HashMap<String,
@@ -195,6 +197,8 @@ pub fn run(state: SharedState, settings: Settings, mut alarm: Alarm) -> ! {
     let mut prev_schedule = String::new();
     if let Some(schedule) = state.stable_schedule() {
         let _alarm = alarm.after(Duration::from_secs(180));
+        write_file(&settings.schedule_file, &*schedule)
+            .map(|e| error!("Writing schedule failed: {:?}", e)).ok();
         apply_schedule(&*state.config(),
             &schedule.hash, &schedule.data,
             &state.peers().expect("peers").1, &settings);
@@ -203,6 +207,8 @@ pub fn run(state: SharedState, settings: Settings, mut alarm: Alarm) -> ! {
     loop {
         let schedule = state.wait_new_schedule(&prev_schedule);
         let _alarm = alarm.after(Duration::from_secs(180));
+        write_file(&settings.schedule_file, &*schedule)
+            .map(|e| error!("Writing schedule failed: {:?}", e)).ok();
         apply_schedule(&*state.config(),
             &schedule.hash, &schedule.data,
             &state.peers().expect("peers").1, &settings);

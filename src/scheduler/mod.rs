@@ -11,7 +11,7 @@ mod state;
 mod prefetch;
 mod execute;
 
-pub use self::state::{Schedule, State, LeaderState, FollowerState};
+pub use self::state::{Schedule, State, LeaderState, FollowerState, from_json};
 pub use self::prefetch::PrefetchInfo;
 pub use self::main::{main as run, Settings};
 

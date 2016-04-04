@@ -4,6 +4,7 @@ use rustc_serialize::json::Json;
 use rustc_serialize::{Encodable, Encoder};
 use time::SteadyTime;
 
+use hash::hash;
 use shared::Id;
 use super::prefetch::PrefetchInfo;
 use time_util::ToMsec;
@@ -75,4 +76,38 @@ impl Encodable for LeaderState {
             }
         })
      }
+}
+
+pub fn from_json(json: Json) -> Result<Schedule, String> {
+    let mut j = match json {
+        Json::Object(ob) => ob,
+        v => {
+            return Err(format!("Wrong data type for schedule, data: {:?}", v));
+        }
+    };
+    let hashvalue = j.remove("hash");
+    let origin = j.remove("origin")
+        .and_then(|x| x.as_string().and_then(|x| x.parse().ok()));
+    let timestamp = j.remove("timestamp").and_then(|x| x.as_u64());
+    let data = j.remove("data");
+    match (hashvalue, timestamp, data, origin) {
+        (Some(Json::String(h)), Some(t), Some(d), Some(o)) => {
+            let hash = hash(d.to_string());
+            if hash != h {
+                Err(format!("Invalid hash {:?} data {}", h, d))
+            } else {
+                Ok(Schedule {
+                    timestamp: t,
+                    hash: h.to_string(),
+                    data: d,
+                    origin: o,
+                })
+            }
+        }
+        (hash, tstamp, data, origin) => {
+            Err(format!("Wrong data in the schedule, \
+                values: {:?} -- {:?} -- {:?} -- {:?}",
+                hash, tstamp, data, origin))
+        }
+    }
 }

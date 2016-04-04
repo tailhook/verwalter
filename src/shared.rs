@@ -138,12 +138,12 @@ fn fetch_schedule(guard: &mut MutexGuard<State>) {
 }
 
 impl SharedState {
-    pub fn new(cfg: Config) -> SharedState {
+    pub fn new(cfg: Config, old_schedule: Option<Schedule>) -> SharedState {
         SharedState(Arc::new(Mutex::new(State {
             config: Arc::new(cfg),
             peers: None,
             schedule: Arc::new(scheduler::State::Unstable),
-            last_known_schedule: None,
+            last_known_schedule: old_schedule.map(Arc::new),
             election: Default::default(),
             actions: BTreeMap::new(),
             external_schedule_update: None, //unfortunately
@@ -274,25 +274,26 @@ impl SharedState {
                 }
                 Leading(..) => { }
             }
-        } else {
+        } else { // is a follower
             guard.actions.clear();
             match *guard.schedule.clone() {
                 Following(ref id, ref status)
                 if Some(id) == elect.leader.as_ref()
                 => {
                     if let Some((schid, tstamp)) = peer_schedule {
-                        debug_assert!(id == &schid);
-                        match *status {
-                            Stable(ref schedule)
-                            if schedule.hash == tstamp.hash
-                            => {}  // up to date
-                            Fetching(ref hash) if hash == &tstamp.hash
-                            => {}  // already fetching
-                            _ => {
-                                guard.schedule = Arc::new(Following(
-                                    id.clone(),
-                                    Fetching(tstamp.hash)));
-                                fetch_schedule(&mut guard);
+                        if id == &schid {
+                            match *status {
+                                Stable(ref schedule)
+                                if schedule.hash == tstamp.hash
+                                => {}  // up to date
+                                Fetching(ref hash) if hash == &tstamp.hash
+                                => {}  // already fetching
+                                _ => {
+                                    guard.schedule = Arc::new(Following(
+                                        id.clone(),
+                                        Fetching(tstamp.hash)));
+                                    fetch_schedule(&mut guard);
+                                }
                             }
                         }
                     }

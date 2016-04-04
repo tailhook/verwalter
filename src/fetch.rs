@@ -17,8 +17,7 @@ use rotor_http::client::{ProtocolError};
 use rustc_serialize::json::Json;
 
 use net::Context;
-use hash::hash;
-use scheduler::{Schedule};
+use scheduler;
 use shared::{Peer, Id};
 
 pub type LeaderFetcher = Spawn<Uniform<Monitor>>;
@@ -262,43 +261,21 @@ impl Requester for FetchSchedule {
                 return;
             }
         };
-        let mut j = match Json::from_str(s) {
-            Ok(Json::Object(ob)) => ob,
-            Ok(v) => {
-                error!("Wrong data type for schedule, data: {:?}", v);
-                return;
-            }
+        let j = match Json::from_str(s) {
+            Ok(x) => x,
             Err(e) => {
                 error!("Error decoding json for schedule: {}", e);
                 debug!("Undecodable data: {:?}", s);
                 return;
             }
         };
-        let hashvalue = j.remove("hash");
-        let origin = j.remove("origin")
-            .and_then(|x| x.as_string().and_then(|x| x.parse().ok()));
-        let timestamp = j.remove("timestamp").and_then(|x| x.as_u64());
-        let data = j.remove("data");
-        match (hashvalue, timestamp, data, origin) {
-            (Some(Json::String(h)), Some(t), Some(d), Some(o)) => {
-                let hash = hash(d.to_string());
-                if hash != h {
-                    error!("Invalid hash {:?} data {}", h, d);
-                    return;
-                }
-                debug!("Fetched schedule {:?}", hash);
-                scope.state.fetched_schedule(Schedule {
-                    timestamp: t,
-                    hash: h.to_string(),
-                    data: d,
-                    origin: o,
-                });
+        match scheduler::from_json(j) {
+            Ok(x) => {
+                debug!("Fetched schedule {:?}", x.hash);
+                scope.state.fetched_schedule(x);
             }
-            (hash, tstamp, data, origin) => {
-                error!("Wrong data in the schedule, \
-                    values: {:?} -- {:?} -- {:?} -- {:?}",
-                    hash, tstamp, data, origin);
-                return;
+            Err(e) => {
+                error!("Fetched schedule is invalid: {}", e);
             }
         }
     }
