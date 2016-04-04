@@ -12,8 +12,8 @@ authors = ["Paul Colomiets <paul@colomiets.name>"]
 
 [dependencies]
 rotor = "0.6.3"
-rotor-http = { rev="feaf6af", git="git://github.com/tailhook/rotor-http" }
-rotor-tools = { rev="f7989a2", git="git://github.com/tailhook/rotor-tools" }
+rotor-http = "0.7.0"
+rotor-tools = "0.3.2"
 rotor-cantal = { rev="f772b26", git="git://github.com/tailhook/rotor-cantal" }
 lua = { rev="9d3c7dc", git = "git://github.com/jcmoyer/rust-lua53" }
 quick-error = "0.2.1"
@@ -34,7 +34,7 @@ matches = "0.1.2"
 hyper = "0.7"
 mio = "0.5"
 nix = "0.5.0"
-cbor-codec = "0.4.2"
+cbor-codec = "0.5.0"
 regex = "0.1.58"
 lazy_static = "0.1.15"
 sha1 = "0.1.1"

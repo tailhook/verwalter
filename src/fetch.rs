@@ -13,6 +13,7 @@ use rotor_tools::uniform::{Uniform, Action};
 use rotor_http;
 use rotor_http::client::{Fsm, Client, Requester, Task, Version};
 use rotor_http::client::{Request, RecvMode, ResponseError, Head};
+use rotor_http::client::{ProtocolError};
 use rustc_serialize::json::Json;
 
 use net::Context;
@@ -220,6 +221,11 @@ impl Client for Connection {
         -> Task<Self>
     {
         Task::Close
+    }
+    fn connection_error(self, reason: &ProtocolError,
+        _scope: &mut Scope<<Self::Requester as Requester>::Context>)
+    {
+        error!("Connection error {:?}", reason);
     }
 }
 
