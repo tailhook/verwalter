@@ -38,6 +38,7 @@ cbor-codec = "0.5.0"
 regex = "0.1.58"
 lazy_static = "0.1.15"
 sha1 = "0.1.1"
+inotify = "0.2.3"
 
 [[bin]]
 name = "verwalter"

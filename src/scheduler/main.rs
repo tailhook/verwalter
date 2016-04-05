@@ -1,10 +1,15 @@
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 use std::time::Duration;
 use std::thread::sleep;
 use std::process::exit;
 
 
 use time::get_time;
+use inotify::INotify;
+use inotify::ffi::{IN_MODIFY, IN_ATTRIB, IN_CLOSE_WRITE, IN_MOVED_FROM};
+use inotify::ffi::{IN_MOVED_TO, IN_CREATE, IN_DELETE, IN_DELETE_SELF};
+use inotify::ffi::{IN_MOVE_SELF};
+use scan_dir::ScanDir;
 
 use config;
 use time_util::ToMsec;
@@ -21,12 +26,30 @@ pub struct Settings {
     pub config_cache: config::Cache,
 }
 
+fn watch_dir(notify: &mut INotify, path: &Path) {
+    ScanDir::dirs().walk(path, |iter| {
+        for (entry, _) in iter {
+            notify.add_watch(&entry.path(),
+                IN_MODIFY | IN_ATTRIB | IN_CLOSE_WRITE | IN_MOVED_FROM |
+                IN_MOVED_TO | IN_CREATE | IN_DELETE | IN_DELETE_SELF |
+                IN_MOVE_SELF)
+            .map_err(|e| {
+                warn!("Error adding directory {:?} to inotify: {}.",
+                      entry.path(), e);
+            }).ok();
+        }
+    }).map_err(|e| {
+        warn!("Error when scanning config directory: {:?}", e);
+    }).ok();
+}
 
 pub fn main(state: SharedState, mut settings: Settings, mut alarm: Alarm) -> !
 {
+    let mut inotify = INotify::init().expect("create inotify");
     let _guard = ExitOnReturn(92);
     let mut scheduler = {
         let _alarm = alarm.after(Duration::from_secs(10));
+        watch_dir(&mut inotify, &settings.config_dir);
         match super::read(settings.id.clone(),
                           settings.hostname.clone(),
                           &settings.config_dir)
@@ -46,7 +69,32 @@ pub fn main(state: SharedState, mut settings: Settings, mut alarm: Alarm) -> !
             // TODO(tailhook) we reread everything on every iteration this
             // is waste of resources but for small configurations will be
             // negligible. Let's implement inotify later on
-            if true {
+            let mut events = inotify.available_events()
+                .expect("read inotify")
+                .len();
+            if events > 0 {
+                debug!("Inotify events, waiting to become stable");
+                {
+                    let _alarm = alarm.after(Duration::from_secs(10));
+                    while events > 0 {
+                        // Since we rescan every file anyway, it's negligible
+                        // to just rescan the whole directory tree for inotify
+                        // too
+                        watch_dir(&mut inotify, &settings.config_dir);
+                        // Wait a little bit for filesystem to become stable.
+                        // We intentinally add new directories first, so that
+                        // we can track unstable changes in new directories
+                        // too.
+                        // 200 ms should be enough for file copy/backup tools,
+                        //     but not for human interaction, which is fine.
+                        sleep(Duration::from_millis(200));
+                        events = inotify.available_events()
+                                 .expect("read inotify")
+                                 .len();
+                    }
+                }
+
+                debug!("Directories stable. Reading configs");
                 let _alarm = alarm.after(Duration::from_secs(10));
                 match super::read(settings.id.clone(),
                                   settings.hostname.clone(),
