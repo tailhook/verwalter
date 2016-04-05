@@ -10,7 +10,7 @@ module.exports = {
     output: {
         path: __dirname + "/../public/js",
         filename: "bundle.js",
-        publicPath: '/js/',
+        publicPath: '/common/js/',
     },
     module: {
         loaders: [{
@@ -43,16 +43,26 @@ module.exports = {
             "/usr/lib/node_modules"],
     },
     devServer: {
-        contentBase: '../public',
+        contentBase: '..',
         proxy: {
             '/v1/*': {
                 target: 'http://localhost:8379',
                 secure: false,
             },
+            '/common/css/*': {
+                target: 'http://localhost:8379',
+                secure: false,
+            },
+            '/common/fonts/*': {
+                target: 'http://localhost:8379',
+                secure: false,
+            },
         },
-        publicPath: '/js/',
+        publicPath: '/common/js/',
         hot: true,
-        historyApiFallback: true,
+        historyApiFallback: {
+            index: 'public/index.html',
+        },
     },
     khufu: {
         static_attrs: !DEV,

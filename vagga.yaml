@@ -34,10 +34,19 @@ commands:
       verw: !Command
         container: build
         environ:
-          RUST_LOG: debug
+          RUST_LOG: warn
         run:
         - ./target/debug/verwalter
-        - --config-dir=tmp/cfg
+        - --config-dir=/work/example-configs/pyapp
+        - --override-machine-id=dead0beef1
+      cantal: !Command
+        container: build
+        environ:
+          RUST_LOG: warn
+        run:
+        - cantal-agent
+        - --config-dir=/work/example-configs/cantal
+        - --host=0.0.0.0
         - --override-machine-id=dead0beef1
       webpack: !Command
         container: build
