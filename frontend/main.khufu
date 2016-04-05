@@ -1,7 +1,7 @@
 import {refresher, json} from './middleware/request'
 import {entries, repr, pretty, is_string} from './util/object'
 import {bool, enable, disable, init} from './stores/simple'
-import config from './stores/config'
+import json_store from './stores/json'
 
 view navbar():
   <nav.navbar.navbar-default>
@@ -20,12 +20,13 @@ view navbar():
 
 view leftmenu():
   <ul.nav.nav-pills.nav-stacked.col-lg-2>
-    <li role="presentation">
-      <a href="/role/grinder">
-        "role1"
-    <li role="presentation">
-      <a href="/role/img-resizer">
-        "role2"
+    store @schedule = json_store | refresher | json('/v1/schedule')
+    for [name, role] of entries(@schedule.data.role_metadata) key name:
+      <li role="presentation">
+        <a href=`/role/${name}`>
+          name
+          <span.badge>
+            role.version
 
 view main():
   navbar()

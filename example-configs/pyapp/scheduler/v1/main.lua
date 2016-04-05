@@ -61,6 +61,7 @@ function scheduler(state)
             pyapp={
                 commands={},
                 templates="v1",
+                version=runtime_version,
             },
         },
         nodes=nodes,
