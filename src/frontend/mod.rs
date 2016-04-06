@@ -21,6 +21,7 @@ pub enum ApiRoute {
     Peers,
     Schedule,
     Scheduler,
+    SchedulerDebugInfo,
     Election,
     PushAction,
     ActionIsPending(u64),
@@ -101,6 +102,7 @@ fn parse_api(path: &str) -> Option<Route> {
             if suffix(path) == "pretty" { Plain } else { Json })),
         ("scheduler", "") => Some(Api(Scheduler,
             if suffix(path) == "pretty" { Plain } else { Json })),
+        ("scheduler_debug_info", "") => Some(Api(SchedulerDebugInfo, Plain)),
         ("election", "") => Some(Api(Election,
             if suffix(path) == "pretty" { Plain } else { Json })),
         ("action", "") => Some(Api(PushAction,
@@ -133,6 +135,19 @@ fn respond<T: Encodable>(res: &mut Response, format: Format, data: T)
     Ok(())
 }
 
+fn respond_text<T: AsRef<[u8]>>(res: &mut Response, data: T)
+    -> Result<(), io::Error>
+{
+    let data = data.as_ref();
+    res.status(200, "OK");
+    res.add_header("Content-Type", b"text/plain").unwrap();
+    res.add_length(data.len() as u64).unwrap();
+    res.done_headers().unwrap();
+    res.write_body(data);
+    res.done();
+    Ok(())
+}
+
 fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
     data: &[u8], format: Format, res: &mut Response)
     -> Result<(), io::Error>
@@ -156,6 +171,9 @@ fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
         }
         Scheduler => {
             respond(res, format, &scope.state.scheduler_state())
+        }
+        SchedulerDebugInfo => {
+            respond_text(res, &*scope.state.scheduler_debug_info())
         }
         Election => {
             respond(res, format, &scope.state.election())

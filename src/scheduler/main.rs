@@ -127,14 +127,14 @@ pub fn main(state: SharedState, mut settings: Settings, mut alarm: Alarm) -> !
             let timestamp = get_time();
             let _alarm = alarm.after(Duration::from_secs(1));
 
-            let scheduler_result = scheduler.execute(
+            let result = scheduler.execute(
                 &*state.config(),
                 &peers.1,
                 &cookie.parent_schedules,
                 &cookie.actions);
 
-            let scheduler_result = match scheduler_result {
-                Ok(j) => j,
+            let (json, dbg) = match result {
+                Ok((json, dbg)) => (json, dbg),
                 Err(e) => {
                     error!("Scheduling failed: {}", e);
                     sleep(Duration::from_secs(1));
@@ -142,13 +142,13 @@ pub fn main(state: SharedState, mut settings: Settings, mut alarm: Alarm) -> !
                 }
             };
 
-            let hash = hash(scheduler_result.to_string());
+            let hash = hash(json.to_string());
             state.set_schedule_by_leader(cookie, Schedule {
                 timestamp: timestamp.to_msec(),
                 hash: hash,
-                data: scheduler_result,
+                data: json,
                 origin: scheduler.id.clone(),
-            });
+            }, dbg);
             break;
         }
     }

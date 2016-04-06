@@ -110,6 +110,7 @@ struct State {
     last_known_schedule: Option<Arc<Schedule>>,
     // TODO(tailhook) rename schedule -> scheduleR
     schedule: Arc<scheduler::State>,
+    last_scheduler_debug_info: Arc<String>,
     election: Arc<ElectionState>,
     actions: BTreeMap<u64, Arc<Json>>,
     /// Fetch update notifier
@@ -144,6 +145,7 @@ impl SharedState {
             peers: None,
             schedule: Arc::new(scheduler::State::Unstable),
             last_known_schedule: old_schedule.map(Arc::new),
+            last_scheduler_debug_info: Arc::new(String::new()),
             election: Default::default(),
             actions: BTreeMap::new(),
             external_schedule_update: None, //unfortunately
@@ -165,6 +167,9 @@ impl SharedState {
     /// Returns last known schedule
     pub fn schedule(&self) -> Option<Arc<Schedule>> {
         self.0.lock().expect("shared state lock").last_known_schedule.clone()
+    }
+    pub fn scheduler_debug_info(&self) -> Arc<String> {
+        self.lock().last_scheduler_debug_info.clone()
     }
     pub fn scheduler_state(&self) -> Arc<scheduler::State> {
         self.lock().schedule.clone()
@@ -215,7 +220,9 @@ impl SharedState {
     pub fn set_config(&self, cfg: Config) {
         self.0.lock().expect("shared state lock").config = Arc::new(cfg);
     }
-    pub fn set_schedule_by_leader(&self, cookie: LeaderCookie, val: Schedule) {
+    pub fn set_schedule_by_leader(&self, cookie: LeaderCookie,
+        val: Schedule, debug: String)
+    {
         use scheduler::State::{Leading};
         use scheduler::LeaderState::{Stable, Calculating};
         let mut guard = self.lock();
@@ -224,6 +231,7 @@ impl SharedState {
                 let sched = Arc::new(val);
                 guard.schedule = Arc::new(Leading(Stable(sched.clone())));
                 guard.last_known_schedule = Some(sched);
+                guard.last_scheduler_debug_info = Arc::new(debug);
                 for (aid, _) in cookie.actions {
                     guard.actions.remove(&aid);
                 }

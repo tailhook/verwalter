@@ -11,8 +11,30 @@ function cycle(items)
     end
 end
 
+function debugger()
+    local x = {text=""}
+    function x.object(self, title, data)
+        self.text = self.text
+            .. string.format('----- %s ----\n', title)
+            .. inspect(data)
+            .. "\n"
+    end
+    return x
+end
+
 function scheduler(state)
-    print(inspect(state))
+    local dbg = debugger()
+    flag, value = pcall(_scheduler, state, dbg)
+    if flag then
+        return value, dbg.text
+    else
+        text = dbg.text .. string.format("\nError: %s", value)
+        return nil, text
+    end
+end
+
+function _scheduler(state, debugger)
+    debugger:object("INPUT", state)
     local template_version = "v1"
     local runtime_version = "example-1" -- TODO(tailhook)
     local runtime = state.roles.pyapp.runtime[runtime_version]
@@ -66,6 +88,5 @@ function scheduler(state)
         },
         nodes=nodes,
     }
-    print(inspect(result))
     return JSON:encode(result)
 end

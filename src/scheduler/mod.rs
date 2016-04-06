@@ -67,7 +67,7 @@ quick_error! {
             description("scheduler function should not yield")
         }
         Conversion {
-            description("Scheduler returned unconverible value")
+            description("Scheduler returned unconvertible value")
         }
     }
 }
@@ -98,11 +98,7 @@ fn lua_load_file(lua: &mut Lua) -> i32 {
     return 1;
 }
 
-pub fn read(id: Id, hostname: String, base_dir: &Path)
-    -> Result<Scheduler, ReadError>
-{
-    let dir = &base_dir.join("scheduler/v1");
-    let mut lua = Lua::new();
+fn load_package(lua: &mut Lua, dir: &Path) {
     let tbl = lua.open_package();
     lua.get_field(tbl, "searchers");
     let srch = lua.get_top();
@@ -120,8 +116,15 @@ pub fn read(id: Id, hostname: String, base_dir: &Path)
     lua.push_nil();
     lua.set_table(srch);
     lua.pop(1);
+}
 
-    //lua.load_library(Library::Package);
+pub fn read(id: Id, hostname: String, base_dir: &Path)
+    -> Result<Scheduler, ReadError>
+{
+    let dir = &base_dir.join("scheduler/v1");
+    let mut lua = Lua::new();
+
+    load_package(&mut lua, &dir);
     lua.load_library(Library::Base);
     lua.load_library(Library::Table);
     lua.load_library(Library::String);

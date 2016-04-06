@@ -14,7 +14,7 @@ impl Scheduler {
     pub fn execute(&mut self, config: &Config, peers: &HashMap<Id, Peer>,
         parents: &Vec<Arc<Schedule>>,
         actions: &BTreeMap<u64, Arc<Json>>)
-        -> Result<Json, Error>
+        -> Result<(Json, String), Error>
     {
         match self.lua.get_global("scheduler") {
             Type::Function => {}
@@ -32,7 +32,7 @@ impl Scheduler {
             parents: parents,
             actions: actions,
         });
-        match self.lua.pcall(1, 1, 0) {
+        match self.lua.pcall(1, 2, 0) {
             ThreadStatus::Ok => {}
             ThreadStatus::Yield => return Err(Error::UnexpectedYield),
             err => {
@@ -41,9 +41,16 @@ impl Scheduler {
             }
         }
         let top = self.lua.get_top();
-        match self.lua.to_type::<String>(top) {
-            Some(ref x) => Json::from_str(x).map_err(|_| Error::Conversion),
-            None => Err(Error::Conversion),
-        }
+        let dbg = match self.lua.to_type::<String>(top) {
+            Some(x) => x,
+            None => return Err(Error::Conversion),
+        };
+        let data = match self.lua.to_type::<String>(top-1) {
+            Some(ref x) => {
+                try!(Json::from_str(x).map_err(|_| Error::Conversion))
+            }
+            None => return Err(Error::Conversion),
+        };
+        Ok((data, dbg))
     }
 }
