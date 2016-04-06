@@ -2,6 +2,7 @@ import {refresher, json} from './middleware/request'
 import {entries, repr, pretty, is_string} from './util/object'
 import {bool, enable, disable, init} from './stores/simple'
 import json_store from './stores/json'
+import {@router, go} from './util/routing'
 
 view navbar():
   <nav.navbar.navbar-default>
@@ -11,12 +12,18 @@ view navbar():
           "Verwalter"
       <div.collapse.navbar-collapse>
         <ul.nav.navbar-nav>
-          <li>
+          <li.active?(@router[0] == 'roles')>
             <a href="/roles">
+              link {click} go(event) -> @router
               "Roles"
-          <li>
+          <li.active?(@router[0] == 'servers')>
             <a href="/servers">
+              link {click} go(event) -> @router
               "Servers"
+          <li.active?(@router[0] == 'api_links')>
+            <a href="/api_links">
+              link {click} go(event) -> @router
+              "API Links"
 
 view leftmenu():
   <ul.nav.nav-pills.nav-stacked.col-lg-2>
