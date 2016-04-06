@@ -20,13 +20,22 @@ view navbar():
 
 view leftmenu():
   <ul.nav.nav-pills.nav-stacked.col-lg-2>
+    store @config = json_store | refresher | json('/v1/config')
     store @schedule = json_store | refresher | json('/v1/schedule')
-    for [name, role] of entries(@schedule.data.role_metadata) key name:
-      <li role="presentation">
-        <a href=`/role/${name}`>
-          name
-          <span.badge>
-            role.version
+    if @schedule and @schedule.data and @schedule.data.role_metadata:
+      for [name, role] of entries(@schedule.data.role_metadata) key name:
+        <li role="presentation">
+          <a href=`/role/${name}`>
+            name
+            <span.badge>
+              role.version
+    elif @config:
+      for [name, _] of entries(@config.roles) key name:
+        <li role="presentation">
+          <a href=`/role/${name}`>
+            name
+    else:
+      "Loading..."
 
 view main():
   navbar()
