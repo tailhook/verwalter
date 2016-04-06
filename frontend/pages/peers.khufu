@@ -1,0 +1,32 @@
+import {refresher, json} from '../middleware/request'
+import {format_uptime, till_now_ms, from_ms} from '../util/time'
+import json_store from '../stores/json'
+
+
+view main():
+  <div>
+    store @peers = json_store | refresher | json('/v1/peers')
+    if @peers:
+      <table.table>
+        <thead>
+          <tr>
+            <th> "Id"
+            <th> "Hostname"
+            <th> "IP"
+            <th> "Known Since"
+            <th> "Last Report"
+        <tbody>
+          for peer of @peers key peer.id:
+            <tr>
+              <td>
+                peer.id
+              <td>
+                peer.hostname
+              <td>
+                peer.primary_addr
+              <td>
+                format_uptime(till_now_ms(from_ms(peer.known_since)))
+              <td>
+                format_uptime(till_now_ms(from_ms(peer.last_report_direct)))
+    else:
+      "Loading..."

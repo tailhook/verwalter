@@ -1,6 +1,7 @@
 import {@router, go} from './util/routing'
 import {main as roles} from './pages/roles.khufu'
 import {main as api_links} from './pages/api_links.khufu'
+import {main as peers} from './pages/peers.khufu'
 
 view _navbar():
   <nav.navbar.navbar-default>
@@ -14,8 +15,8 @@ view _navbar():
             <a href="/roles">
               link {click} go(event) -> @router
               "Roles"
-          <li.active?(@router[0] == 'servers')>
-            <a href="/servers">
+          <li.active?(@router[0] == 'peers')>
+            <a href="/peers">
               link {click} go(event) -> @router
               "Servers"
           <li.active?(@router[0] == 'api_links')>
@@ -30,3 +31,5 @@ view main():
       roles()
     elif @router[0] == 'api_links':
       api_links()
+    elif @router[0] == 'peers':
+      peers()
