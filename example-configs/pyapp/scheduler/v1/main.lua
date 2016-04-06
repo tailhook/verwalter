@@ -1,5 +1,7 @@
 JSON = require "JSON"
-inspect = require "inspect"
+debug = require "debug"
+version = require "version"
+func = require "func"
 
 function cycle(items)
     local i = 0
@@ -11,32 +13,25 @@ function cycle(items)
     end
 end
 
-function debugger()
-    local x = {text=""}
-    function x.object(self, title, data)
-        self.text = self.text
-            .. string.format('----- %s ----\n', title)
-            .. inspect(data)
-            .. "\n"
-    end
-    return x
-end
-
-function scheduler(state)
-    local dbg = debugger()
-    flag, value = pcall(_scheduler, state, dbg)
-    if flag then
-        return value, dbg.text
-    else
-        text = dbg.text .. string.format("\nError: %s", value)
-        return nil, text
-    end
-end
-
 function _scheduler(state, debugger)
     debugger:object("INPUT", state)
     local template_version = "v1"
-    local runtime_version = "example-1" -- TODO(tailhook)
+
+    -- Naive algorithm: get the biggest version in every parent schedule
+    -- TODO(tailhook) better idea it to get the one with the latest timestamp
+    local versions = func.map(
+        function(s) return s.role_metadata.pyapp.info.version end,
+        state.parents)
+    -- If there was no previous schedules, use the latest existing config
+    if #versions == 0 then
+        for ver, _ in pairs(state.roles.pyapp.runtime) do
+            versions[#versions+1] = ver
+        end
+    end
+    -- Sort and get the latest/biggest one
+    table.sort(versions)
+    local runtime_version = versions[#versions]
+
     local runtime = state.roles.pyapp.runtime[runtime_version]
     local req = runtime.required_processes
     local node_list = {"n1", "n2", "n3"}
@@ -87,9 +82,15 @@ function _scheduler(state, debugger)
                 info={
                     version=runtime_version,
                 },
+                buttons=func.map_reverse(function (v)
+                    return {id="switch_to_" .. v,
+                            title="Switch to " .. v}
+                    end, versions),
             },
         },
         nodes=nodes,
     }
     return JSON:encode(result)
 end
+
+scheduler = debug.wrap_scheduler(_scheduler)

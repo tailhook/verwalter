@@ -1,0 +1,10 @@
+daemons:
+  web:
+    image: web-v1.0.0
+    config: /configs/web.yaml
+  celery:
+    image: celery-v1.0.0
+    config: /configs/celery.yaml
+  celery-beat:
+    image: celery-v1.0.0
+    config: /configs/celery-beat.yaml
