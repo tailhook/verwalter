@@ -83,7 +83,10 @@ function _scheduler(state, debugger)
             pyapp={
                 commands={},
                 templates="v1",
-                version=runtime_version,
+                badge=runtime_version,
+                info={
+                    version=runtime_version,
+                },
             },
         },
         nodes=nodes,

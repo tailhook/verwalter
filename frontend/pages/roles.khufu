@@ -3,11 +3,8 @@ import {@router, go} from '../util/routing'
 import {refresher, json} from '../middleware/request'
 import json_store from '../stores/json'
 
-
-view _leftmenu():
+view _leftmenu(@config, @schedule):
   <ul.nav.nav-pills.nav-stacked.col-lg-2>
-    store @config = json_store | refresher | json('/v1/config')
-    store @schedule = json_store | refresher | json('/v1/schedule')
     if @schedule and @schedule.data and @schedule.data.role_metadata:
       for [name, role] of entries(@schedule.data.role_metadata) key name:
         <li.active?(@router[1] == name) role="presentation">
@@ -15,15 +12,59 @@ view _leftmenu():
             link {click} go(event) -> @router
             name
             " "
-            <span.badge>
-              role.version
+            if role.badge:
+              <span.badge>
+                role.badge
     elif @config:
       for [name, _] of entries(@config.roles) key name:
         <li role="presentation">
           <a href=`/role/${name}`>
             name
-    else:
-      "Loading..."
 
 view main():
-  _leftmenu()
+  <div>
+    store @config = json_store | refresher | json('/v1/config')
+    store @schedule = json_store | refresher | json('/v1/schedule')
+    _leftmenu(-> @config, -> @schedule)
+
+    <div.col-lg-4>
+      if (not @schedule or not @schedule.data or
+          not @schedule.data.role_metadata):
+        <div.panel.panel-default>
+          <div.panel-body>
+            "Loading..."
+      elif @router[1]:
+        let role = @schedule.data.role_metadata[@router[1]]
+        <h1>
+          role.title or @router[1]
+        <h2> "Status Info"
+        <table.table>
+          <thead>
+            <tr>
+              <th> "Property"
+              <th> "Value"
+          <tbody>
+            for [name, value] of entries(role.info) key name:
+              <tr>
+                <td>
+                  name
+                <td>
+                  value
+        <h2> "Available actions"
+        <table.table>
+          <thead>
+            <tr>
+              <th> "Action"
+              <th> "Description"
+          <tbody>
+            for button of role.buttons or [] key button.id:
+              <tr>
+                <td>
+                  <button.btn.btn-default>
+                    button.title or button.id
+                <td>
+                  button.description
+      else:
+        <div.panel.panel-default>
+          <div.panel-body>
+            "Select role on the left"
