@@ -1,0 +1,29 @@
+import {entries, repr, pretty, is_string} from '../util/object'
+import {@router, go} from '../util/routing'
+import {refresher, json} from '../middleware/request'
+import json_store from '../stores/json'
+
+
+view _leftmenu():
+  <ul.nav.nav-pills.nav-stacked.col-lg-2>
+    store @config = json_store | refresher | json('/v1/config')
+    store @schedule = json_store | refresher | json('/v1/schedule')
+    if @schedule and @schedule.data and @schedule.data.role_metadata:
+      for [name, role] of entries(@schedule.data.role_metadata) key name:
+        <li.active?(@router[1] == name) role="presentation">
+          <a href=`/role/${name}`>
+            link {click} go(event) -> @router
+            name
+            " "
+            <span.badge>
+              role.version
+    elif @config:
+      for [name, _] of entries(@config.roles) key name:
+        <li role="presentation">
+          <a href=`/role/${name}`>
+            name
+    else:
+      "Loading..."
+
+view main():
+  _leftmenu()

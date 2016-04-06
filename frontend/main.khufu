@@ -1,10 +1,8 @@
-import {refresher, json} from './middleware/request'
-import {entries, repr, pretty, is_string} from './util/object'
-import {bool, enable, disable, init} from './stores/simple'
-import json_store from './stores/json'
 import {@router, go} from './util/routing'
+import {main as roles} from './pages/roles.khufu'
+import {main as api_links} from './pages/api_links.khufu'
 
-view navbar():
+view _navbar():
   <nav.navbar.navbar-default>
     <div.container-fluid>
       <div.navbar-header>
@@ -25,26 +23,10 @@ view navbar():
               link {click} go(event) -> @router
               "API Links"
 
-view leftmenu():
-  <ul.nav.nav-pills.nav-stacked.col-lg-2>
-    store @config = json_store | refresher | json('/v1/config')
-    store @schedule = json_store | refresher | json('/v1/schedule')
-    if @schedule and @schedule.data and @schedule.data.role_metadata:
-      for [name, role] of entries(@schedule.data.role_metadata) key name:
-        <li role="presentation">
-          <a href=`/role/${name}`>
-            name
-            <span.badge>
-              role.version
-    elif @config:
-      for [name, _] of entries(@config.roles) key name:
-        <li role="presentation">
-          <a href=`/role/${name}`>
-            name
-    else:
-      "Loading..."
-
 view main():
-  navbar()
+  _navbar()
   <div class="container-fluid">
-    leftmenu()
+    if @router[0] == 'roles' or @router[0] == 'role':
+      roles()
+    elif @router[0] == 'api_links':
+      api_links()

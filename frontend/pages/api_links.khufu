@@ -1,0 +1,18 @@
+import {entries, repr, pretty, is_string} from '../util/object'
+import {refresher, json} from '../middleware/request'
+import json_store from '../stores/json'
+
+
+view main():
+  <div.alert.alert-danger>
+      "Note the links are here only for information. "
+      <b> "API is unstable yet."
+  <ul.nav.nav-pills.nav-stacked.col-lg-2>
+    <li role="presentation">
+      <a href="/v1/config.pretty"> "Config"
+      <a href="/v1/peers.pretty"> "Peers"
+      <a href="/v1/schedule.pretty"> "Schedule"
+      <a href="/v1/scheduler.pretty"> "Scheduler"
+      <a href="/v1/scheduler_debug_info"> "Scheduler Debug Log"
+      <a href="/v1/election.pretty"> "Election"
+      <a href="/v1/pending_actions.pretty"> "Pending Actions"
