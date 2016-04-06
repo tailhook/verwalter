@@ -286,7 +286,15 @@ impl Server for Public {
         let iores = match *&self.0 {
             Index => read_file(scope.frontend_dir
                                .join("common/index.html"), res),
-            Static(ref x) => read_file(scope.frontend_dir.join(&x[1..]), res),
+            Static(ref x) => {
+                match read_file(scope.frontend_dir.join(&x[1..]), res) {
+                    Err(ref e) if e.kind() == io::ErrorKind::NotFound => {
+                        read_file(scope.frontend_dir
+                            .join("common/index.html"), res)
+                    }
+                    res => res,
+                }
+            }
             Api(ref route, fmt) => serve_api(scope, route, data, fmt, res),
         };
         match iores {
