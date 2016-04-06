@@ -220,6 +220,10 @@ impl SharedState {
     pub fn set_config(&self, cfg: Config) {
         self.0.lock().expect("shared state lock").config = Arc::new(cfg);
     }
+    pub fn set_schedule_debug_info(&self, debug: String)
+    {
+        self.lock().last_scheduler_debug_info = Arc::new(debug);
+    }
     pub fn set_schedule_by_leader(&self, cookie: LeaderCookie,
         val: Schedule, debug: String)
     {

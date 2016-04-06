@@ -14,13 +14,14 @@ impl Scheduler {
     pub fn execute(&mut self, config: &Config, peers: &HashMap<Id, Peer>,
         parents: &Vec<Arc<Schedule>>,
         actions: &BTreeMap<u64, Arc<Json>>)
-        -> Result<(Json, String), Error>
+        -> (Result<Json, Error>, String)
     {
         match self.lua.get_global("scheduler") {
             Type::Function => {}
             typ => {
                 // TODO(tailhook) should we pop stack? Or pop only if not None
-                return Err(Error::FunctionNotFound("scheduler", typ));
+                return (Err(Error::FunctionNotFound("scheduler", typ)),
+                    String::from("Scheduler function not found"));
             }
         }
         self.lua.push(Input {
@@ -34,23 +35,26 @@ impl Scheduler {
         });
         match self.lua.pcall(1, 2, 0) {
             ThreadStatus::Ok => {}
-            ThreadStatus::Yield => return Err(Error::UnexpectedYield),
+            ThreadStatus::Yield => {
+                return (Err(Error::UnexpectedYield),
+                    String::from("Scheduler yielded instead of returning"));
+            }
             err => {
-                return Err(Error::Lua(err,
-                    self.lua.to_str(-1).unwrap_or("undefined").to_string()))
+                return (Err(Error::Lua(err,
+                    self.lua.to_str(-1).unwrap_or("undefined").to_string())),
+                    String::from("Lua call failed"));
             }
         }
         let top = self.lua.get_top();
         let dbg = match self.lua.to_type::<String>(top) {
             Some(x) => x,
-            None => return Err(Error::Conversion),
+            None => return (Err(Error::Conversion),
+                            String::from("Debug info is of wrong type")),
         };
-        let data = match self.lua.to_type::<String>(top-1) {
-            Some(ref x) => {
-                try!(Json::from_str(x).map_err(|_| Error::Conversion))
-            }
-            None => return Err(Error::Conversion),
+        let result = match self.lua.to_type::<String>(top-1) {
+            Some(ref x) => Json::from_str(x).map_err(|_| Error::Conversion),
+            None => Err(Error::Conversion),
         };
-        Ok((data, dbg))
+        return (result, dbg);
     }
 }

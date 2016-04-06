@@ -127,16 +127,17 @@ pub fn main(state: SharedState, mut settings: Settings, mut alarm: Alarm) -> !
             let timestamp = get_time();
             let _alarm = alarm.after(Duration::from_secs(1));
 
-            let result = scheduler.execute(
+            let (result, dbg) = scheduler.execute(
                 &*state.config(),
                 &peers.1,
                 &cookie.parent_schedules,
                 &cookie.actions);
 
-            let (json, dbg) = match result {
-                Ok((json, dbg)) => (json, dbg),
+            let json = match result {
+                Ok(json) => json,
                 Err(e) => {
                     error!("Scheduling failed: {}", e);
+                    state.set_schedule_debug_info(dbg);
                     sleep(Duration::from_secs(1));
                     continue;
                 }
