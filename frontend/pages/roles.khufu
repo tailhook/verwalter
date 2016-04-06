@@ -63,7 +63,7 @@ view main():
                   <button.btn.btn-default>
                     button.title or button.id
                 <td>
-                  button.description
+                  button.description or '(no description)'
       else:
         <div.panel.panel-default>
           <div.panel-body>
