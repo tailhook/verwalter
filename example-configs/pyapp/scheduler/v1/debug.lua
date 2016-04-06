@@ -8,13 +8,23 @@ function debugger()
             .. inspect(data)
             .. "\n"
     end
+    function x.print(self, ...)
+        local text = self.text
+        for i, v in pairs({...}) do
+            if i > 1 then
+                text = text .. " "
+            end
+            text = text .. tostring(v)
+        end
+        self.text = text
+    end
     return x
 end
 
 function wrap_scheduler(real_scheduler)
     return function(state)
         local dbg = debugger()
-        _G.print = function(...) dbg.print(...) end
+        _G.print = function(...) dbg:print(...) end
         flag, value = pcall(_scheduler, state, dbg)
         _G.print = nil
         if flag then
