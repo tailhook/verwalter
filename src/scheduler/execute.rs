@@ -40,9 +40,10 @@ impl Scheduler {
                     String::from("Scheduler yielded instead of returning"));
             }
             err => {
-                return (Err(Error::Lua(err,
-                    self.lua.to_str(-1).unwrap_or("undefined").to_string())),
-                    String::from("Lua call failed"));
+                let txt = self.lua.to_str(-1).unwrap_or("undefined")
+                          .to_string();
+                let dbg = format!("Lua call failed: {}", txt);
+                return (Err(Error::Lua(err, txt)), dbg);
             }
         }
         let top = self.lua.get_top();
