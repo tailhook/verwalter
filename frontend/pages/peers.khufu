@@ -1,5 +1,6 @@
 import {refresher, json} from '../middleware/request'
-import {format_uptime, till_now_ms, from_ms} from '../util/time'
+import {format_uptime, format_diff, till_now_ms, from_ms} from '../util/time'
+import {set_port} from '../util/port'
 import json_store from '../stores/json'
 
 
@@ -12,6 +13,7 @@ view main():
           <tr>
             <th> "Id"
             <th> "Hostname"
+            <th> "Node Name"
             <th> "IP"
             <th> "Known Since"
             <th> "Last Report"
@@ -22,11 +24,24 @@ view main():
                 peer.id
               <td>
                 peer.hostname
+                " "
+                let lnk = set_port(peer.hostname, peer.primary_addr)
+                <a.btn.btn-default.btn-xs href=lnk>
+                  <span.glyphicon.glyphicon-play>
+              <td>
+                peer.name
+                " "
+                let lnk = set_port(peer.name, peer.primary_addr)
+                <a.btn.btn-default.btn-xs href=lnk>
+                  <span.glyphicon.glyphicon-play>
               <td>
                 peer.primary_addr
+                " "
+                <a.btn.btn-default.btn-xs href=`http://${peer.primary_addr}`>
+                  <span.glyphicon.glyphicon-play>
               <td>
                 format_uptime(till_now_ms(from_ms(peer.known_since)))
               <td>
-                format_uptime(till_now_ms(from_ms(peer.last_report_direct)))
+                format_diff(till_now_ms(from_ms(peer.last_report_direct)))
     else:
       "Loading..."

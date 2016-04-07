@@ -21,7 +21,7 @@ dependencies = [
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "regex 0.1.62 (registry+https://github.com/rust-lang/crates.io-index)",
  "rotor 0.6.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "rotor-cantal 0.1.0 (git+git://github.com/tailhook/rotor-cantal?rev=f772b26)",
+ "rotor-cantal 0.1.0 (git+git://github.com/tailhook/rotor-cantal?rev=df4a3f2)",
  "rotor-http 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rotor-tools 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.18 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -457,28 +457,15 @@ dependencies = [
 [[package]]
 name = "rotor-cantal"
 version = "0.1.0"
-source = "git+git://github.com/tailhook/rotor-cantal?rev=f772b26#f772b26ba749b0355db1cd7cd0e07c12bfd9d16a"
+source = "git+git://github.com/tailhook/rotor-cantal?rev=df4a3f2#df4a3f248970adac56c54f7339967520501afb7f"
 dependencies = [
  "argparse 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "rotor 0.6.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "rotor-http 0.6.0 (git+git://github.com/tailhook/rotor-http?rev=f443bfa)",
- "rotor-stream 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rotor-http 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rotor-tools 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "rotor-http"
-version = "0.6.0"
-source = "git+git://github.com/tailhook/rotor-http?rev=f443bfa#f443bfa578e06b1ed31a699e8f1227dd0bb304d8"
-dependencies = [
- "httparse 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "matches 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "quick-error 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "rotor 0.6.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "rotor-stream 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -492,19 +479,6 @@ dependencies = [
  "quick-error 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rotor 0.6.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "rotor-stream 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "rotor-stream"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "memchr 0.1.11 (registry+https://github.com/rust-lang/crates.io-index)",
- "netbuf 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "quick-error 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "rotor 0.6.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "rotor-tools 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
