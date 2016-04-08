@@ -56,6 +56,8 @@ impl Scheduler {
             Some(ref x) => Json::from_str(x).map_err(|_| Error::Conversion),
             None => Err(Error::Conversion),
         };
+        self.lua.pop(top);
+        self.lua.pop(top-1);
         return (result, dbg);
     }
 }

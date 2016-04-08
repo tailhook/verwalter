@@ -10,6 +10,7 @@ use inotify::ffi::{IN_MODIFY, IN_ATTRIB, IN_CLOSE_WRITE, IN_MOVED_FROM};
 use inotify::ffi::{IN_MOVED_TO, IN_CREATE, IN_DELETE, IN_DELETE_SELF};
 use inotify::ffi::{IN_MOVE_SELF};
 use scan_dir::ScanDir;
+use lua::GcOption;
 
 use config;
 use time_util::ToMsec;
@@ -150,6 +151,14 @@ pub fn main(state: SharedState, mut settings: Settings, mut alarm: Alarm) -> !
                 data: json,
                 origin: scheduler.id.clone(),
             }, dbg);
+
+            // We execute GC after every scheduler run, we are going to
+            // sleep for quite a long time now, so don't care performance
+            debug!("Garbage before collection: {}Kb, stack top: {}",
+                scheduler.lua.gc(GcOption::Count, 0), scheduler.lua.get_top());
+            scheduler.lua.gc(GcOption::Collect, 0);
+            info!("Garbage after collection: {}Kb",
+                scheduler.lua.gc(GcOption::Count, 0));
             break;
         }
     }
