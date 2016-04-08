@@ -42,7 +42,7 @@ impl<'a> ToLua for Input<'a> {
             let tbl = lua.get_top();
             for (i, item) in self.parents.iter().enumerate() {
                 push_json(lua, &item.data);
-                lua.raw_seti(tbl, i as i64);
+                lua.raw_seti(tbl, (i+1) as i64);
             }
             lua.set_field(cfg, "parents");
         }
@@ -52,7 +52,7 @@ impl<'a> ToLua for Input<'a> {
             let tbl = lua.get_top();
             for (i, (id, value)) in self.actions.iter().enumerate() {
                 push_json_object_with_id(lua, &value, *id);
-                lua.raw_seti(tbl, i as i64);
+                lua.raw_seti(tbl, (i+1) as i64);
             }
             lua.set_field(cfg, "actions");
         }
