@@ -17,19 +17,36 @@ function _scheduler(state, debugger)
     debugger:object("INPUT", state)
     local template_version = "v1"
 
+    local available_versions = {}
+    for ver, _ in pairs(state.roles.pyapp.runtime) do
+        available_versions[#available_versions+1] = ver
+    end
+    table.sort(available_versions, version.compare)
+
+    -- First, if someone pressed the button, just use lastest version pressed
+    -- Button name is actually a version in our case
+    local versions = func.map(
+        function(action)
+            print("ACTION", action)
+            return action.button
+        end,
+        state.actions)
+    debugger:object("BUTTON VERSIONS", versions)
+    debugger:object("ACTIONS", state.actions)
+
     -- Naive algorithm: get the biggest version in every parent schedule
     -- TODO(tailhook) better idea it to get the one with the latest timestamp
-    local versions = func.map(
-        function(s) return s.role_metadata.pyapp.info.version end,
-        state.parents)
-    -- If there was no previous schedules, use the latest existing config
     if #versions == 0 then
-        for ver, _ in pairs(state.roles.pyapp.runtime) do
-            versions[#versions+1] = ver
+        versions = func.map(
+            function(s) return s.role_metadata.pyapp.info.version end,
+            state.parents)
+        -- If there was no previous schedules, use the latest existing config
+        if #versions == 0 then
+            versions = available_versions
         end
+        -- Sort and get the latest/biggest one
+        table.sort(versions, version.compare)
     end
-    -- Sort and get the latest/biggest one
-    table.sort(versions)
     local runtime_version = versions[#versions]
 
     local runtime = state.roles.pyapp.runtime[runtime_version]
@@ -83,9 +100,9 @@ function _scheduler(state, debugger)
                     version=runtime_version,
                 },
                 buttons=func.map_reverse(function (v)
-                    return {id="switch_to_" .. v,
+                    return {id=v,
                             title="Switch to " .. v}
-                    end, versions),
+                    end, available_versions),
             },
         },
         nodes=nodes,

@@ -2,7 +2,16 @@ import {entries, repr, pretty, is_string} from '../util/object'
 import {@router, go} from '../util/routing'
 import {refresher, json} from '../middleware/request'
 import json_store from '../stores/json'
+import pending_actions from '../stores/actions'
+import {execute} from '../util/action'
 import {set_port} from '../util/port'
+
+style:
+  .rotate
+    animation-name: rotateThis
+    animation-duration: .5s
+    animation-iteration-count: infinite
+    animation-timing-function: linear
 
 
 view _leftmenu(@config, @schedule):
@@ -60,11 +69,18 @@ view main(status):
                 <th> "Action"
                 <th> "Description"
             <tbody>
+              store @actions = pending_actions | refresher
+                | json('/v1/pending_actions')
               for button of role.buttons or [] key button.id:
                 <tr>
                   <td>
                     <button.btn.btn-default>
+                      link {click} execute({"button": button.id}) -> @actions
                       button.title or button.id
+                      for [id, act] of entries(@actions) key id:
+                        if act.button == button.id:
+                          " "
+                          <span.glyphicon.glyphicon-refresh.rotate>
                   <td>
                     button.description or '(no description)'
         else:
