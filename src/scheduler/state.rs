@@ -47,6 +47,23 @@ pub enum State {
     Leading(LeaderState),
 }
 
+impl State {
+    pub fn describe(&self) -> &'static str {
+        use self::State::*;
+        use self::LeaderState as L;
+        use self::FollowerState as F;
+        match *self {
+            Unstable => "unstable",
+            Following(_, F::Waiting) => "follower:waiting",
+            Following(_, F::Fetching(..)) => "follower:fetching",
+            Following(_, F::Stable(..)) => "follower:stable",
+            Leading(L::Prefetching(..)) => "leader:prefetching",
+            Leading(L::Calculating) => "leader:calculating",
+            Leading(L::Stable(..)) => "leader:stable",
+        }
+    }
+}
+
 impl Encodable for LeaderState {
      fn encode<E: Encoder>(&self, e: &mut E) -> Result<(), E::Error> {
         use self::LeaderState::*;

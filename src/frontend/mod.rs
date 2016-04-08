@@ -13,10 +13,12 @@ use rustc_serialize::Encodable;
 use rustc_serialize::json::{ToJson, as_json, as_pretty_json, Json};
 
 use net::Context;
-use shared::PushActionError;
+use elect::Epoch;
+use shared::{PushActionError, Id};
 
 #[derive(Clone, Debug)]
 pub enum ApiRoute {
+    Status,
     Config,
     Peers,
     Schedule,
@@ -94,6 +96,8 @@ fn parse_api(path: &str) -> Option<Route> {
     use self::ApiRoute::*;
     use self::Format::*;
     match path_component(path) {
+        ("status", "") => Some(Api(Status,
+            if suffix(path) == "pretty" { Plain } else { Json })),
         ("config", "") => Some(Api(Config,
             if suffix(path) == "pretty" { Plain } else { Json })),
         ("peers", "") => Some(Api(Peers,
@@ -156,6 +160,44 @@ fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
     match *route {
         Config => {
             respond(res, format, scope.state.config().to_json())
+        }
+        Status => {
+            #[derive(RustcEncodable)]
+            struct LeaderInfo<'a> {
+                id: &'a Id,
+                name: &'a str,
+                hostname: &'a str,
+                addr: Option<String>,
+            }
+            #[derive(RustcEncodable)]
+            struct Status<'a> {
+                version: &'static str,
+                peers: usize,
+                roles: usize,
+                leader: Option<LeaderInfo<'a>>,
+                scheduler_state: &'static str,
+                election_epoch: Epoch,
+            }
+            let peers = scope.state.peers();
+            let schedule = scope.state.stable_schedule();
+            let cfg = scope.state.config();
+            let election = scope.state.election();
+            let leader_id = schedule.as_ref().map(|x| &x.origin);
+            let leader = leader_id.and_then(
+                |id| peers.as_ref().and_then(|x| x.1.get(id)));
+            respond(res, format, &Status {
+                version: concat!("v", env!("CARGO_PKG_VERSION")),
+                peers: peers.as_ref().map(|x| x.1.len()).unwrap_or(0),
+                roles: cfg.roles.len(),
+                leader: leader.map(|peer| LeaderInfo {
+                    id: leader_id.unwrap(),
+                    name: &peer.name,
+                    hostname: &peer.hostname,
+                    addr: peer.addr.map(|x| x.to_string()),
+                }),
+                scheduler_state: scope.state.scheduler_state().describe(),
+                election_epoch: election.epoch,
+            })
         }
         Peers => {
             respond(res, format, &scope.schedule.get_peers().as_ref()

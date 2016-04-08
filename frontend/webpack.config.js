@@ -70,7 +70,7 @@ module.exports = {
     plugins: [
         new webpack.NoErrorsPlugin(),
         new webpack.DefinePlugin({
-            VERSION: JSON.stringify(process.env['CANTAL_VERSION']),
+            VERSION: JSON.stringify(process.env['VERWALTER_VERSION']),
             "process.env.NODE_ENV": JSON.stringify(process.env['NODE_ENV']),
             DEBUG: DEV,
         }),

@@ -1,5 +1,6 @@
 PREFIX ?= /usr
 DESTDIR ?=
+export VERWALTER_VERSION := $(shell git describe)
 
 all: bin js
 

@@ -229,7 +229,7 @@ fn main() {
     });
 
     info!("Started with machine id {}, listening {}", id, addr);
-    net::main(&addr, id, hostname, state,
+    net::main(&addr, id, hostname.clone(), hostname, state,
         options.config_dir.join("frontend"), alarm_rx)
         .expect("Error running main loop");
     unreachable!();

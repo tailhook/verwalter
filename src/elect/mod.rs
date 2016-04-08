@@ -26,6 +26,7 @@ pub struct Election {
     id: Id,
     addr: SocketAddr,
     hostname: String,
+    name: String,
     state: SharedState,
     last_schedule_sent: String,
     machine: machine::Machine,

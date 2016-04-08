@@ -99,6 +99,7 @@ impl ::std::fmt::Debug for Id {
 #[derive(Clone, Debug)]
 pub struct Peer {
      pub addr: Option<SocketAddr>,
+     pub name: String,
      pub hostname: String,
      pub last_report: Option<Timespec>,
 }

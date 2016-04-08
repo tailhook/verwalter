@@ -2,30 +2,64 @@ import {@router, go} from './util/routing'
 import {main as roles} from './pages/roles.khufu'
 import {main as api_links} from './pages/api_links.khufu'
 import {main as peers} from './pages/peers.khufu'
+import {refresher, fast_refresh_json} from './middleware/request'
+import json_store from './stores/json'
+import {set_port} from './util/port'
 
-view _navbar():
+style:
+  .subtext
+    font-size: xx-small
+
+view _navbar(version):
   <nav.navbar.navbar-default>
+    store @status = json_store | refresher | fast_refresh_json('/v1/status')
     <div.container-fluid>
       <div.navbar-header>
         <a.navbar-brand href="/">
           "Verwalter"
+          <div.subtext.text-muted>
+            version
+            " / "
+            @status and @status.version or "???"
       <div.collapse.navbar-collapse>
         <ul.nav.navbar-nav>
           <li.active?(@router[0] == 'roles')>
             <a href="/roles">
               link {click} go(event) -> @router
               "Roles"
+              if @status:
+                ` [${@status.roles}]`
           <li.active?(@router[0] == 'peers')>
             <a href="/peers">
               link {click} go(event) -> @router
               "Servers"
+              if @status:
+                ` [${@status.peers}]`
           <li.active?(@router[0] == 'api_links')>
             <a href="/api_links">
               link {click} go(event) -> @router
               "API Links"
+        <ul.nav.navbar-nav.navbar-right>
+          if @status and @status.leader:
+            <li>
+              let url = set_port(@status.leader.name, @status.leader.addr)
+              <a.navbar-brand href=`http://${url}`>
+                @status.leader.name
+                <div.subtext.text-muted>
+                  @status.scheduler_state
+          elif @status:
+            <li.muted>
+              <a.navbar-brand href="/v1/election">
+                "No leader"
+                <div.subtext.text-muted>
+                  @status.scheduler_state
+          else:
+            <li.muted>
+              <a.navbar-brand href="/v1/election">
+                "Loading..."
 
-view main():
-  _navbar()
+view main(version):
+  _navbar(version)
   <div class="container-fluid">
     if @router[0] == 'roles' or @router[0] == 'role':
       roles()

@@ -19,7 +19,7 @@ use shared::{Peer, Id};
 
 
 impl Election {
-    pub fn new(id: Id, hostname: String, addr: &SocketAddr,
+    pub fn new(id: Id, hostname: String, name: String, addr: &SocketAddr,
         state: SharedState, cantal: Cantal, scope: &mut Scope<Context>)
         -> Response<Election, Void>
     {
@@ -35,6 +35,7 @@ impl Election {
             id: id,
             addr: addr.clone(),
             hostname: hostname,
+            name: name,
             state: state,
             last_schedule_sent: String::new(),
             cantal: cantal,
@@ -222,6 +223,7 @@ impl Machine for Election {
                                    nsec: ((x % 1000)*1_000_000) as i32 }
                     }),
                     hostname: p.hostname.clone(),
+                    name: p.name.clone(),
                 })).collect::<HashMap<_, _>>();
             // We skip host there and add it here, to make sure
             // we have correct host info in the list
@@ -229,6 +231,7 @@ impl Machine for Election {
                 addr: Some(self.addr),
                 last_report: Some(get_time()),
                 hostname: self.hostname.clone(),
+                name: self.name.clone(),
             }).map(|_| unreachable!());
             if oldpr.map(|x| x.1.len() != map.len()).unwrap_or(true) {
                 info!("Peer number changed {} -> {}",

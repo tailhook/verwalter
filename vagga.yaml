@@ -5,8 +5,7 @@ commands:
     container: build
     run: |
       set -ex
-      cargo build
-      cd frontend; webpack
+      make
 
   test: !Command
     description: Run tests
@@ -132,7 +131,7 @@ containers:
     - !Ubuntu trusty
     - !UbuntuUniverse ~
     - !Install [make, checkinstall, wget, ca-certificates,
-                libssl-dev, build-essential]
+                libssl-dev, build-essential, git]
     - !Install [libreadline-dev] # for lua
 
     - !NpmDependencies
