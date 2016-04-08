@@ -16,7 +16,7 @@ function debugger()
             end
             text = text .. tostring(v)
         end
-        self.text = text
+        self.text = text .. "\n"
     end
     return x
 end
