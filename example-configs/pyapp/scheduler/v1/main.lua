@@ -23,7 +23,7 @@ function _scheduler(state, debugger)
     end
     table.sort(available_versions, version.compare)
 
-    -- First, if someone pressed the button, just use lastest version pressed
+    -- First, if someone pressed the button, just use latest version pressed
     -- Button name is actually a version in our case
     local versions = func.map(
         function(action)
@@ -58,12 +58,12 @@ function _scheduler(state, debugger)
     for name, number in pairs(req) do
         for i = 0,number,1 do
             local node_name = nodes()
-            node = counts[node_name]
+            local node = counts[node_name]
             if node == nil then
                 node = {}
                 counts[node_name] = node
             end
-            oldval = node[name]
+            local oldval = node[name]
             if oldval == nil then oldval = 0 end
             node[name] = oldval + 1
         end
@@ -71,9 +71,9 @@ function _scheduler(state, debugger)
 
     local nodes = {}
     for name, processes in pairs(counts) do
-        items = {}
+        local items = {}
         for proc, num in pairs(processes) do
-            proccfg = runtime.processes.daemons[proc]
+            local proccfg = runtime.processes.daemons[proc]
             items[#items + 1] = {
                 key=proc,
                 image=proccfg.image,

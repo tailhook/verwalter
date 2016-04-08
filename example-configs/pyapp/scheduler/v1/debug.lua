@@ -25,12 +25,12 @@ function wrap_scheduler(real_scheduler)
     return function(state)
         local dbg = debugger()
         _G.print = function(...) dbg:print(...) end
-        flag, value = pcall(_scheduler, state, dbg)
+        local flag, value = pcall(_scheduler, state, dbg)
         _G.print = nil
         if flag then
             return value, dbg.text
         else
-            text = dbg.text .. string.format("\nError: %s", value)
+            local text = dbg.text .. string.format("\nError: %s", value)
             return nil, text
         end
     end
