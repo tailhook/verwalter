@@ -10,60 +10,61 @@ style:
   .subtext
     font-size: xx-small
 
-view _navbar(version):
+view _navbar(status, frontend_version):
   <nav.navbar.navbar-default>
-    store @status = json_store | refresher | fast_refresh_json('/v1/status')
     <div.container-fluid>
       <div.navbar-header>
         <a.navbar-brand href="/">
           "Verwalter"
           <div.subtext.text-muted>
-            version
+            frontend_version
             " / "
-            @status and @status.version or "???"
+            status and status.version or "???"
       <div.collapse.navbar-collapse>
         <ul.nav.navbar-nav>
           <li.active?(@router[0] == 'roles')>
             <a href="/roles">
               link {click} go(event) -> @router
               "Roles"
-              if @status:
-                ` [${@status.roles}]`
+              if status:
+                ` [${status.roles}]`
           <li.active?(@router[0] == 'peers')>
             <a href="/peers">
               link {click} go(event) -> @router
               "Servers"
-              if @status:
-                ` [${@status.peers}]`
+              if status:
+                ` [${status.peers}]`
           <li.active?(@router[0] == 'api_links')>
             <a href="/api_links">
               link {click} go(event) -> @router
               "API Links"
         <ul.nav.navbar-nav.navbar-right>
-          if @status and @status.leader:
+          if status and status.leader:
             <li>
-              let url = set_port(@status.leader.name, @status.leader.addr)
+              let url = set_port(status.leader.name, status.leader.addr)
               <a.navbar-brand href=`http://${url}`>
-                @status.leader.name
+                status.leader.name
                 <div.subtext.text-muted>
-                  @status.scheduler_state
-          elif @status:
+                  status.scheduler_state
+          elif status:
             <li.muted>
               <a.navbar-brand href="/v1/election">
                 "No leader"
                 <div.subtext.text-muted>
-                  @status.scheduler_state
+                  status.scheduler_state
           else:
             <li.muted>
               <a.navbar-brand href="/v1/election">
                 "Loading..."
 
 view main(version):
-  _navbar(version)
-  <div class="container-fluid">
-    if @router[0] == 'roles' or @router[0] == 'role':
-      roles()
-    elif @router[0] == 'api_links':
-      api_links()
-    elif @router[0] == 'peers':
-      peers()
+  <div>
+    store @status = json_store | refresher | fast_refresh_json('/v1/status')
+    _navbar(@status, version)
+    <div class="container-fluid">
+      if @router[0] == 'roles' or @router[0] == 'role':
+        roles(@status)
+      elif @router[0] == 'api_links':
+        api_links(@status)
+      elif @router[0] == 'peers':
+        peers(@status)

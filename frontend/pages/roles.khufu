@@ -2,6 +2,8 @@ import {entries, repr, pretty, is_string} from '../util/object'
 import {@router, go} from '../util/routing'
 import {refresher, json} from '../middleware/request'
 import json_store from '../stores/json'
+import {set_port} from '../util/port'
+
 
 view _leftmenu(@config, @schedule):
   <ul.nav.nav-pills.nav-stacked.col-lg-2>
@@ -21,7 +23,7 @@ view _leftmenu(@config, @schedule):
           <a href=`/role/${name}`>
             name
 
-view main():
+view main(status):
   <div>
     store @config = json_store | refresher | json('/v1/config')
     store @schedule = json_store | refresher | json('/v1/schedule')
@@ -50,20 +52,47 @@ view main():
                   name
                 <td>
                   value
-        <h2> "Available actions"
-        <table.table>
-          <thead>
-            <tr>
-              <th> "Action"
-              <th> "Description"
-          <tbody>
-            for button of role.buttons or [] key button.id:
+        if status.scheduler_state.substr(0, 7) == 'leader:':
+          <h2> "Available actions"
+          <table.table>
+            <thead>
               <tr>
-                <td>
-                  <button.btn.btn-default>
-                    button.title or button.id
-                <td>
-                  button.description or '(no description)'
+                <th> "Action"
+                <th> "Description"
+            <tbody>
+              for button of role.buttons or [] key button.id:
+                <tr>
+                  <td>
+                    <button.btn.btn-default>
+                      button.title or button.id
+                  <td>
+                    button.description or '(no description)'
+        else:
+          <div.panel.panel-warning>
+            <div.panel-heading>
+              "Actions are Only Available on Leader"
+            if status.leader:
+              <div.panel-body>
+                "Known addresses for a leader are:"
+                <ul>
+                  <li>
+                    <a href=`http://${status.leader.addr}`>
+                      `http://${status.leader.addr}`
+                  <li>
+                    let url = set_port(status.leader.hostname,
+                                        status.leader.addr)
+                    <a href=url>
+                      url
+                  if status.leader.name != status.leader.hostname:
+                    <li>
+                      let url = set_port(status.leader.name,
+                                         status.leader.addr)
+                      <a href=url>
+                        url
+            else:
+              <div.panel-body>
+                "The cluster is unstable, wait a little bit for leader
+                 to come up"
       else:
         <div.panel.panel-default>
           <div.panel-body>
