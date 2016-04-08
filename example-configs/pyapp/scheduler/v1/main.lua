@@ -27,12 +27,9 @@ function _scheduler(state, debugger)
     -- Button name is actually a version in our case
     local versions = func.map(
         function(action)
-            print("ACTION", action)
             return action.button
         end,
         state.actions)
-    debugger:object("BUTTON VERSIONS", versions)
-    debugger:object("ACTIONS", state.actions)
 
     -- Naive algorithm: get the biggest version in every parent schedule
     -- TODO(tailhook) better idea it to get the one with the latest timestamp
