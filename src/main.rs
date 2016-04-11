@@ -60,6 +60,7 @@ pub struct Options {
     dry_run: bool,
     print_configs: bool,
     hostname: Option<String>,
+    name: Option<String>,
     listen_host: String,
     listen_port: u16,
     machine_id: Option<Id>,
@@ -95,6 +96,7 @@ fn main() {
         dry_run: false,
         print_configs: false,
         hostname: None,
+        name: None,
         listen_host: "127.0.0.1".to_string(),
         listen_port: 8379,
         machine_id: None,
@@ -114,6 +116,9 @@ fn main() {
         ap.refer(&mut options.hostname)
             .add_option(&["--hostname"], ParseOption,
                 "Hostname of current server");
+        ap.refer(&mut options.name)
+            .add_option(&["--name"], ParseOption,
+                "Node name of current server (usually FQDN)");
         ap.refer(&mut options.machine_id)
             .add_option(&["--override-machine-id"], StoreOption,
                 "Overrides machine id. Do not use in production, put the
@@ -190,6 +195,8 @@ fn main() {
     let state = SharedState::new(config, old_schedule);
     let hostname = options.hostname
                    .unwrap_or_else(|| info::hostname().expect("gethostname"));
+    // TODO(tailhook) resolve FQDN
+    let name = options.name.unwrap_or_else(|| hostname.clone());
 
     let (alarm_tx, alarm_rx) = channel();
 
@@ -229,7 +236,7 @@ fn main() {
     });
 
     info!("Started with machine id {}, listening {}", id, addr);
-    net::main(&addr, id, hostname.clone(), hostname, state,
+    net::main(&addr, id, hostname, name, state,
         options.config_dir.join("frontend"), alarm_rx)
         .expect("Error running main loop");
     unreachable!();
