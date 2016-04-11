@@ -14,20 +14,21 @@ style:
     animation-timing-function: linear
 
 
-view _leftmenu(@config, @schedule):
+view _leftmenu(config, schedule):
   <ul.nav.nav-pills.nav-stacked.col-lg-2>
-    if @schedule and @schedule.data and @schedule.data.role_metadata:
-      for [name, role] of entries(@schedule.data.role_metadata) key name:
+    if schedule and schedule.data and schedule.data.role_metadata:
+      for [name, _] of entries(config.roles) key name:
+        let role = schedule.data.role_metadata[name]
         <li.active?(@router[1] == name) role="presentation">
           <a href=`/role/${name}`>
             link {click} go(event) -> @router
             name
             " "
-            if role.badge:
+            if role and role.badge:
               <span.badge>
                 role.badge
-    elif @config:
-      for [name, _] of entries(@config.roles) key name:
+    elif config:
+      for [name, _] of entries(config.roles) key name:
         <li role="presentation">
           <a href=`/role/${name}`>
             name
@@ -36,7 +37,7 @@ view main(status):
   <div>
     store @config = json_store | refresher | json('/v1/config')
     store @schedule = json_store | refresher | json('/v1/schedule')
-    _leftmenu(-> @config, -> @schedule)
+    _leftmenu(@config, @schedule)
 
     <div.col-lg-4>
       if (not @schedule or not @schedule.data or
