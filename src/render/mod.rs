@@ -7,8 +7,9 @@ use tempfile::NamedTempFile;
 use handlebars::{Handlebars, RenderError};
 use rustc_serialize::json::{Json, ToJson};
 
-use config::{Config, Version, Role};
-use apply::{Source, ApplyTask, Action};
+use config::{Version, Role};
+use apply::{Source, Action};
+use apply::log;
 
 
 pub struct RenderSet {
@@ -53,8 +54,8 @@ quick_error! {
         }
         Render(err: RenderError, version: String, file: String,
                data: Json) {
-            display("error rendering template, version {:?}, file {:?}, \
-                data: {:?} -- {}", version, file, data, err)
+            display("error rendering template, version {:?}, file {:?}: \
+                {}\n    data: {:?}", version, file, err, data)
             description("template rendering error")
         }
         RoleMeta(msg: &'static str) {
@@ -67,20 +68,10 @@ quick_error! {
         }
     }
 }
-quick_error!{
-    #[derive(Debug)]
-    pub enum SchedulerDataError {
-        NoRoleMeta {
-            description(r#"No key "role_metadata" or is not a dict"#)
-        }
-        MissingHost {
-            description("The hostname is missing in scheduler data")
-        }
-    }
-}
 
-fn render_role(meta: &BTreeMap<String, Json>, node: &BTreeMap<String, Json>,
-    role_name: &String, role: &Role, print: bool)
+pub fn render_role(meta: &BTreeMap<String, Json>,
+    node: &BTreeMap<String, Json>,
+    role_name: &String, role: &Role, log: &mut log::Role)
     -> Result<Vec<(String, Action, Source)>, Error>
 {
     let role_meta = match meta.get(role_name) {
@@ -139,34 +130,9 @@ fn render_role(meta: &BTreeMap<String, Json>, node: &BTreeMap<String, Json>,
         try!(tmpfile.write_all(output.as_bytes()));
         debug!("Rendered {:?} into {} bytes at {:?}",
             &render.source, output.as_bytes().len(), tmpfile.path());
-        if print {
-            println!("----- [ {:?} -> {:?} ] -----",
-                render.source, tmpfile.path());
-            print!("{}", output);
-            println!("----- End of [ {:?} -> {:?} ] -----",
-                render.source, tmpfile.path());
-        }
+        log.template(&render.source, &tmpfile.path(), &output);
         result.push((name.clone(), render.apply.clone(),
                      Source::TmpFile(tmpfile)));
     }
     Ok(result)
-}
-
-pub fn render_all<'x>(cfg: &'x Config, data: &Json,
-    hostname: &str, print: bool)
-    -> Result<ApplyTask, SchedulerDataError>
-{
-    let meta = data.as_object()
-        .and_then(|x| x.get("role_metadata"))
-        .and_then(|y| y.as_object());
-    let meta = try!(meta.ok_or(SchedulerDataError::NoRoleMeta));
-    let node = data.as_object()
-        .and_then(|x| x.get("nodes"))
-        .and_then(|y| y.as_object())
-        .and_then(|x| x.get(hostname))
-        .and_then(|y| y.as_object());
-    let node = try!(node.ok_or(SchedulerDataError::MissingHost));
-    Ok(cfg.roles.iter().map(|(role_name, role)| {
-        (role_name.clone(), render_role(meta, node, role_name, role, print))
-    }).collect())
 }

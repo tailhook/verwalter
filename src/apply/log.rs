@@ -273,6 +273,11 @@ impl<'a> Deployment<'a> {
         self.global_entry(Marker::DeploymentFinish);
         return replace(&mut self.errors, Vec::new());
     }
+    pub fn log(&mut self, args: Arguments) {
+        if let Err(e) = self.log.write_fmt(args) {
+             self.errors.push(Error::WriteGlobal(e));
+        }
+    }
 }
 
 impl<'a> Drop for Deployment<'a> {
@@ -307,6 +312,19 @@ impl<'a, 'b> Role<'a, 'b> {
             action: name,
         }
     }
+    pub fn template(&mut self, source: &str, dest: &Path, value: &str) {
+        if let Err(e) = write!(&mut self.deployment.log,
+            "+++ template start: {source:?} -> {dest:?} +++\n\
+             {value}\n\
+             +++ template end: {source:?} -> {dest:?} +++\n",
+             source=source, dest=dest, value=value)
+        {
+             self.deployment.errors.push(Error::WriteGlobal(e));
+        }
+    }
+    pub fn log(&mut self, args: Arguments) {
+        add_err(&mut self.err, self.log.write_fmt(args).err());
+    }
 }
 
 impl<'a, 'b> Drop for Role<'a, 'b> {
@@ -322,6 +340,9 @@ impl<'a, 'b> Drop for Role<'a, 'b> {
 impl<'a, 'b, 'c> Action<'a, 'b, 'c> {
     pub fn log(&mut self, args: Arguments) {
         add_err(&mut self.role.err, self.role.log.write_fmt(args).err());
+    }
+    pub fn error(&mut self, err: &::std::error::Error) {
+        self.log(format_args!("Action error: {}", err));
     }
     pub fn redirect_command(&mut self, cmd: &mut Command)
         -> Result<(), Error>
