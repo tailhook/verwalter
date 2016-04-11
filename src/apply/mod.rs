@@ -81,7 +81,7 @@ impl ToJson for Action {
 impl<'a, 'b, 'c, 'd> Task<'a, 'b, 'c, 'd> {
     fn log(&mut self, args: Arguments) {
         if self.dry_run {
-            self.log.log(format_args!("(dry_run) {}", args));
+            self.log.log(format_args!("(dry_run) {}\n", args));
         } else {
             self.log.log(args);
         }
@@ -130,7 +130,7 @@ fn apply_schedule(config: &Config, hash: &String, scheduler_result: &Json,
         Some(meta) => meta,
         None => {
             dlog.log(format_args!(
-                "FATAL ERROR: Can't find `role_metadata` key in schedule"));
+                "FATAL ERROR: Can't find `role_metadata` key in schedule\n"));
             error!("Can't find `role_metadata` key in schedule");
             return
         }
@@ -144,7 +144,8 @@ fn apply_schedule(config: &Config, hash: &String, scheduler_result: &Json,
         Some(node) => node,
         None => {
             dlog.log(format_args!(
-                "FATAL ERROR: Can't find node {:?} in `nodes` key in schedule",
+                "FATAL ERROR: Can't find node {:?} in `nodes` \
+                    key in schedule\n",
                 &settings.hostname));
             error!("Can't find node {:?} in `nodes` key in schedule",
                 &settings.hostname);
@@ -166,8 +167,9 @@ fn apply_schedule(config: &Config, hash: &String, scheduler_result: &Json,
                 apply_list(&role_name, actions, &mut rlog, settings.dry_run);
             }
             Err(e) => {
-                rlog.log(format_args!("ERROR: Can't render templates: {}", e));
-                error!("ERROR: Can't render templates for role {:?}: {}",
+                rlog.log(format_args!(
+                    "ERROR: Can't render templates: {}\n", e));
+                error!("Can't render templates for role {:?}: {}",
                     role_name, e);
             }
         }

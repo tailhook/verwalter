@@ -342,7 +342,7 @@ impl<'a, 'b, 'c> Action<'a, 'b, 'c> {
         add_err(&mut self.role.err, self.role.log.write_fmt(args).err());
     }
     pub fn error(&mut self, err: &::std::error::Error) {
-        self.log(format_args!("Action error: {}", err));
+        self.log(format_args!("Action error: {}\n", err));
     }
     pub fn redirect_command(&mut self, cmd: &mut Command)
         -> Result<(), Error>
