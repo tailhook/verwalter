@@ -178,6 +178,22 @@ impl SharedState {
     pub fn stable_schedule(&self) -> Option<Arc<Schedule>> {
         stable_schedule(&mut self.lock())
     }
+    pub fn schedule_and_debug_info(&self)
+        -> Option<(Arc<Schedule>, Option<Arc<String>>)>
+    {
+        use scheduler::State::{Following, Leading};
+        use scheduler::FollowerState as F;
+        use scheduler::LeaderState as L;
+        let guard = self.lock();
+        match *guard.schedule {
+            Following(_, F::Stable(ref x)) => Some((x.clone(), None)),
+            Leading(L::Stable(ref x)) => {
+                Some((x.clone(),
+                     Some(guard.last_scheduler_debug_info.clone())))
+            }
+            _ => None,
+        }
+    }
     pub fn owned_schedule(&self) -> Option<Arc<Schedule>> {
         use scheduler::State::Leading;
         use scheduler::LeaderState::Stable;
@@ -391,13 +407,21 @@ impl SharedState {
     }
 
     /// This is waited on in apply/render code
-    pub fn wait_new_schedule(&self, hash: &str) -> Arc<Schedule> {
+    pub fn wait_new_schedule(&self, hash: &str)
+        -> (Arc<Schedule>, Option<Arc<String>>)
+    {
+        use scheduler::State::{Leading};
         let mut guard = self.lock();
         loop {
             match stable_schedule(&mut guard) {
                 Some(schedule) => {
                     if &schedule.hash != &hash { // only if not up to date
-                        return schedule;
+                        if matches!(*guard.schedule, Leading(..)) {
+                            return (schedule,
+                                Some(guard.last_scheduler_debug_info.clone()));
+                        } else {
+                            return (schedule, None);
+                        }
                     }
                 }
                 None => {}

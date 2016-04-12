@@ -1,6 +1,7 @@
 use std::io;
 use std::fmt::Arguments;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Duration;
 use std::process::ExitStatus;
 use std::collections::HashMap;
@@ -112,7 +113,7 @@ pub fn apply_list(role: &String,
 }
 
 fn apply_schedule(config: &Config, hash: &String, scheduler_result: &Json,
-    peers: &HashMap<Id, Peer>, settings: &Settings)
+    peers: &HashMap<Id, Peer>, debug: Option<Arc<String>>, settings: &Settings)
 {
     let id = thread_rng().gen_ascii_chars().take(24).collect();
     let mut index = apply::log::Index::new(
@@ -121,6 +122,9 @@ fn apply_schedule(config: &Config, hash: &String, scheduler_result: &Json,
     dlog.string("schedule-hash", &hash);
     dlog.object("config", &config);
     dlog.object("peers", &peers);
+    if let Some(debug) = debug {
+        dlog.text("debug_info", &*debug);
+    }
     dlog.json("scheduler_result", &scheduler_result);
 
     let meta = scheduler_result.as_object()
@@ -182,23 +186,23 @@ fn apply_schedule(config: &Config, hash: &String, scheduler_result: &Json,
 pub fn run(state: SharedState, settings: Settings, mut alarm: Alarm) -> ! {
     let _guard = ExitOnReturn(93);
     let mut prev_schedule = String::new();
-    if let Some(schedule) = state.stable_schedule() {
+    if let Some((schedule, debug)) = state.schedule_and_debug_info() {
         let _alarm = alarm.after(Duration::from_secs(180));
         write_file(&settings.schedule_file, &*schedule)
             .map(|e| error!("Writing schedule failed: {:?}", e)).ok();
         apply_schedule(&*state.config(),
             &schedule.hash, &schedule.data,
-            &state.peers().expect("peers").1, &settings);
+            &state.peers().expect("peers").1, debug, &settings);
         prev_schedule = schedule.hash.clone();
     }
     loop {
-        let schedule = state.wait_new_schedule(&prev_schedule);
+        let (schedule, debug) = state.wait_new_schedule(&prev_schedule);
         let _alarm = alarm.after(Duration::from_secs(180));
         write_file(&settings.schedule_file, &*schedule)
             .map(|e| error!("Writing schedule failed: {:?}", e)).ok();
         apply_schedule(&*state.config(),
             &schedule.hash, &schedule.data,
-            &state.peers().expect("peers").1, &settings);
+            &state.peers().expect("peers").1, debug, &settings);
         prev_schedule = schedule.hash.clone();
     }
 }

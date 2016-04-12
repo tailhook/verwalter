@@ -221,6 +221,16 @@ impl<'a> Deployment<'a> {
              self.errors.push(Error::WriteGlobal(e));
         }
     }
+    pub fn text(&mut self, name: &str, value: &str) {
+        if let Err(e) = write!(&mut self.log,
+            "+++ debug start: {name:?} +++\n\
+             {value}\n\
+             +++ debug end: {name:?} +++\n",
+             name=name, value=value)
+        {
+             self.errors.push(Error::WriteGlobal(e));
+        }
+    }
     pub fn json(&mut self, name: &str, value: &Json) {
         if let Err(e) = write!(&mut self.log,
             "+++ metadata start: {name:?} +++\n\
