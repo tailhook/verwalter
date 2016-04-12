@@ -10,4 +10,5 @@ export function format_error_badge(err) {
     for(var k in err) {
         return k
     }
+    return ""
 }
