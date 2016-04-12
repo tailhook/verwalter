@@ -1,6 +1,7 @@
 use std::io;
 use std::io::Read;
 use std::str::from_utf8;
+use std::sync::Arc;
 use std::path::Path;
 use std::path::Component::ParentDir;
 use std::fs::File;
@@ -177,6 +178,7 @@ fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
                 leader: Option<LeaderInfo<'a>>,
                 scheduler_state: &'static str,
                 election_epoch: Epoch,
+                errors: HashMap<&'static str, Arc<String>>,
             }
             let peers = scope.state.peers();
             let schedule = scope.state.stable_schedule();
@@ -197,6 +199,7 @@ fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
                 }),
                 scheduler_state: scope.state.scheduler_state().describe(),
                 election_epoch: election.epoch,
+                errors: scope.state.errors(),
             })
         }
         Peers => {

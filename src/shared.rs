@@ -116,6 +116,7 @@ struct State {
     actions: BTreeMap<u64, Arc<Json>>,
     /// Fetch update notifier
     external_schedule_update: Option<Notifier>,
+    errors: HashMap<&'static str, Arc<String>>,
 }
 
 struct Notifiers {
@@ -150,6 +151,7 @@ impl SharedState {
             election: Default::default(),
             actions: BTreeMap::new(),
             external_schedule_update: None, //unfortunately
+            errors: Default::default(),
         })), Arc::new(Notifiers {
             apply_schedule: Condvar::new(),
             run_scheduler: Condvar::new(),
@@ -216,6 +218,9 @@ impl SharedState {
     pub fn pending_actions(&self) -> BTreeMap<u64, Arc<Json>> {
         self.lock().actions.clone()
     }
+    pub fn errors(&self) -> HashMap<&'static str, Arc<String>> {
+        self.lock().errors.clone()
+    }
     // Setters
     pub fn set_peers(&self, time: Time, peers: HashMap<Id, Peer>) {
         let mut guard = self.lock();
@@ -262,6 +267,12 @@ impl SharedState {
                 debug!("Calculated a schedule when not a leader already");
             }
         }
+    }
+    pub fn set_error(&self, domain: &'static str, value: String) {
+        self.lock().errors.insert(domain, Arc::new(value));
+    }
+    pub fn clear_error(&self, domain: &'static str) {
+        self.lock().errors.remove(domain);
     }
     // TODO(tailhook) this method does too much, refactor it
     pub fn update_election(&self, elect: ElectionState,
@@ -341,6 +352,11 @@ impl SharedState {
                 }
             }
 
+        }
+        if !elect.is_leader {
+            guard.errors.remove("reload_configs");
+            guard.errors.remove("scheduler_load");
+            guard.errors.remove("scheduler");
         }
         guard.election = Arc::new(elect);
     }

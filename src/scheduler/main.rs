@@ -103,8 +103,10 @@ pub fn main(state: SharedState, mut settings: Settings, mut alarm: Alarm) -> !
                 {
                     Ok(s) => {
                         scheduler = s;
+                        state.clear_error("scheduler_load");
                     }
                     Err(e) => {
+                        state.set_error("scheduler_load", format!("{}", e));
                         error!("Scheduler load failed: {}. Using the old one.",
                                e);
                     }
@@ -113,9 +115,11 @@ pub fn main(state: SharedState, mut settings: Settings, mut alarm: Alarm) -> !
                     &settings.config_dir, &mut settings.config_cache)
                 {
                     Ok(cfg) => {
+                        state.clear_error("reload_configs");
                         state.set_config(cfg);
                     }
                     Err(e) => {
+                        state.set_error("reload_configs", format!("{}", e));
                         error!("Fatal error while reading config: {}. \
                             Using the old one", e);
                     }
@@ -135,9 +139,13 @@ pub fn main(state: SharedState, mut settings: Settings, mut alarm: Alarm) -> !
                 &cookie.actions);
 
             let json = match result {
-                Ok(json) => json,
+                Ok(json) => {
+                    state.clear_error("scheduler");
+                    json
+                }
                 Err(e) => {
                     error!("Scheduling failed: {}", e);
+                    state.set_error("scheduler", format!("{}", e));
                     state.set_schedule_debug_info(dbg);
                     sleep(Duration::from_secs(1));
                     continue;

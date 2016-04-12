@@ -5,6 +5,7 @@ import {main as peers} from './pages/peers.khufu'
 import {refresher, fast_refresh_json} from './middleware/request'
 import json_store from './stores/json'
 import {set_port} from './util/port'
+import {format_error_hint, format_error_badge} from './util/format_err'
 
 style:
   .subtext
@@ -39,6 +40,10 @@ view _navbar(status, frontend_version):
               link {click} go(event) -> @router
               "API Links"
         <ul.nav.navbar-nav.navbar-right>
+          <li.text-danger
+            title=format_error_hint(status.errors)>
+            <a href="/v1/status.pretty">
+              format_error_badge(status.errors)
           if status and status.leader:
             <li>
               let url = set_port(status.leader.name, status.leader.addr)
