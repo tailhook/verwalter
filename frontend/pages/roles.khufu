@@ -48,68 +48,73 @@ view main(status):
       elif @router[1]:
         let role = @schedule.data.role_metadata[@router[1]]
         <h1>
-          role.title or @router[1]
-        <h2> "Status Info"
-        <table.table>
-          <thead>
-            <tr>
-              <th> "Property"
-              <th> "Value"
-          <tbody>
-            for [name, value] of entries(role.info) key name:
-              <tr>
-                <td>
-                  name
-                <td>
-                  value
-        if status.scheduler_state.substr(0, 7) == 'leader:':
-          <h2> "Available actions"
+          role and role.title or @router[1]
+        if role:
+          <h2> "Status Info"
           <table.table>
             <thead>
               <tr>
-                <th> "Action"
-                <th> "Description"
+                <th> "Property"
+                <th> "Value"
             <tbody>
-              store @actions = pending_actions | refresher
-                | json('/v1/pending_actions')
-              for button of role.buttons or [] key button.id:
+              for [name, value] of entries(role.info) key name:
                 <tr>
                   <td>
-                    <button.btn.btn-default>
-                      link {click} execute({"button": button.id}) -> @actions
-                      button.title or button.id
-                      for [id, act] of entries(@actions) key id:
-                        if act.button == button.id:
-                          " "
-                          <span.glyphicon.glyphicon-refresh.rotate>
+                    name
                   <td>
-                    button.description or '(no description)'
-        else:
-          <div.panel.panel-warning>
-            <div.panel-heading>
-              "Actions are Only Available on Leader"
-            if status.leader:
-              <div.panel-body>
-                "Known addresses for a leader are:"
-                <ul>
-                  <li>
-                    <a href=`http://${status.leader.addr}`>
-                      `http://${status.leader.addr}`
-                  <li>
-                    let url = set_port(status.leader.hostname,
-                                        status.leader.addr)
-                    <a href=url>
-                      url
-                  if status.leader.name != status.leader.hostname:
+                    value
+          if status.scheduler_state.substr(0, 7) == 'leader:':
+            <h2> "Available actions"
+            <table.table>
+              <thead>
+                <tr>
+                  <th> "Action"
+                  <th> "Description"
+              <tbody>
+                store @actions = pending_actions | refresher
+                  | json('/v1/pending_actions')
+                for button of role.buttons or [] key button.id:
+                  <tr>
+                    <td>
+                      <button.btn.btn-default>
+                        link {click} execute({"button": button.id}) -> @actions
+                        button.title or button.id
+                        for [id, act] of entries(@actions) key id:
+                          if act.button == button.id:
+                            " "
+                            <span.glyphicon.glyphicon-refresh.rotate>
+                    <td>
+                      button.description or '(no description)'
+          else:
+            <div.panel.panel-warning>
+              <div.panel-heading>
+                "Actions are Only Available on Leader"
+              if status.leader:
+                <div.panel-body>
+                  "Known addresses for a leader are:"
+                  <ul>
                     <li>
-                      let url = set_port(status.leader.name,
-                                         status.leader.addr)
+                      <a href=`http://${status.leader.addr}`>
+                        `http://${status.leader.addr}`
+                    <li>
+                      let url = set_port(status.leader.hostname,
+                                          status.leader.addr)
                       <a href=url>
                         url
-            else:
-              <div.panel-body>
-                "The cluster is unstable, wait a little bit for leader
-                 to come up"
+                    if status.leader.name != status.leader.hostname:
+                      <li>
+                        let url = set_port(status.leader.name,
+                                           status.leader.addr)
+                        <a href=url>
+                          url
+              else:
+                <div.panel-body>
+                  "The cluster is unstable, wait a little bit for leader
+                   to come up"
+        else:
+          <div.panel.panel-warning>
+            <div.panel-body>
+              "No schedule for this role yet."
       else:
         <div.panel.panel-default>
           <div.panel-body>
