@@ -59,11 +59,11 @@ quick_error! {
             description("template rendering error")
         }
         RoleMeta(msg: &'static str) {
-            display("{}", msg)
+            display("role metadata error: {}", msg)
             description("bad role meta data")
         }
         NodeRole(msg: &'static str) {
-            display("{}", msg)
+            display("error of role metadata for current node: {}", msg)
             description("bad role meta data on this node")
         }
     }
