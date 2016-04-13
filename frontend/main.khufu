@@ -47,7 +47,7 @@ view _navbar(status, frontend_version):
           if status and status.leader:
             <li>
               let url = set_port(status.leader.name, status.leader.addr)
-              <a.navbar-brand href=`http://${url}`>
+              <a.navbar-brand href=url>
                 status.leader.name
                 <div.subtext.text-muted>
                   status.scheduler_state
