@@ -323,7 +323,7 @@ impl<'a, 'b> Role<'a, 'b> {
         }
     }
     pub fn template(&mut self, source: &str, dest: &Path, value: &str) {
-        if let Err(e) = write!(&mut self.deployment.log,
+        if let Err(e) = write!(&mut self.log,
             "+++ template start: {source:?} -> {dest:?} +++\n\
              {value}\n\
              +++ template end: {source:?} -> {dest:?} +++\n",
