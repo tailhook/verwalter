@@ -27,7 +27,7 @@ function _scheduler(state, debugger)
     -- Button name is actually a version in our case
     local versions = func.map(
         function(action)
-            return action.button
+            return action.button.version
         end,
         state.actions)
 
@@ -97,7 +97,7 @@ function _scheduler(state, debugger)
                     version=runtime_version,
                 },
                 buttons=func.map_reverse(function (v)
-                    return {id=v,
+                    return {action={version=v, role="pyapp"},
                             title="Switch to " .. v}
                     end, available_versions),
             },

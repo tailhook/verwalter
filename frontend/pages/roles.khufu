@@ -73,14 +73,16 @@ view main(status):
               <tbody>
                 store @actions = pending_actions | refresher
                   | json('/v1/pending_actions')
-                for button of role.buttons or [] key button.id:
+                for button of role.buttons or [] key repr(button.action):
                   <tr>
                     <td>
                       <button.btn.btn-default>
-                        link {click} execute({"button": button.id}) -> @actions
+                        link {click} execute(
+                          {"button": button.action}
+                        ) -> @actions
                         button.title or button.id
                         for [id, act] of entries(@actions) key id:
-                          if act.button == button.id:
+                          if act.button.version == button.action.version:
                             " "
                             <span.glyphicon.glyphicon-refresh.rotate>
                     <td>
