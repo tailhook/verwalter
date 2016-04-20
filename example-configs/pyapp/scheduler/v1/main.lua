@@ -1,5 +1,5 @@
 JSON = require "JSON"
-debug = require "debug"
+trace = require "trace"
 version = require "version"
 func = require "func"
 
@@ -13,8 +13,8 @@ function cycle(items)
     end
 end
 
-function _scheduler(state, debugger)
-    debugger:object("INPUT", state)
+function _scheduler(state)
+    trace.object("INPUT", state)
     local template_version = "v1"
 
     local available_versions = {}
@@ -107,4 +107,4 @@ function _scheduler(state, debugger)
     return JSON:encode(result)
 end
 
-scheduler = debug.wrap_scheduler(_scheduler)
+scheduler = trace.wrap_scheduler(_scheduler)
