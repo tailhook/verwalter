@@ -13,6 +13,7 @@ Contents:
 
    info/index
    running/index
+   scheduler/index
    deploy-tutorial
 
 
