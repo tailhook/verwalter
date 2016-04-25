@@ -21,7 +21,7 @@ dependencies = [
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "regex 0.1.62 (registry+https://github.com/rust-lang/crates.io-index)",
  "rotor 0.6.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "rotor-cantal 0.1.0 (git+git://github.com/tailhook/rotor-cantal?rev=df4a3f2)",
+ "rotor-cantal 0.1.0 (git+git://github.com/tailhook/rotor-cantal?rev=45d4414)",
  "rotor-http 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rotor-tools 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.18 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -393,6 +393,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "probor"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "byteorder 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cbor-codec 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "quick-error"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -457,10 +466,12 @@ dependencies = [
 [[package]]
 name = "rotor-cantal"
 version = "0.1.0"
-source = "git+git://github.com/tailhook/rotor-cantal?rev=df4a3f2#df4a3f248970adac56c54f7339967520501afb7f"
+source = "git+git://github.com/tailhook/rotor-cantal?rev=45d4414#45d4414421a0daafcf51fae484006841ddbe9667"
 dependencies = [
  "argparse 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cbor-codec 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "probor 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rotor 0.6.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "rotor-http 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rotor-tools 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",

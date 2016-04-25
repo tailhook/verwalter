@@ -14,7 +14,7 @@ authors = ["Paul Colomiets <paul@colomiets.name>"]
 rotor = "0.6.3"
 rotor-http = "0.7.0"
 rotor-tools = "0.3.2"
-rotor-cantal = { rev="df4a3f2", git="git://github.com/tailhook/rotor-cantal" }
+rotor-cantal = { rev="45d4414", git="git://github.com/tailhook/rotor-cantal" }
 lua = { rev="9d3c7dc", git = "git://github.com/jcmoyer/rust-lua53" }
 quick-error = "0.2.1"
 liquid = "0.2"
