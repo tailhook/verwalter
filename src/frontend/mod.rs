@@ -203,7 +203,7 @@ fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
             })
         }
         Peers => {
-            respond(res, format, &scope.schedule.get_peers().as_ref()
+            respond(res, format, &scope.cantal.get_peers().as_ref()
                 .map(|x| &x.peers))
         }
         Schedule => {

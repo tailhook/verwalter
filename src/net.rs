@@ -28,7 +28,7 @@ rotor_compose!(pub enum Fsm/Seed<Context> {
 
 pub struct Context {
     pub state: SharedState,
-    pub schedule: Schedule,
+    pub cantal: Schedule,
     pub frontend_dir: PathBuf,
 }
 
@@ -52,7 +52,7 @@ pub fn main(addr: &SocketAddr, id: Id, hostname: String, name: String,
     let mut loop_inst = creator.instantiate(Context {
         state: state.clone(),
         frontend_dir: frontend_dir,
-        schedule: schedule.clone(),
+        cantal: schedule.clone(),
     });
     let listener = TcpListener::bind(&addr).expect("Can't bind address");
     loop_inst.add_machine_with(|scope| {
