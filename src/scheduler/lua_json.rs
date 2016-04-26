@@ -40,7 +40,7 @@ pub fn push_json(lua: &mut State, json: &Json) {
             let tbl = lua.get_top();
             for (i, item) in v.iter().enumerate() {
                 push_json(lua, item);
-                lua.raw_seti(tbl, i as i64);
+                lua.raw_seti(tbl, (i+1) as i64);
             }
         },
         &Object(ref v) => {
