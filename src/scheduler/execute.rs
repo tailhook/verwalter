@@ -2,6 +2,7 @@ use std::sync::Arc;
 use std::collections::{HashMap, BTreeMap};
 
 use lua::{ThreadStatus, Type};
+use rotor_cantal::RemoteQuery;
 use rustc_serialize::json::Json;
 
 use shared::{Id, Peer};
@@ -13,7 +14,8 @@ use scheduler::input::Input;
 impl Scheduler {
     pub fn execute(&mut self, config: &Config, peers: &HashMap<Id, Peer>,
         parents: &Vec<Arc<Schedule>>,
-        actions: &BTreeMap<u64, Arc<Json>>)
+        actions: &BTreeMap<u64, Arc<Json>>,
+        metrics: Option<Arc<RemoteQuery>>)
         -> (Result<Json, Error>, String)
     {
         match self.lua.get_global("scheduler") {
@@ -32,6 +34,7 @@ impl Scheduler {
             hostname: &self.hostname,
             parents: parents,
             actions: actions,
+            metrics: metrics,
         });
         match self.lua.pcall(1, 2, 0) {
             ThreadStatus::Ok => {}

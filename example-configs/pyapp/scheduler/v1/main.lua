@@ -103,6 +103,27 @@ function _scheduler(state)
             },
         },
         nodes=nodes,
+        query_metrics={
+          ["rules"] = {
+            ["q1"] = {
+              ["series"] = {
+                source="Fine",
+                condition={"RegexLike", "metric", "^memory\\."},
+              },
+              extract={"Tip"},
+              functions={},
+            },
+            ["q2"]={
+              series={
+                source="Fine",
+                condition={"RegexLike", "metric", "^cpu\\."}
+              },
+              extract={"HistoryByNum", 150},
+              functions={{"NonNegativeDerivative"},
+                         {"SumBy", "metric", "Ignore", true}},
+            },
+          }
+        }
     }
     return JSON:encode(result)
 end

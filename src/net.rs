@@ -42,6 +42,7 @@ pub fn main(addr: &SocketAddr, id: Id, hostname: String, name: String,
     let schedule = creator.add_and_fetch(Fsm::Cantal, |scope| {
         connect_localhost(scope)
     }).expect("create cantal endpoint");
+    state.set_cantal(schedule.clone());
 
     let fetch_notifier = creator
         .add_and_fetch(Fsm::AskLeader, |s| fetch::create(s))

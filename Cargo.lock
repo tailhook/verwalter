@@ -21,7 +21,7 @@ dependencies = [
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "regex 0.1.62 (registry+https://github.com/rust-lang/crates.io-index)",
  "rotor 0.6.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "rotor-cantal 0.1.0 (git+git://github.com/tailhook/rotor-cantal?rev=45d4414)",
+ "rotor-cantal 0.1.0 (git+git://github.com/tailhook/rotor-cantal?rev=080ffac)",
  "rotor-http 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rotor-tools 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.18 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -466,7 +466,7 @@ dependencies = [
 [[package]]
 name = "rotor-cantal"
 version = "0.1.0"
-source = "git+git://github.com/tailhook/rotor-cantal?rev=45d4414#45d4414421a0daafcf51fae484006841ddbe9667"
+source = "git+git://github.com/tailhook/rotor-cantal?rev=080ffac#080ffac006c837e85ce0d37ca9e7fc36028322c2"
 dependencies = [
  "argparse 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "cbor-codec 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",

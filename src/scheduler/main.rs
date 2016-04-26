@@ -136,7 +136,8 @@ pub fn main(state: SharedState, mut settings: Settings, mut alarm: Alarm) -> !
                 &*state.config(),
                 &peers.1,
                 &cookie.parent_schedules,
-                &cookie.actions);
+                &cookie.actions,
+                state.metrics());
 
             let json = match result {
                 Ok(json) => {

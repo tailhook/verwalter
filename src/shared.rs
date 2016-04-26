@@ -9,6 +9,7 @@ use std::collections::btree_map::Entry::{Occupied, Vacant};
 use time::{SteadyTime, Timespec, Duration as Dur, get_time};
 use rotor::{Time, Notifier};
 use cbor::{Encoder, EncodeResult, Decoder, DecodeResult};
+use rotor_cantal::{Schedule as Cantal, RemoteQuery};
 use rustc_serialize::hex::{FromHex, ToHex, FromHexError};
 use rustc_serialize::{Encodable, Encoder as RustcEncoder};
 use rustc_serialize::json::Json;
@@ -114,6 +115,7 @@ struct State {
     last_scheduler_debug_info: Arc<String>,
     election: Arc<ElectionState>,
     actions: BTreeMap<u64, Arc<Json>>,
+    cantal: Option<Cantal>,
     /// Fetch update notifier
     external_schedule_update: Option<Notifier>,
     errors: HashMap<&'static str, Arc<String>>,
@@ -150,6 +152,7 @@ impl SharedState {
             last_scheduler_debug_info: Arc::new(String::new()),
             election: Default::default(),
             actions: BTreeMap::new(),
+            cantal: None,
             external_schedule_update: None, //unfortunately
             errors: Default::default(),
         })), Arc::new(Notifiers {
@@ -221,6 +224,9 @@ impl SharedState {
     pub fn errors(&self) -> HashMap<&'static str, Arc<String>> {
         self.lock().errors.clone()
     }
+    pub fn metrics(&self) -> Option<Arc<RemoteQuery>> {
+        self.lock().cantal.as_ref().unwrap().get_remote_query()
+    }
     // Setters
     pub fn set_peers(&self, time: Time, peers: HashMap<Id, Peer>) {
         let mut guard = self.lock();
@@ -254,6 +260,10 @@ impl SharedState {
         let mut guard = self.lock();
         match *guard.schedule {
             Leading(Calculating) => {
+                if let Some(ref x) = val.data.find("query_metrics") {
+                    guard.cantal.as_ref().unwrap()
+                        .set_remote_query_json(x, Duration::new(5, 0));
+                }
                 let sched = Arc::new(val);
                 guard.schedule = Arc::new(Leading(Stable(sched.clone())));
                 guard.last_known_schedule = Some(sched);
@@ -301,6 +311,7 @@ impl SharedState {
                     guard.schedule = Arc::new(
                         Leading(Prefetching(SteadyTime::now(),
                                             Mutex::new(initial))));
+                    guard.cantal.as_ref().unwrap().clear_remote_query();
                     fetch_schedule(&mut guard);
                 }
                 Leading(Prefetching(_, ref pref)) => {
@@ -472,9 +483,14 @@ impl SharedState {
             }
         }
     }
+    // late initializers
     pub fn set_update_notifier(&self, notifier: Notifier) {
         let mut guard = self.0.lock().expect("shared state lock");
         guard.external_schedule_update = Some(notifier);
+    }
+    pub fn set_cantal(&self, cantal: Cantal) {
+        let mut guard = self.0.lock().expect("shared state lock");
+        guard.cantal = Some(cantal);
     }
     pub fn push_action(&self, data: Json) -> Result<u64, PushActionError> {
         use scheduler::State::{Following, Leading, Unstable};
