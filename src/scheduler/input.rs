@@ -140,8 +140,6 @@ impl<'a> ToLua for Input<'a> {
                 lua.set_field(mtable, host);
             }
             lua.set_field(cfg, "metrics");
-        } else {
-            println!("-------------------- no metrics -------------------");
         }
     }
 }
