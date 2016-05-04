@@ -29,7 +29,8 @@ impl ::std::fmt::Debug for RenderSet {
 #[derive(RustcDecodable, Debug)]
 pub struct Renderer {
     pub source: String,
-    pub apply: Command,
+    pub apply: Option<Command>,
+    pub commands: Vec<Command>,
 }
 
 quick_error! {
@@ -72,7 +73,7 @@ quick_error! {
 pub fn render_role(meta: &BTreeMap<String, Json>,
     node: &BTreeMap<String, Json>,
     role_name: &String, role: &Role, log: &mut log::Role)
-    -> Result<Vec<(String, Command, Source)>, Error>
+    -> Result<Vec<(String, Vec<Command>, Source)>, Error>
 {
     let role_meta = match meta.get(role_name) {
         Some(&Json::Object(ref ob)) => ob,
@@ -131,8 +132,12 @@ pub fn render_role(meta: &BTreeMap<String, Json>,
         debug!("Rendered {:?} into {} bytes at {:?}",
             &render.source, output.as_bytes().len(), tmpfile.path());
         log.template(&render.source, &tmpfile.path(), &output);
-        result.push((name.clone(), render.apply.clone(),
-                     Source::TmpFile(tmpfile)));
+        let mut cmds = render.commands.clone();
+        if let Some(ref x) = render.apply {
+            log.log(format_args!("`apply:` is deprecated use `commands: []`"));
+            cmds.push(x.clone());
+        }
+        result.push((name.clone(), cmds, Source::TmpFile(tmpfile)));
     }
     Ok(result)
 }

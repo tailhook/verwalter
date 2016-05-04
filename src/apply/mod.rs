@@ -49,7 +49,7 @@ pub struct Task<'a: 'b, 'b: 'c, 'c: 'd, 'd> {
     pub runner: &'d str,
     pub log: &'d mut log::Action<'a, 'b, 'c>,
     pub dry_run: bool,
-    pub source: Source,
+    pub source: &'d Source,
 }
 
 trait Action: Debug + Send + ToJson + Sync {
@@ -81,7 +81,7 @@ quick_error!{
             description("error logging command info")
         }
         InvalidArgument(message: &'static str, value: String) {
-            display("{}: {:?}", message, value)
+            display("{}: {}", message, value)
             description(message)
         }
         IoError(err: io::Error) {
@@ -146,20 +146,22 @@ impl<'a, 'b, 'c, 'd> Task<'a, 'b, 'c, 'd> {
 }
 
 pub fn apply_list(role: &String,
-    actions: Vec<(String, Command, Source)>,
+    actions: Vec<(String, Vec<Command>, Source)>,
     log: &mut log::Role, dry_run: bool)
 {
-    for (aname, cmd, source) in actions {
+    for (aname, commands, source) in actions {
         let mut action = log.action(&aname);
-        let vars = expand::Variables::new()
-           .add("role_name", role)
-           .add_source(&source);
-        cmd.execute(Task {
-            runner: &aname,
-            log: &mut action,
-            dry_run: dry_run,
-            source: source,
-        }, vars).map_err(|e| action.error(&e)).ok();
+        for cmd in commands {
+            let vars = expand::Variables::new()
+               .add("role_name", role)
+               .add_source(&source);
+            cmd.execute(Task {
+                runner: &aname,
+                log: &mut action,
+                dry_run: dry_run,
+                source: &source,
+            }, vars).map_err(|e| action.error(&e)).ok();
+        }
     }
 }
 

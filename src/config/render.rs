@@ -20,18 +20,23 @@ struct Config {
     render: HashMap<String, Renderer>,
 }
 
+fn command_validator<'x>() -> V::Enum<'x> {
+    V::Enum::new().optional()
+    .option("RootCommand", apply::root_command::RootCommand::config())
+    .option("Cmd", apply::cmd::Cmd::config())
+    .option("Sh", apply::shell::Sh::config())
+    .option("Copy", apply::copy::Copy::config())
+}
+
 fn config_validator<'x>() -> V::Structure<'x> {
     V::Structure::new()
     .member("render", V::Mapping::new(
         V::Scalar::new(),
         V::Structure::new()
         .member("source", V::Scalar::new())
-        .member("apply", V::Enum::new().optional()
-            .option("RootCommand", apply::root_command::RootCommand::config())
-            .option("Cmd", apply::cmd::Cmd::config())
-            .option("Sh", apply::shell::Sh::config())
-            .option("Copy", apply::copy::Copy::config())
-        )))
+        .member("apply", command_validator().optional())
+        .member("commands", V::Sequence::new(command_validator()))
+    ))
 }
 
 pub fn read_config(path: &Path, base: &Path)
@@ -53,6 +58,7 @@ pub fn read_config(path: &Path, base: &Path)
                 base,
             ).unwrap().to_string_lossy().to_string(),
             apply: r.apply,
+            commands: r.commands,
         })
     }).collect())
 }
