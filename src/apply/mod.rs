@@ -21,11 +21,15 @@ use fs_util::write_file;
 use apply::expand::Variables;
 
 pub mod root_command;
+pub mod cmd;
+pub mod shell;
 mod expand;
 pub mod log;
 
 const COMMANDS: &'static [&'static str] = &[
     "RootCommand",
+    "Cmd",
+    "Sh",
 ];
 
 pub struct Settings {
@@ -88,6 +92,8 @@ fn decode_command<D: Decoder>(cmdname: &str, d: &mut D)
 {
     match cmdname {
         "RootCommand" => cmd(self::root_command::RootCommand::decode(d)),
+        "Cmd" => cmd(self::cmd::Cmd::decode(d)),
+        "Sh" => cmd(self::shell::Sh::decode(d)),
         _ => panic!("Command {:?} not implemented", cmdname),
     }
 }

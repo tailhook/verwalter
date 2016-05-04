@@ -28,6 +28,8 @@ fn config_validator<'x>() -> V::Structure<'x> {
         .member("source", V::Scalar::new())
         .member("apply", V::Enum::new().optional()
             .option("RootCommand", apply::root_command::RootCommand::config())
+            .option("Cmd", apply::cmd::Cmd::config())
+            .option("Sh", apply::shell::Sh::config())
         )))
 }
 
