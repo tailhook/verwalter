@@ -20,18 +20,22 @@ use watchdog::{ExitOnReturn, Alarm};
 use fs_util::write_file;
 use apply::expand::Variables;
 
+mod expand;
+pub mod log;
+
+// commands
 pub mod root_command;
 pub mod cmd;
 pub mod shell;
 pub mod copy;
-mod expand;
-pub mod log;
+pub mod peek_log;
 
 const COMMANDS: &'static [&'static str] = &[
     "RootCommand",
     "Cmd",
     "Sh",
     "Copy",
+    "PeekLog",
 ];
 
 pub struct Settings {
@@ -106,6 +110,7 @@ fn decode_command<D: Decoder>(cmdname: &str, d: &mut D)
         "Cmd" => cmd(self::cmd::Cmd::decode(d)),
         "Sh" => cmd(self::shell::Sh::decode(d)),
         "Copy" => cmd(self::copy::Copy::decode(d)),
+        "PeekLog" => cmd(self::peek_log::PeekLog::decode(d)),
         _ => panic!("Command {:?} not implemented", cmdname),
     }
 }

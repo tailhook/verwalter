@@ -26,6 +26,7 @@ fn command_validator<'x>() -> V::Enum<'x> {
     .option("Cmd", apply::cmd::Cmd::config())
     .option("Sh", apply::shell::Sh::config())
     .option("Copy", apply::copy::Copy::config())
+    .option("PeekLog", apply::peek_log::PeekLog::config())
 }
 
 fn config_validator<'x>() -> V::Structure<'x> {

@@ -101,6 +101,7 @@ enum Marker<'a> {
     RoleStart,
     ActionStart(&'a str),
     ActionFinish(&'a str),
+    ExternalLog(&'a Path, u64),
     RoleFinish,
     DeploymentFinish,
     DeploymentError,
@@ -350,6 +351,10 @@ impl<'a, 'b> Drop for Role<'a, 'b> {
 impl<'a, 'b, 'c> Action<'a, 'b, 'c> {
     pub fn log(&mut self, args: Arguments) {
         add_err(&mut self.role.err, self.role.log.write_fmt(args).err());
+    }
+    pub fn external_log(&mut self, path: &Path, position: u64) {
+        self.role.entry(Marker::ExternalLog(path, position));
+        self.role.log(format_args!("File position {:?}:{}", path, position));
     }
     pub fn error(&mut self, err: &::std::error::Error) {
         self.log(format_args!("Action error: {}\n", err));
