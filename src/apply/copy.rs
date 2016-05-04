@@ -58,6 +58,7 @@ impl Action for Copy {
 impl ToJson for Copy {
     fn to_json(&self) -> Json {
         Json::Object(vec![
+            ("__command__".to_string(), "Copy".to_json()),
             ("src".to_string(), self.src.to_json()),
             ("dest".to_string(), self.dest.to_json()),
         ].into_iter().collect())
