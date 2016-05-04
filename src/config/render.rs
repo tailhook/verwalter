@@ -8,6 +8,7 @@ use quire::validate as V;
 use quire::sky::parse_config;
 use handlebars::Handlebars;
 
+use apply;
 use path_util::relative;
 use render::{Renderer, RenderSet};
 use super::TemplateError as Error;
@@ -26,11 +27,8 @@ fn config_validator<'x>() -> V::Structure<'x> {
         V::Structure::new()
         .member("source", V::Scalar::new())
         .member("apply", V::Enum::new().optional()
-            .option("RootCommand",
-                V::Sequence::new(V::Scalar::new())
-                //.from_scalar(..)
-            ))
-        ))
+            .option("RootCommand", apply::root_command::RootCommand::config())
+        )))
 }
 
 pub fn read_config(path: &Path, base: &Path)

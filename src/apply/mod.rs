@@ -1,5 +1,5 @@
 use std::io;
-use std::fmt::Arguments;
+use std::fmt::{Arguments, Debug};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -8,6 +8,7 @@ use std::collections::HashMap;
 
 use rand::{thread_rng, Rng};
 use tempfile::NamedTempFile;
+use rustc_serialize::{Decodable, Decoder};
 use rustc_serialize::json::{Json, ToJson};
 
 use render;
@@ -17,11 +18,15 @@ use config::Config;
 use render::Error as RenderError;
 use watchdog::{ExitOnReturn, Alarm};
 use fs_util::write_file;
+use apply::expand::Variables;
 
-mod root_command;
+pub mod root_command;
 mod expand;
 pub mod log;
 
+const COMMANDS: &'static [&'static str] = &[
+    "RootCommand",
+];
 
 pub struct Settings {
     pub print_configs: bool,
@@ -32,7 +37,7 @@ pub struct Settings {
 }
 
 pub type ApplyTask = HashMap<String,
-    Result<Vec<(String, Action, Source)>, RenderError>>;
+    Result<Vec<(String, Command, Source)>, RenderError>>;
 
 pub struct Task<'a: 'b, 'b: 'c, 'c: 'd, 'd> {
     pub runner: &'d str,
@@ -41,10 +46,13 @@ pub struct Task<'a: 'b, 'b: 'c, 'c: 'd, 'd> {
     pub source: Source,
 }
 
-#[derive(RustcDecodable, Debug, Clone)]
-pub enum Action {
-    RootCommand(Vec<String>),
+trait Action: Debug + Send + ToJson + Sync {
+    fn execute(&self, task: Task, variables: Variables)
+        -> Result<(), Error>;
 }
+
+#[derive(Debug, Clone)]
+pub struct Command(Arc<Action>);
 
 pub enum Source {
     TmpFile(NamedTempFile),
@@ -69,15 +77,45 @@ quick_error!{
     }
 }
 
-impl ToJson for Action {
-    fn to_json(&self) -> Json {
-        match *self {
-            Action::RootCommand(ref cmd) => {
-                Json::Array(vec!["RootCommand".to_json(), cmd.to_json()])
-            }
-        }
+fn cmd<T: Action + 'static, E>(val: Result<T, E>)
+    -> Result<Command, E>
+{
+    val.map(|x| Command(Arc::new(x) as Arc<Action>))
+}
+
+fn decode_command<D: Decoder>(cmdname: &str, d: &mut D)
+    -> Result<Command, D::Error>
+{
+    match cmdname {
+        "RootCommand" => cmd(self::root_command::RootCommand::decode(d)),
+        _ => panic!("Command {:?} not implemented", cmdname),
     }
 }
+
+impl Decodable for Command {
+    fn decode<D: Decoder>(d: &mut D) -> Result<Command, D::Error> {
+        Ok(try!(d.read_enum("Action", |d| {
+            d.read_enum_variant(&COMMANDS, |d, index| {
+                decode_command(COMMANDS[index], d)
+            })
+        })))
+    }
+}
+
+impl ToJson for Command {
+    fn to_json(&self) -> Json {
+        self.0.to_json()
+    }
+}
+
+impl Action for Command {
+    fn execute(&self, task: Task, variables: Variables)
+        -> Result<(), Error>
+    {
+        self.0.execute(task, variables)
+    }
+}
+
 
 impl<'a, 'b, 'c, 'd> Task<'a, 'b, 'c, 'd> {
     fn log(&mut self, args: Arguments) {
@@ -90,25 +128,20 @@ impl<'a, 'b, 'c, 'd> Task<'a, 'b, 'c, 'd> {
 }
 
 pub fn apply_list(role: &String,
-    actions: Vec<(String, Action, Source)>,
+    actions: Vec<(String, Command, Source)>,
     log: &mut log::Role, dry_run: bool)
 {
-    use self::Action::*;
     for (aname, cmd, source) in actions {
         let mut action = log.action(&aname);
-        match cmd {
-            RootCommand(cmd) => {
-                let vars = expand::Variables::new()
-                   .add("role_name", role)
-                   .add_source(&source);
-                root_command::execute(cmd, Task {
-                    runner: &aname,
-                    log: &mut action,
-                    dry_run: dry_run,
-                    source: source,
-                }, vars).map_err(|e| action.error(&e)).ok();
-            }
-        }
+        let vars = expand::Variables::new()
+           .add("role_name", role)
+           .add_source(&source);
+        cmd.execute(Task {
+            runner: &aname,
+            log: &mut action,
+            dry_run: dry_run,
+            source: source,
+        }, vars).map_err(|e| action.error(&e)).ok();
     }
 }
 

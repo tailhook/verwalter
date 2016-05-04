@@ -8,7 +8,7 @@ use handlebars::{Handlebars, RenderError};
 use rustc_serialize::json::{Json, ToJson};
 
 use config::{Version, Role};
-use apply::{Source, Action};
+use apply::{Source, Command};
 use apply::log;
 
 
@@ -29,7 +29,7 @@ impl ::std::fmt::Debug for RenderSet {
 #[derive(RustcDecodable, Debug)]
 pub struct Renderer {
     pub source: String,
-    pub apply: Action,
+    pub apply: Command,
 }
 
 quick_error! {
@@ -72,7 +72,7 @@ quick_error! {
 pub fn render_role(meta: &BTreeMap<String, Json>,
     node: &BTreeMap<String, Json>,
     role_name: &String, role: &Role, log: &mut log::Role)
-    -> Result<Vec<(String, Action, Source)>, Error>
+    -> Result<Vec<(String, Command, Source)>, Error>
 {
     let role_meta = match meta.get(role_name) {
         Some(&Json::Object(ref ob)) => ob,
