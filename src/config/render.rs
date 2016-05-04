@@ -30,6 +30,7 @@ fn config_validator<'x>() -> V::Structure<'x> {
             .option("RootCommand", apply::root_command::RootCommand::config())
             .option("Cmd", apply::cmd::Cmd::config())
             .option("Sh", apply::shell::Sh::config())
+            .option("Copy", apply::copy::Copy::config())
         )))
 }
 

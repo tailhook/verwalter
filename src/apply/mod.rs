@@ -23,6 +23,7 @@ use apply::expand::Variables;
 pub mod root_command;
 pub mod cmd;
 pub mod shell;
+pub mod copy;
 mod expand;
 pub mod log;
 
@@ -30,6 +31,7 @@ const COMMANDS: &'static [&'static str] = &[
     "RootCommand",
     "Cmd",
     "Sh",
+    "Copy",
 ];
 
 pub struct Settings {
@@ -78,6 +80,15 @@ quick_error!{
             display("error opening log file: {}", err)
             description("error logging command info")
         }
+        InvalidArgument(message: &'static str, value: String) {
+            display("{}: {:?}", message, value)
+            description(message)
+        }
+        IoError(err: io::Error) {
+            from() cause(err)
+            display("io error: {}", err)
+            description(err.description())
+        }
     }
 }
 
@@ -94,6 +105,7 @@ fn decode_command<D: Decoder>(cmdname: &str, d: &mut D)
         "RootCommand" => cmd(self::root_command::RootCommand::decode(d)),
         "Cmd" => cmd(self::cmd::Cmd::decode(d)),
         "Sh" => cmd(self::shell::Sh::decode(d)),
+        "Copy" => cmd(self::copy::Copy::decode(d)),
         _ => panic!("Command {:?} not implemented", cmdname),
     }
 }
