@@ -40,7 +40,7 @@ use scheduler::{self, Schedule, PrefetchInfo, MAX_PREFETCH_TIME};
 ///    coarse-grained lock
 ///
 #[derive(Clone)]
-pub struct SharedState(Arc<Mutex<State>>, Arc<Notifiers>);
+pub struct SharedState(Id, Arc<Mutex<State>>, Arc<Notifiers>);
 
 pub struct LeaderCookie {
     epoch: Epoch,
@@ -143,8 +143,10 @@ fn fetch_schedule(guard: &mut MutexGuard<State>) {
 }
 
 impl SharedState {
-    pub fn new(cfg: Config, old_schedule: Option<Schedule>) -> SharedState {
-        SharedState(Arc::new(Mutex::new(State {
+    pub fn new(id: Id, cfg: Config, old_schedule: Option<Schedule>)
+        -> SharedState
+    {
+        SharedState(id, Arc::new(Mutex::new(State {
             config: Arc::new(cfg),
             peers: None,
             schedule: Arc::new(scheduler::State::Unstable),
@@ -161,18 +163,21 @@ impl SharedState {
         }))
     }
     fn lock(&self) -> MutexGuard<State> {
-        self.0.lock().expect("shared state lock")
+        self.1.lock().expect("shared state lock")
     }
     // Accessors
+    pub fn id(&self) -> &Id {
+        &self.0
+    }
     pub fn peers(&self) -> Option<Arc<(Time, HashMap<Id, Peer>)>> {
         self.lock().peers.clone()
     }
     pub fn config(&self) -> Arc<Config> {
-        self.0.lock().expect("shared state lock").config.clone()
+        self.lock().config.clone()
     }
     /// Returns last known schedule
     pub fn schedule(&self) -> Option<Arc<Schedule>> {
-        self.0.lock().expect("shared state lock").last_known_schedule.clone()
+        self.lock().last_known_schedule.clone()
     }
     pub fn scheduler_debug_info(&self) -> Arc<String> {
         self.lock().last_scheduler_debug_info.clone()
@@ -208,7 +213,7 @@ impl SharedState {
         }
     }
     pub fn election(&self) -> Arc<ElectionState> {
-        self.0.lock().expect("shared state lock").election.clone()
+        self.lock().election.clone()
     }
     pub fn should_schedule_update(&self) -> bool {
         use scheduler::State::{Following};
@@ -243,10 +248,10 @@ impl SharedState {
         // but we should compare smartly. I.e. peers are always changed (i.e.
         // ping timestamps and similar things). We should check for meaningful
         // changes.
-        self.1.run_scheduler.notify_all();
+        self.2.run_scheduler.notify_all();
     }
     pub fn set_config(&self, cfg: Config) {
-        self.0.lock().expect("shared state lock").config = Arc::new(cfg);
+        self.lock().config = Arc::new(cfg);
     }
     pub fn set_schedule_debug_info(&self, debug: String)
     {
@@ -271,7 +276,7 @@ impl SharedState {
                 for (aid, _) in cookie.actions {
                     guard.actions.remove(&aid);
                 }
-                self.1.apply_schedule.notify_all();
+                self.2.apply_schedule.notify_all();
             }
             _ => {
                 debug!("Calculated a schedule when not a leader already");
@@ -381,7 +386,7 @@ impl SharedState {
         let mut guard = self.lock();
         let mut wait_time = max_interval;
         loop {
-            guard = self.1.run_scheduler
+            guard = self.2.run_scheduler
                 .wait_timeout(guard, wait_time)
                 .expect("shared state lock")
                 .0;
@@ -453,7 +458,7 @@ impl SharedState {
                 }
                 None => {}
             };
-            guard = self.1.apply_schedule.wait(guard)
+            guard = self.2.apply_schedule.wait(guard)
                 .expect("shared state lock");
         }
     }
@@ -469,13 +474,13 @@ impl SharedState {
                 guard.schedule = Arc::new(
                     Following(id.clone(), Stable(sched.clone())));
                 guard.last_known_schedule = Some(sched);
-                self.1.apply_schedule.notify_all();
+                self.2.apply_schedule.notify_all();
             }
             Leading(Prefetching(_, ref mutex)) => {
                 let mut lock = mutex.lock().expect("prefetch lock");
                 lock.add_schedule(schedule);
                 if lock.done() {
-                    self.1.run_scheduler.notify_all();
+                    self.2.run_scheduler.notify_all();
                 }
             }
             _ => {
@@ -485,11 +490,11 @@ impl SharedState {
     }
     // late initializers
     pub fn set_update_notifier(&self, notifier: Notifier) {
-        let mut guard = self.0.lock().expect("shared state lock");
+        let mut guard = self.lock();
         guard.external_schedule_update = Some(notifier);
     }
     pub fn set_cantal(&self, cantal: Cantal) {
-        let mut guard = self.0.lock().expect("shared state lock");
+        let mut guard = self.lock();
         guard.cantal = Some(cantal);
     }
     pub fn push_action(&self, data: Json) -> Result<u64, PushActionError> {

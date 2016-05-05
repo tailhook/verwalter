@@ -173,6 +173,7 @@ fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
             #[derive(RustcEncodable)]
             struct Status<'a> {
                 version: &'static str,
+                id: &'a Id,
                 peers: usize,
                 roles: usize,
                 leader: Option<LeaderInfo<'a>>,
@@ -181,14 +182,18 @@ fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
                 errors: HashMap<&'static str, Arc<String>>,
             }
             let peers = scope.state.peers();
-            let schedule = scope.state.stable_schedule();
             let cfg = scope.state.config();
             let election = scope.state.election();
-            let leader_id = schedule.as_ref().map(|x| &x.origin);
+            let leader_id = if election.is_leader {
+                Some(scope.state.id())
+            } else {
+                election.leader.as_ref()
+            };
             let leader = leader_id.and_then(
                 |id| peers.as_ref().and_then(|x| x.1.get(id)));
             respond(res, format, &Status {
                 version: concat!("v", env!("CARGO_PKG_VERSION")),
+                id: scope.state.id(),
                 peers: peers.as_ref().map(|x| x.1.len()).unwrap_or(0),
                 roles: cfg.roles.len(),
                 leader: leader.map(|peer| LeaderInfo {

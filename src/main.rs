@@ -193,7 +193,7 @@ fn main() {
         }
     };
 
-    let state = SharedState::new(config, old_schedule);
+    let state = SharedState::new(id.clone(), config, old_schedule);
     let hostname = options.hostname
                    .unwrap_or_else(|| info::hostname().expect("gethostname"));
     // TODO(tailhook) resolve FQDN
