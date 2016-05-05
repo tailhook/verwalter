@@ -59,7 +59,6 @@ pub struct Options {
     log_dir: PathBuf,
     log_id: bool,
     dry_run: bool,
-    print_configs: bool,
     hostname: Option<String>,
     name: Option<String>,
     listen_host: String,
@@ -95,7 +94,6 @@ fn main() {
         log_dir: PathBuf::from("/var/log/verwalter"),
         log_id: false,
         dry_run: false,
-        print_configs: false,
         hostname: None,
         name: None,
         listen_host: "127.0.0.1".to_string(),
@@ -140,12 +138,6 @@ fn main() {
             .add_option(&["--log-id"], StoreTrue, "
                 Add own machine id to the log (Useful mostly for running
                 containerized test in containers");
-        ap.refer(&mut options.print_configs)
-            .add_option(&["--print-configs"], StoreTrue, "
-                Print all rendered configs to stdout. It's useful with dry-run
-                because every temporary file will be removed at the end of
-                run. Note configurations are printed to stdout not to the
-                log.");
         ap.refer(&mut options.listen_host)
             .add_option(&["--host"], Parse, "
                 Bind to host (ip), for web and cluster messaging");
@@ -221,7 +213,6 @@ fn main() {
     let apply_settings = apply::Settings {
         dry_run: options.dry_run,
         hostname: hostname.clone(),
-        print_configs: options.print_configs,
         log_dir: options.log_dir,
         schedule_file: schedule_file,
     };

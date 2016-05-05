@@ -39,7 +39,6 @@ const COMMANDS: &'static [&'static str] = &[
 ];
 
 pub struct Settings {
-    pub print_configs: bool,
     pub hostname: String,
     pub dry_run: bool,
     pub log_dir: PathBuf,
