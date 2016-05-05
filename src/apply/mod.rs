@@ -160,12 +160,16 @@ pub fn apply_list(role: &String,
             let vars = expand::Variables::new()
                .add("role_name", role)
                .add_source(&source);
-            cmd.execute(Task {
+            let result = cmd.execute(Task {
                 runner: &aname,
                 log: &mut action,
                 dry_run: dry_run,
                 source: &source,
-            }, vars).map_err(|e| action.error(&e)).ok();
+            }, vars);
+            if let Err(e) = result {
+                action.error(&e);
+                break;
+            }
         }
     }
 }

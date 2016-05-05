@@ -28,7 +28,8 @@ impl Action for PeekLog {
                 task.log.external_log(&Path::new(&path), p.len());
             }
             Err(e) => {
-                task.log(format_args!("log peek error: {:?}\n", e));
+                task.log(format_args!("Log peek error: {:?}\n", e));
+                // Always succeed. It's fine if log does not exist
             }
         }
         Ok(())
