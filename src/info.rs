@@ -1,3 +1,4 @@
+use std::io;
 use std::io::Read;
 use std::fs::File;
 
@@ -7,21 +8,18 @@ use rustc_serialize::hex::FromHex;
 use shared::Id;
 
 
-pub fn machine_id() -> Id {
+pub fn machine_id() -> io::Result<Id> {
     let mut buf = String::with_capacity(33);
-    let bytes = File::open("/etc/machine-id")
-    .and_then(|mut f| f.read_to_string(&mut buf))
-    .map_err(|e| error!("Error reading /etc/machine-id: {}", e))
-    .and_then(|bytes| if bytes != 32 && bytes != 33  {
-        error!("Wrong length of /etc/machine-id");
-        Err(())
-    } else {
-        FromHex::from_hex(&buf[..])
-        .map_err(|e| error!("Error decoding /etc/machine-id: {}", e))
-    }).unwrap_or_else(|_| {
-        panic!("The file `/etc/machine-id` is mandatory");
-    });
-    Id::new(bytes)
+    let mut file = try!(File::open("/etc/machine-id"));
+    let bytes = try!(file.read_to_string(&mut buf));
+    if bytes != 32 && bytes != 33 {
+        return Err(io::Error::new(io::ErrorKind::Other,
+            "Wrong length of /etc/machine-id"));
+    }
+    let bin = try!(FromHex::from_hex(&buf[..])
+        .or_else(|_| Err(io::Error::new(io::ErrorKind::Other,
+            "Error decoding /etc/machine-id. Should be hexadecimal."))));
+    Ok(Id::new(bin))
 }
 
 pub fn hostname() -> Result<String, String> {

@@ -24,6 +24,7 @@ extern crate rotor_cantal;
 #[macro_use] extern crate matches;
 #[macro_use] extern crate quick_error;
 
+use std::io::{stderr, Write};
 use std::net::ToSocketAddrs;
 use std::path::PathBuf;
 use std::process::exit;
@@ -147,7 +148,16 @@ fn main() {
         ap.parse_args_or_exit();
     }
 
-    let id = options.machine_id.clone().unwrap_or_else(info::machine_id);
+    let id = match options.machine_id.clone().ok_or_else(|| info::machine_id())
+    {
+        Ok(id) => id,
+        Err(Ok(id)) => id,
+        Err(Err(e)) => {
+            writeln!(&mut stderr(), "Error reading `/etc/machine-id`: {}. \
+                The file is required.", e).ok();
+            exit(3);
+        }
+    };
     init_logging(&id, options.log_id);
 
     let mut cfg_cache = config::Cache::new();
