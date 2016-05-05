@@ -21,7 +21,7 @@ struct Config {
 }
 
 fn command_validator<'x>() -> V::Enum<'x> {
-    V::Enum::new().optional()
+    V::Enum::new()
     .option("RootCommand", apply::root_command::RootCommand::config())
     .option("Cmd", apply::cmd::Cmd::config())
     .option("Sh", apply::shell::Sh::config())

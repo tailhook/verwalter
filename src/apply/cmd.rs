@@ -6,8 +6,9 @@ use rustc_serialize::json::{Json, ToJson};
 use apply::{Task, Error, Action};
 use apply::expand::Variables;
 
-#[derive(RustcDecodable, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct Cmd(Vec<String>);
+tuple_struct_decode!(Cmd);
 
 impl Cmd {
     pub fn config() -> V::Sequence<'static> {

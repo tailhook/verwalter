@@ -6,8 +6,9 @@ use rustc_serialize::json::{Json, ToJson};
 use apply::{Task, Error, Action};
 use apply::expand::Variables;
 
-#[derive(RustcDecodable, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct Sh(String);
+tuple_struct_decode!(Sh);
 
 impl Sh {
     pub fn config() -> V::Scalar {

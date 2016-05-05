@@ -7,8 +7,9 @@ use rustc_serialize::json::{Json, ToJson};
 use apply::{Task, Error, Action};
 use apply::expand::Variables;
 
-#[derive(RustcDecodable, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct PeekLog(String);
+tuple_struct_decode!(PeekLog);
 
 impl PeekLog {
     pub fn config() -> V::Scalar {
