@@ -134,7 +134,8 @@ pub fn render_role(meta: &BTreeMap<String, Json>,
         log.template(&render.source, &tmpfile.path(), &output);
         let mut cmds = render.commands.clone();
         if let Some(ref x) = render.apply {
-            log.log(format_args!("`apply:` is deprecated use `commands: []`"));
+            log.log(
+                format_args!("`apply:` is deprecated use `commands: []`\n"));
             cmds.push(x.clone());
         }
         result.push((name.clone(), cmds, Source::TmpFile(tmpfile)));

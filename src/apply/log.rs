@@ -354,7 +354,7 @@ impl<'a, 'b, 'c> Action<'a, 'b, 'c> {
     }
     pub fn external_log(&mut self, path: &Path, position: u64) {
         self.role.entry(Marker::ExternalLog(path, position));
-        self.role.log(format_args!("File position {:?}:{}", path, position));
+        self.role.log(format_args!("File position {:?}:{}\n", path, position));
     }
     pub fn error(&mut self, err: &::std::error::Error) {
         self.log(format_args!("Action error: {}\n", err));
