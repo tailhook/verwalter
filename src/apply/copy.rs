@@ -27,7 +27,8 @@ impl Action for Copy {
     {
         let src = variables.expand(&self.src);
         let dest = variables.expand(&self.dest);
-        task.log(format_args!("Copy {:#?}\n", &self));
+        task.log(format_args!("Copy {{ src: {:?}, dest: {:?} }}\n",
+            &self.src, &self.dest));
         if !task.dry_run {
             let fname = try!(Path::new(&dest).file_name()
                 .ok_or_else(|| Error::InvalidArgument(
@@ -38,13 +39,13 @@ impl Action for Copy {
             try!(fs::copy(&src, &tmpdest)
                 .map_err(|e| {
                     task.log.log(format_args!(
-                        "{:#?} failed to copy: {}\n", self, e));
+                        "{:?} failed to copy: {}\n", self, e));
                     Error::IoError(e)
                 }));
             try!(fs::rename(&tmpdest, &dest)
                 .map_err(|e| {
                     task.log.log(format_args!(
-                        "{:#?} failed to rename: {}\n", self, e));
+                        "{:?} failed to rename: {}\n", self, e));
                     Error::IoError(e)
                 }));
             Ok(())
