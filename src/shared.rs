@@ -185,6 +185,7 @@ impl SharedState {
     pub fn scheduler_state(&self) -> Arc<scheduler::State> {
         self.lock().schedule.clone()
     }
+    #[allow(unused)]  // may be we need this later
     pub fn stable_schedule(&self) -> Option<Arc<Schedule>> {
         stable_schedule(&mut self.lock())
     }
