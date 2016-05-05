@@ -46,7 +46,8 @@ view main(status):
           <div.panel-body>
             "Loading..."
       elif @router[1]:
-        let role = @schedule.data.role_metadata[@router[1]]
+        let role_name = @router[1]
+        let role = @schedule.data.role_metadata[role_name]
         <h1>
           role and role.title or @router[1]
         if role:
@@ -93,10 +94,10 @@ view main(status):
                 "Actions are Only Available on Leader"
               if status.leader:
                 <div.panel-body>
-                  "Known addresses for a leader are:"
+                  "Known addresses of a leader are:"
                   <ul>
                     <li>
-                      <a href=`http://${status.leader.addr}`>
+                      <a href=`http://${status.leader.addr}/role/${role_name}`>
                         `http://${status.leader.addr}`
                     <li>
                       let url = set_port(status.leader.hostname,
