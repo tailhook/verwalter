@@ -40,5 +40,13 @@ lazy_static = "0.1.15"
 sha1 = "0.1.1"
 inotify = "0.2.3"
 
+[dependencies.indexed_log]
+path = "./indexed_log"
+
 [[bin]]
 name = "verwalter"
+path = "src/daemon/main.rs"
+
+[[bin]]
+name = "verwalter_render"
+path = "src/render/main.rs"

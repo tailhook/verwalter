@@ -6,13 +6,13 @@ use rotor_cantal::RemoteQuery;
 use rustc_serialize::json::Json;
 
 use shared::{Id, Peer};
-use config::Config;
+use config::Runtime;
 use scheduler::{Scheduler, Error, Schedule};
 use scheduler::input::Input;
 
 
 impl Scheduler {
-    pub fn execute(&mut self, config: &Config, peers: &HashMap<Id, Peer>,
+    pub fn execute(&mut self, runtime: &Runtime, peers: &HashMap<Id, Peer>,
         parents: &Vec<Arc<Schedule>>,
         actions: &BTreeMap<u64, Arc<Json>>,
         metrics: Option<Arc<RemoteQuery>>)
@@ -27,8 +27,7 @@ impl Scheduler {
             }
         }
         self.lua.push(Input {
-            machine: &config.machine,
-            roles: &config.roles,
+            runtime: runtime,
             peers: peers,
             id: &self.id,
             hostname: &self.hostname,

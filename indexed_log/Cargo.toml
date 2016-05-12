@@ -1,0 +1,21 @@
+[package]
+name = "indexed_log"
+description = """
+    Logging with json'y indexes
+"""
+keywords = ["logs", "json"]
+version = "0.1.0"
+homepage = "http://github.com/tailhook/verwalter/tree/master/indexed_log"
+#readme = "README.rst"
+#documentation = "http://verwalter.readthedocs.org"
+authors = ["Paul Colomiets <paul@colomiets.name>"]
+
+[dependencies]
+rustc-serialize = "0.3.16"
+time = "0.1.32"
+nix = "0.5.0"
+quick-error = "1.0.0"
+log = "0.3.6"
+
+[lib]
+path = "src/lib.rs"

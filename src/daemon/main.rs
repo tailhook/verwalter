@@ -15,6 +15,7 @@ extern crate cbor;
 extern crate regex;
 extern crate sha1;
 extern crate inotify;
+extern crate indexed_log;
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate rotor;
 extern crate rotor_http;
@@ -35,11 +36,8 @@ use time::now_utc;
 use shared::{Id, SharedState};
 
 #[macro_use] mod macros;
-mod path_util;
 mod fs_util;
 mod config;
-mod render;
-mod apply;
 mod scheduler;
 mod elect;
 mod frontend;
@@ -50,6 +48,7 @@ mod time_util;
 mod watchdog;
 mod fetch;
 mod hash;
+mod apply;
 
 use argparse::{ArgumentParser, Parse, ParseOption, StoreOption, StoreTrue};
 use argparse::{Print};
@@ -160,21 +159,6 @@ fn main() {
     };
     init_logging(&id, options.log_id);
 
-    let mut cfg_cache = config::Cache::new();
-    let config = match config::read_configs(
-        &options.config_dir, &mut cfg_cache)
-    {
-        Ok(cfg) => cfg,
-        Err(e) => {
-            error!("Fatal error while reading config: {}", e);
-            exit(3);
-        }
-    };
-    debug!("Configuration read with, roles: {}, meta items: {}, errors: {}",
-        config.roles.len(),
-        config.machine.as_ref().ok().and_then(|o| o.as_object())
-            .map(|x| x.len()).unwrap_or(0),
-        config.total_errors());
     let addr = (&options.listen_host[..], options.listen_port)
         .to_socket_addrs().expect("Can't resolve hostname")
         .collect::<Vec<_>>()[0];
@@ -195,7 +179,7 @@ fn main() {
         }
     };
 
-    let state = SharedState::new(id.clone(), config, old_schedule);
+    let state = SharedState::new(id.clone(), old_schedule);
     let hostname = options.hostname
                    .unwrap_or_else(|| info::hostname().expect("gethostname"));
     // TODO(tailhook) resolve FQDN
@@ -207,7 +191,6 @@ fn main() {
         id: id.clone(),
         hostname: hostname.clone(),
         config_dir: options.config_dir.clone(),
-        config_cache: cfg_cache,
     };
     let scheduler_state = state.clone();
     let scheduler_alarm_tx = alarm_tx.clone();

@@ -1,3 +1,11 @@
+extern crate nix;
+extern crate rustc_serialize;
+extern crate time;
+#[macro_use] extern crate quick_error;
+#[macro_use] extern crate log;
+
+mod fs_util;
+
 use std::io;
 use std::fmt::Debug;
 use std::mem::replace;
@@ -9,10 +17,9 @@ use std::os::unix::io::{FromRawFd, AsRawFd};
 use std::io::SeekFrom::Current;
 use std::fmt::Arguments;
 use std::path::{Path, PathBuf};
-
-use nix;
-use time::now_utc;
 use std::process::{Command, Stdio};
+
+use time::now_utc;
 use rustc_serialize::json::{Json, as_json, as_pretty_json};
 
 use fs_util::{raceless_symlink, ensure_dir};

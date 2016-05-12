@@ -20,7 +20,6 @@ use shared::{PushActionError, Id};
 #[derive(Clone, Debug)]
 pub enum ApiRoute {
     Status,
-    Config,
     Peers,
     Schedule,
     Scheduler,
@@ -99,8 +98,6 @@ fn parse_api(path: &str) -> Option<Route> {
     match path_component(path) {
         ("status", "") => Some(Api(Status,
             if suffix(path) == "pretty" { Plain } else { Json })),
-        ("config", "") => Some(Api(Config,
-            if suffix(path) == "pretty" { Plain } else { Json })),
         ("peers", "") => Some(Api(Peers,
             if suffix(path) == "pretty" { Plain } else { Json })),
         ("schedule", "") => Some(Api(Schedule,
@@ -159,9 +156,6 @@ fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
 {
     use self::ApiRoute::*;
     match *route {
-        Config => {
-            respond(res, format, scope.state.config().to_json())
-        }
         Status => {
             #[derive(RustcEncodable)]
             struct LeaderInfo<'a> {
@@ -175,14 +169,12 @@ fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
                 version: &'static str,
                 id: &'a Id,
                 peers: usize,
-                roles: usize,
                 leader: Option<LeaderInfo<'a>>,
                 scheduler_state: &'static str,
                 election_epoch: Epoch,
                 errors: HashMap<&'static str, Arc<String>>,
             }
             let peers = scope.state.peers();
-            let cfg = scope.state.config();
             let election = scope.state.election();
             let leader_id = if election.is_leader {
                 Some(scope.state.id())
@@ -195,7 +187,6 @@ fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
                 version: concat!("v", env!("CARGO_PKG_VERSION")),
                 id: scope.state.id(),
                 peers: peers.as_ref().map(|x| x.1.len()).unwrap_or(0),
-                roles: cfg.roles.len(),
                 leader: leader.map(|peer| LeaderInfo {
                     id: leader_id.unwrap(),
                     name: &peer.name,

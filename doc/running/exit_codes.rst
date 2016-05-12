@@ -7,9 +7,9 @@ Exit Codes
 * ``91`` -- killed by watchdog of scheduler, which means:
 
     * scheduler has not finished it's work within one second
-    * configs could not be loaded within 10 seconds
     * scheduler lua scripts could not be initialized within ten seconds
-    * inotify continuously 
+    * "runtime" metadata could not be loaded within 2 seconds
+    * inotify continuously reports changes during 10 seconds
 
 * ``92`` -- scheduler thread have panicked (probaby a bug)
 * ``93`` -- killed by watchdog of the render/apply code. This probably means

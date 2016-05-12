@@ -6,15 +6,14 @@ use lua::{ToLua, State};
 use rotor_cantal::{RemoteQuery, Dataset, Key, Value, Chunk, TimeStamp};
 use rustc_serialize::json::{Json};
 
-use config::{MetadataErrors, Role};
+use config::{MetadataError, Runtime};
 use shared::{Id, Peer};
 use time_util::ToMsec;
 use super::Schedule;
 use super::lua_json::{push_json, push_json_object_with_id};
 
 pub struct Input<'a> {
-    pub machine: &'a Result<Json, MetadataErrors>,
-    pub roles: &'a HashMap<String, Role>,
+    pub runtime: &'a Runtime,
     pub peers: &'a HashMap<Id, Peer>,
     pub hostname: &'a str,
     pub id: &'a Id,
@@ -59,56 +58,22 @@ impl<'a> ToLua for Input<'a> {
             lua.set_field(cfg, "actions");
         }
 
-        match self.machine {
-            &Ok(ref metadata) => {
-                push_json(lua, &metadata);
-                lua.set_field(cfg, "machine");
-            }
-            &Err(ref e) => {
-                push_json(lua, &e.partial);
-                lua.set_field(cfg, "machine_partial");
-                lua.push_integer(e.errors.len() as i64);
-                lua.set_field(cfg, "machine_error_num");
-            }
-        }
+        push_json(lua, &self.runtime.data);
+        lua.set_field(cfg, "runtime");
 
-        lua.new_table(); // roles
-        let roles = lua.get_top();
-        for (name, role) in self.roles.iter() {
-            lua.new_table(); // role
-            let role_idx = lua.get_top();
-            lua.new_table(); // runtime
-            let runtime_idx = lua.get_top();
-            for (ver, runtime) in role.runtime.iter() {
-                match runtime {
-                    &Ok(ref metadata) => {
-                        push_json(lua, metadata);
-                        lua.set_field(runtime_idx, &ver.0);
-                    }
-                    &Err(_)  => {}
-                }
-            }
-            lua.set_field(role_idx, "runtime");
-            lua.new_table(); // runtime
-            let runtime_err_idx = lua.get_top();
-            for (ver, runtime) in role.runtime.iter() {
-                match runtime {
-                    &Ok(_) => {}
-                    &Err(ref e)  => {
-                        lua.new_table(); // error
-                        let err_table = lua.get_top();
-                        push_json(lua, &e.partial);
-                        lua.set_field(err_table, "partial");
-                        lua.push_integer(e.errors.len() as i64);
-                        lua.set_field(err_table, "error_num");
-                        lua.set_field(runtime_err_idx, &ver.0);
-                    }
-                }
-            }
-            lua.set_field(role_idx, "runtime_errors");
-            lua.set_field(roles, &name); // role
+        lua.new_table(); // runtime_errors
+        let runtime_err = lua.get_top();
+        for err in &self.runtime.errors {
+            lua.new_table(); // error
+            let et = lua.get_top();
+
+            lua.push_string(err.kind());
+            lua.set_field(et, "kind");
+            lua.push_string(&err.to_string());
+            lua.set_field(et, "message");
+
+            lua.set_field(cfg, &err.path_str());
         }
-        lua.set_field(cfg, "roles");
 
         lua.new_table(); // Peers
         let peers = lua.get_top();

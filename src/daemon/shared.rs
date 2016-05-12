@@ -14,7 +14,6 @@ use rustc_serialize::hex::{FromHex, ToHex, FromHexError};
 use rustc_serialize::{Encodable, Encoder as RustcEncoder};
 use rustc_serialize::json::Json;
 
-use config::Config;
 use elect::{ElectionState, ScheduleStamp, Epoch};
 use scheduler::{self, Schedule, PrefetchInfo, MAX_PREFETCH_TIME};
 
@@ -107,7 +106,6 @@ pub struct Peer {
 
 #[derive(Debug)]
 struct State {
-    config: Arc<Config>,
     peers: Option<Arc<(Time, HashMap<Id, Peer>)>>,
     last_known_schedule: Option<Arc<Schedule>>,
     // TODO(tailhook) rename schedule -> scheduleR
@@ -143,11 +141,10 @@ fn fetch_schedule(guard: &mut MutexGuard<State>) {
 }
 
 impl SharedState {
-    pub fn new(id: Id, cfg: Config, old_schedule: Option<Schedule>)
+    pub fn new(id: Id, old_schedule: Option<Schedule>)
         -> SharedState
     {
         SharedState(id, Arc::new(Mutex::new(State {
-            config: Arc::new(cfg),
             peers: None,
             schedule: Arc::new(scheduler::State::Unstable),
             last_known_schedule: old_schedule.map(Arc::new),
@@ -172,9 +169,6 @@ impl SharedState {
     pub fn peers(&self) -> Option<Arc<(Time, HashMap<Id, Peer>)>> {
         self.lock().peers.clone()
     }
-    pub fn config(&self) -> Arc<Config> {
-        self.lock().config.clone()
-    }
     /// Returns last known schedule
     pub fn schedule(&self) -> Option<Arc<Schedule>> {
         self.lock().last_known_schedule.clone()
@@ -185,25 +179,8 @@ impl SharedState {
     pub fn scheduler_state(&self) -> Arc<scheduler::State> {
         self.lock().schedule.clone()
     }
-    #[allow(unused)]  // may be we need this later
     pub fn stable_schedule(&self) -> Option<Arc<Schedule>> {
         stable_schedule(&mut self.lock())
-    }
-    pub fn schedule_and_debug_info(&self)
-        -> Option<(Arc<Schedule>, Option<Arc<String>>)>
-    {
-        use scheduler::State::{Following, Leading};
-        use scheduler::FollowerState as F;
-        use scheduler::LeaderState as L;
-        let guard = self.lock();
-        match *guard.schedule {
-            Following(_, F::Stable(ref x)) => Some((x.clone(), None)),
-            Leading(L::Stable(ref x)) => {
-                Some((x.clone(),
-                     Some(guard.last_scheduler_debug_info.clone())))
-            }
-            _ => None,
-        }
     }
     pub fn owned_schedule(&self) -> Option<Arc<Schedule>> {
         use scheduler::State::Leading;
@@ -250,9 +227,6 @@ impl SharedState {
         // ping timestamps and similar things). We should check for meaningful
         // changes.
         self.2.run_scheduler.notify_all();
-    }
-    pub fn set_config(&self, cfg: Config) {
-        self.lock().config = Arc::new(cfg);
     }
     pub fn set_schedule_debug_info(&self, debug: String)
     {
@@ -440,8 +414,7 @@ impl SharedState {
     }
 
     /// This is waited on in apply/render code
-    pub fn wait_new_schedule(&self, hash: &str)
-        -> (Arc<Schedule>, Option<Arc<String>>)
+    pub fn wait_new_schedule(&self, hash: &str) -> Arc<Schedule>
     {
         use scheduler::State::{Leading};
         let mut guard = self.lock();
@@ -449,12 +422,7 @@ impl SharedState {
             match stable_schedule(&mut guard) {
                 Some(schedule) => {
                     if &schedule.hash != &hash { // only if not up to date
-                        if matches!(*guard.schedule, Leading(..)) {
-                            return (schedule,
-                                Some(guard.last_scheduler_debug_info.clone()));
-                        } else {
-                            return (schedule, None);
-                        }
+                        return schedule;
                     }
                 }
                 None => {}

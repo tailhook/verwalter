@@ -8,7 +8,7 @@ use rustc_serialize::json::Json;
 use yaml_rust::{Yaml, YamlLoader};
 use scan_dir;
 
-use super::{MetadataError, MetadataErrors};
+use super::MetadataError;
 
 
 fn convert_yaml(yaml: Yaml, path: &Path) -> Result<Json, MetadataError> {
@@ -89,7 +89,7 @@ fn read_entry(path: &Path, ext: &str)
     Ok(value)
 }
 
-pub fn read_dir(path: &Path) -> Result<Json, MetadataErrors> {
+pub fn read_dir(path: &Path) -> (Json, Vec<MetadataError>) {
     use super::MetadataError::ScanDir;
 
     let mut data = BTreeMap::new();
@@ -111,13 +111,5 @@ pub fn read_dir(path: &Path) -> Result<Json, MetadataErrors> {
             }
         }
     }).map_err(|e| errors.push(ScanDir(e))).ok();
-
-    if errors.len() > 0 {
-        Err(MetadataErrors {
-            errors: errors,
-            partial: Json::Object(data),
-        })
-    } else {
-        Ok(Json::Object(data))
-    }
+    return (Json::Object(data), errors);
 }

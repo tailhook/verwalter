@@ -24,7 +24,6 @@ pub struct Settings {
     pub id: Id,
     pub hostname: String,
     pub config_dir: PathBuf,
-    pub config_cache: config::Cache,
 }
 
 fn watch_dir(notify: &mut INotify, path: &Path) {
@@ -50,7 +49,7 @@ pub fn main(state: SharedState, mut settings: Settings, mut alarm: Alarm) -> !
     let _guard = ExitOnReturn(92);
     let mut scheduler = {
         let _alarm = alarm.after(Duration::from_secs(10));
-        watch_dir(&mut inotify, &settings.config_dir);
+        watch_dir(&mut inotify, &settings.config_dir.join("scheduler"));
         match super::read(settings.id.clone(),
                           settings.hostname.clone(),
                           &settings.config_dir)
@@ -61,6 +60,11 @@ pub fn main(state: SharedState, mut settings: Settings, mut alarm: Alarm) -> !
                 exit(4);
             }
         }
+    };
+    let mut runtime = {
+        let _alarm = alarm.after(Duration::from_secs(2));
+        watch_dir(&mut inotify, &settings.config_dir.join("runtime"));
+        config::read_runtime(&settings.config_dir.join("runtime"))
     };
     loop {
         let mut cookie = state.wait_schedule_update(Duration::from_secs(5));
@@ -96,34 +100,28 @@ pub fn main(state: SharedState, mut settings: Settings, mut alarm: Alarm) -> !
                 }
 
                 debug!("Directories stable. Reading configs");
-                let _alarm = alarm.after(Duration::from_secs(10));
-                match super::read(settings.id.clone(),
-                                  settings.hostname.clone(),
-                                  &settings.config_dir)
                 {
-                    Ok(s) => {
-                        scheduler = s;
-                        state.clear_error("scheduler_load");
-                    }
-                    Err(e) => {
-                        state.set_error("scheduler_load", format!("{}", e));
-                        error!("Scheduler load failed: {}. Using the old one.",
-                               e);
+                    let _alarm = alarm.after(Duration::from_secs(10));
+                    match super::read(settings.id.clone(),
+                                      settings.hostname.clone(),
+                                      &settings.config_dir)
+                    {
+                        Ok(s) => {
+                            scheduler = s;
+                            state.clear_error("scheduler_load");
+                        }
+                        Err(e) => {
+                            state.set_error("scheduler_load", format!("{}", e));
+                            error!("Scheduler load failed: {}. \
+                                Using the old one.", e);
+                        }
                     }
                 }
-                match config::read_configs(
-                    &settings.config_dir, &mut settings.config_cache)
                 {
-                    Ok(cfg) => {
-                        state.clear_error("reload_configs");
-                        state.set_config(cfg);
-                    }
-                    Err(e) => {
-                        state.set_error("reload_configs", format!("{}", e));
-                        error!("Fatal error while reading config: {}. \
-                            Using the old one", e);
-                    }
-                };
+                    let _alarm = alarm.after(Duration::from_secs(2));
+                    runtime = config::read_runtime(
+                        &settings.config_dir.join("runtime"))
+                }
             }
 
             let peers = state.peers().expect("peers are ready for scheduler");
@@ -133,7 +131,7 @@ pub fn main(state: SharedState, mut settings: Settings, mut alarm: Alarm) -> !
             let _alarm = alarm.after(Duration::from_secs(1));
 
             let (result, dbg) = scheduler.execute(
-                &*state.config(),
+                &runtime,
                 &peers.1,
                 &cookie.parent_schedules,
                 &cookie.actions,
