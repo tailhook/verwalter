@@ -2,6 +2,7 @@ use std::fs::File;
 use std::io::Read;
 use std::str::FromStr;
 use std::path::Path;
+use std::path::Component::Normal;
 use std::collections::BTreeMap;
 
 use rustc_serialize::json::Json;
@@ -92,24 +93,41 @@ fn read_entry(path: &Path, ext: &str)
 pub fn read_dir(path: &Path) -> (Json, Vec<MetadataError>) {
     use super::MetadataError::ScanDir;
 
-    let mut data = BTreeMap::new();
+    let mut data = Json::Object(BTreeMap::new());
     let mut errors = vec!();
-    scan_dir::ScanDir::files().read(path, |iter| {
+    scan_dir::ScanDir::files().walk(path, |iter| {
         for (entry, _) in iter {
             let fpath = entry.path();
             let ext = fpath.extension().map(|x| x.to_str()).unwrap();
             if ext.is_none() { continue; }
-            match read_entry(&entry.path(), ext.unwrap()) {
-                Ok(Some(value)) => {
-                    let stem = fpath.file_stem().unwrap().to_str().unwrap();
-                    data.insert(stem.to_string(), value);
-                }
-                Ok(None) => {}
+            let value = match read_entry(&fpath, ext.unwrap()) {
+                Ok(Some(value)) => value,
+                Ok(None) => continue,
                 Err(e) => {
                     errors.push(e);
+                    continue;
                 }
-            }
+            };
+            let ptr = fpath.strip_prefix(path).unwrap()
+                .components()
+                .filter_map(|x| match x {
+                    Normal(p) => Some(p),
+                    _ => None,
+                })
+                .filter_map(|p| Path::new(p).file_stem()
+                                .and_then(|x| x.to_str()))
+                .fold(&mut data, |map, key| {
+                    if !map.is_object() {
+                        *map = Json::Object(BTreeMap::new())
+                    };
+                    map.as_object_mut().unwrap().entry(key.to_string())
+                    .or_insert_with(|| {
+                        Json::Object(BTreeMap::new())
+                    })
+                });
+            *ptr = value;
         }
-    }).map_err(|e| errors.push(ScanDir(e))).ok();
-    return (Json::Object(data), errors);
+    }).map_err(|e| errors.extend(e.into_iter().map(ScanDir))).ok();
+    println!("DATA {:?}", data);
+    return (data, errors);
 }

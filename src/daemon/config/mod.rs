@@ -88,7 +88,7 @@ pub struct Runtime {
 
 pub fn read_runtime(dir: &Path) -> Runtime
 {
-    let (data, err) = meta::read_dir(&dir.join("machine"));
+    let (data, err) = meta::read_dir(dir);
     Runtime {
         data: data,
         errors: err,
