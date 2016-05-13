@@ -31,6 +31,7 @@ Functions that verwalter calls on its own.
    :param parents: List of parent schedules (the ones that are active now).
      Usually there is only one. But when we join cluster just after split-brain
      there can be more than one parent schedule
+   :param metrics: Metrics as returned by cantal
 
    Return value of the scheduler is a JSON object with the following keys:
 
@@ -70,8 +71,12 @@ Functions that verwalter calls on its own.
                          "instances": 1,
                          "version": "v0.1.3"}}}}}
 
-    More information on how variables are composed for the renderer is
-    in :ref:`Rendering` docs.
+     More information on how variables are composed for the renderer is
+     in :ref:`Rendering` docs.
+
+   query_metries
+     A query for metrics. It's sent directly to cantal. Refer to cantal's
+     documentation to find out the structure of the metrics.
 
 
 
