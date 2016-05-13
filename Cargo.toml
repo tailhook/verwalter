@@ -39,6 +39,7 @@ regex = "0.1.58"
 lazy_static = "0.1.15"
 sha1 = "0.1.1"
 inotify = "0.2.3"
+itertools = "0.4.15"
 
 [dependencies.indexed_log]
 path = "./indexed_log"

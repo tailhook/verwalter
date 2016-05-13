@@ -43,7 +43,7 @@ fn watch_dir(notify: &mut INotify, path: &Path) {
     }).ok();
 }
 
-pub fn main(state: SharedState, mut settings: Settings, mut alarm: Alarm) -> !
+pub fn main(state: SharedState, settings: Settings, mut alarm: Alarm) -> !
 {
     let mut inotify = INotify::init().expect("create inotify");
     let _guard = ExitOnReturn(92);

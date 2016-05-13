@@ -416,7 +416,6 @@ impl SharedState {
     /// This is waited on in apply/render code
     pub fn wait_new_schedule(&self, hash: &str) -> Arc<Schedule>
     {
-        use scheduler::State::{Leading};
         let mut guard = self.lock();
         loop {
             match stable_schedule(&mut guard) {

@@ -6,7 +6,7 @@ use lua::{ToLua, State};
 use rotor_cantal::{RemoteQuery, Dataset, Key, Value, Chunk, TimeStamp};
 use rustc_serialize::json::{Json};
 
-use config::{MetadataError, Runtime};
+use config::{Runtime};
 use shared::{Id, Peer};
 use time_util::ToMsec;
 use super::Schedule;
@@ -63,7 +63,7 @@ impl<'a> ToLua for Input<'a> {
 
         lua.new_table(); // runtime_errors
         let runtime_err = lua.get_top();
-        for err in &self.runtime.errors {
+        for (idx, err) in (1..).zip(&self.runtime.errors) {
             lua.new_table(); // error
             let et = lua.get_top();
 
@@ -71,9 +71,12 @@ impl<'a> ToLua for Input<'a> {
             lua.set_field(et, "kind");
             lua.push_string(&err.to_string());
             lua.set_field(et, "message");
+            lua.push_string(&err.path_str());
+            lua.set_field(et, "path");
 
-            lua.set_field(cfg, &err.path_str());
+            lua.raw_seti(runtime_err, idx)
         }
+        lua.set_field(cfg, "runtime_err");
 
         lua.new_table(); // Peers
         let peers = lua.get_top();

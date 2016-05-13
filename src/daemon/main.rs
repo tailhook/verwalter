@@ -15,6 +15,7 @@ extern crate cbor;
 extern crate regex;
 extern crate sha1;
 extern crate inotify;
+extern crate itertools;
 extern crate indexed_log;
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate rotor;

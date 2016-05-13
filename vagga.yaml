@@ -1,7 +1,9 @@
+minimum-vagga: v0.5.0-120-g42de958
+
 commands:
 
   make: !Command
-    description: Build library and binaries
+    description: Build binaries and frontend
     container: build
     run: |
       set -ex
@@ -18,7 +20,8 @@ commands:
     run: [cargo]
 
   run: !Command
-    description: "Run verwalter (prerequisites: make)"
+    description: "Run verwalter"
+    prerequisites: [make]
     container: build
     environ:
       RUST_LOG: debug
@@ -28,7 +31,8 @@ commands:
     - --override-machine-id=dead0beef1
 
   live: !Supervise
-    description: "Run verwalter with live reload of web (prerequisites: make)"
+    description: "Run verwalter with live reload of web"
+    prerequisites: [make]
     children:
       verw: !Command
         container: build
@@ -74,6 +78,7 @@ commands:
 
   trio: !Supervise
     description: Runs three verwalter/cantals so you can test leader election
+    prerequisites: [make]
     children:
       n1: !Command
         container: build

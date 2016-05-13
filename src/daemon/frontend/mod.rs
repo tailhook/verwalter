@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use rotor::{Scope, Time};
 use rotor_http::server::{Server, Response, RecvMode, Head};
 use rustc_serialize::Encodable;
-use rustc_serialize::json::{ToJson, as_json, as_pretty_json, Json};
+use rustc_serialize::json::{as_json, as_pretty_json, Json};
 
 use net::Context;
 use elect::Epoch;

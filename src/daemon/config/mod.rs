@@ -1,11 +1,8 @@
 use std::io;
-use std::io::Read;
 use std::num::ParseFloatError;
 use std::path::{Path, PathBuf};
-use std::collections::HashMap;
 
 use rustc_serialize::json::Json;
-use handlebars::TemplateError as HandlebarsError;
 use yaml_rust::Yaml;
 use rustc_serialize::json::BuilderError as JsonError;
 use yaml_rust::scanner::ScanError as YamlError;
