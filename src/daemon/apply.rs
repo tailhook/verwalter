@@ -143,7 +143,7 @@ fn apply_schedule(hash: &String, scheduler_result: &Json, settings: &Settings)
             }
         };
 
-        let mut cmd = Command::new("verwalter-render");
+        let mut cmd = Command::new("verwalter_render");
         cmd.arg(role_name);
         cmd.arg(template);
         cmd.arg(format!("{}", Json::Object(cur_vars)));
@@ -155,14 +155,17 @@ fn apply_schedule(hash: &String, scheduler_result: &Json, settings: &Settings)
             Ok(s) => {
                 rlog.log(format_args!(
                     "ERROR: Error rendering role. \
-                    verwalter-render {}\n", s));
+                    verwalter_render {}\n", s));
             }
             Err(e) => {
                 rlog.log(format_args!(
                     "ERROR: Error rendering role. \
-                    Can't run verwalter-render: {}\n", e));
+                    Can't run verwalter_render: {}\n", e));
             }
         }
+    }
+    for err in dlog.done() {
+        error!("Logging error: {}", err);
     }
 }
 

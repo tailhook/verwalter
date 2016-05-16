@@ -128,6 +128,5 @@ pub fn read_dir(path: &Path) -> (Json, Vec<MetadataError>) {
             *ptr = value;
         }
     }).map_err(|e| errors.extend(e.into_iter().map(ScanDir))).ok();
-    println!("DATA {:?}", data);
     return (data, errors);
 }

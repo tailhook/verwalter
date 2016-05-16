@@ -307,7 +307,7 @@ impl Server for Public {
             ("v1", suffix) => parse_api(suffix),
             (_, _) => Some(Static(path.to_string())),
         };
-        debug!("Routed {:?} to {:?}", head, route);
+        trace!("Routed {:?} to {:?}", head, route);
         match route {
             Some(route) => {
                 Some((Public(route), RecvMode::Buffered(65536),

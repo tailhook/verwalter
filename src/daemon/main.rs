@@ -36,7 +36,6 @@ use std::thread;
 use time::now_utc;
 use shared::{Id, SharedState};
 
-#[macro_use] mod macros;
 mod fs_util;
 mod config;
 mod scheduler;

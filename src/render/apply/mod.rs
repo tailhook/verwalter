@@ -13,7 +13,6 @@ use rustc_serialize::json::{Json, ToJson};
 
 use render;
 use apply;
-use shared::{Id, Peer, SharedState};
 use config::Config;
 use render::Error as RenderError;
 use watchdog::{ExitOnReturn, Alarm};
@@ -21,7 +20,6 @@ use fs_util::write_file;
 use apply::expand::Variables;
 
 mod expand;
-pub mod log;
 
 // commands
 pub mod root_command;
@@ -176,70 +174,21 @@ pub fn apply_list(role: &String,
 fn apply_schedule(config: &Config, hash: &String, scheduler_result: &Json,
     peers: &HashMap<Id, Peer>, debug: Option<Arc<String>>, settings: &Settings)
 {
-    let id = thread_rng().gen_ascii_chars().take(24).collect();
-    let mut index = apply::log::Index::new(
-        &settings.log_dir, settings.dry_run);
-    let mut dlog = index.deployment(id);
-    dlog.string("schedule-hash", &hash);
-    dlog.object("config", &config);
-    dlog.object("peers", &peers);
-    if let Some(debug) = debug {
-        dlog.text("debug_info", &*debug);
-    }
-    dlog.json("scheduler_result", &scheduler_result);
-
-    let meta = scheduler_result.as_object()
-        .and_then(|x| x.get("role_metadata"))
-        .and_then(|y| y.as_object());
-    let meta = match meta {
-        Some(meta) => meta,
-        None => {
-            dlog.log(format_args!(
-                "FATAL ERROR: Can't find `role_metadata` key in schedule\n"));
-            error!("Can't find `role_metadata` key in schedule");
-            return
-        }
-    };
-    let node = scheduler_result.as_object()
-        .and_then(|x| x.get("nodes"))
-        .and_then(|y| y.as_object())
-        .and_then(|x| x.get(&settings.hostname))
-        .and_then(|y| y.as_object());
-    let node = match node {
-        Some(node) => node,
-        None => {
-            dlog.log(format_args!(
-                "FATAL ERROR: Can't find node {:?} in `nodes` \
-                    key in schedule\n",
-                &settings.hostname));
-            error!("Can't find node {:?} in `nodes` key in schedule",
-                &settings.hostname);
+    let mut rlog = match dlog.role(&role_name) {
+        Ok(l) => l,
+        Err(e) => {
+            panic!("Can't create role log: {}", e);
             return;
         }
     };
 
-    for (role_name, role) in &config.roles {
-        let mut rlog = match dlog.role(&role_name) {
-            Ok(l) => l,
-            Err(e) => {
-                error!("Can't create role log: {}", e);
-                return;
-            }
-        };
-
-        match render::render_role(meta, node, &role_name, &role, &mut rlog) {
-            Ok(actions) => {
-                apply_list(&role_name, actions, &mut rlog, settings.dry_run);
-            }
-            Err(e) => {
-                rlog.log(format_args!(
-                    "ERROR: Can't render templates: {}\n", e));
-                error!("Can't render templates for role {:?}: {}",
-                    role_name, e);
-            }
+    match render::render_role(meta, node, &role_name, &role, &mut rlog) {
+        Ok(actions) => {
+            apply_list(&role_name, actions, &mut rlog, settings.dry_run);
         }
-    }
-    for err in dlog.done() {
-        error!("Error when doing deployment logging: {}", err);
+        Err(e) => {
+            rlog.log(format_args!(
+                "ERROR: Can't render templates: {}\n", e));
+        }
     }
 }

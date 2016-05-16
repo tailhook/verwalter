@@ -28,6 +28,7 @@ commands:
     run:
     - ./target/debug/verwalter
     - --config-dir=tmp/cfg
+    - --storage-dir=tmp/storage
     - --override-machine-id=dead0beef1
 
   live: !Supervise
@@ -37,10 +38,12 @@ commands:
       verw: !Command
         container: build
         environ:
-          RUST_LOG: warn
+          RUST_LOG: debug
         run:
         - ./target/debug/verwalter
         - --config-dir=/work/example-configs/pyapp
+        - --storage-dir=tmp/storage
+        - --dry-run
         - --override-machine-id=dead0beef1
       cantal: !Command
         container: build
@@ -157,6 +160,7 @@ containers:
     environ:
       HOME: /work/target
       NODE_PATH: /usr/local/lib/node_modules:/usr/lib/node_modules
+      PATH: /usr/bin:/usr/local/bin:/work/target/debug
 
   docs:
     setup:

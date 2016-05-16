@@ -7,9 +7,8 @@ use tempfile::NamedTempFile;
 use handlebars::{Handlebars, RenderError};
 use rustc_serialize::json::{Json, ToJson};
 
-use config::{Version, Role};
 use apply::{Source, Command};
-use apply::log;
+use indexed_log::Role;
 
 
 pub struct RenderSet {
@@ -72,29 +71,9 @@ quick_error! {
 
 pub fn render_role(meta: &BTreeMap<String, Json>,
     node: &BTreeMap<String, Json>,
-    role_name: &String, role: &Role, log: &mut log::Role)
+    role_name: &String, role: &Role, log: &mut Role)
     -> Result<Vec<(String, Vec<Command>, Source)>, Error>
 {
-    let role_meta = match meta.get(role_name) {
-        Some(&Json::Object(ref ob)) => ob,
-        Some(_) => {
-            return Err(Error::RoleMeta("not an object"));
-        }
-        None => {
-            debug!("No role in role metadata {:?}", role_name);
-            // TODO(tailhook) is this Skip or real error?
-            return Err(Error::Skip);
-        }
-    };
-    let tpl_ver = match role_meta.get("templates") {
-        Some(&Json::String(ref val)) => Version(val.to_string()),
-        Some(_) => {
-            return Err(Error::RoleMeta(r#""templates" is not a string"#));
-        }
-        None => {
-            return Err(Error::RoleMeta(r#"no "templates" is role metadata"#));
-        }
-    };
     let rnd = match role.renderers.get(&tpl_ver) {
         Some(&Ok(ref rnd)) => rnd,
         Some(&Err(ref e)) => {
@@ -111,7 +90,7 @@ pub fn render_role(meta: &BTreeMap<String, Json>,
             return Err(Error::NodeRole("not an object"));
         }
         None => {
-            debug!("No role {:?} in the node", role_name);
+            role.log(format_args!("No role {:?} in the node", role_name));
             return Err(Error::Skip);
         }
     };
@@ -129,8 +108,6 @@ pub fn render_role(meta: &BTreeMap<String, Json>,
             .map_err(|e| Error::Render(e,
                 tpl_ver.0.clone(), render.source.clone(), data)));
         try!(tmpfile.write_all(output.as_bytes()));
-        debug!("Rendered {:?} into {} bytes at {:?}",
-            &render.source, output.as_bytes().len(), tmpfile.path());
         log.template(&render.source, &tmpfile.path(), &output);
         let mut cmds = render.commands.clone();
         if let Some(ref x) = render.apply {
