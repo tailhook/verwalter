@@ -182,13 +182,4 @@ fn apply_schedule(config: &Config, hash: &String, scheduler_result: &Json,
         }
     };
 
-    match render::render_role(meta, node, &role_name, &role, &mut rlog) {
-        Ok(actions) => {
-            apply_list(&role_name, actions, &mut rlog, settings.dry_run);
-        }
-        Err(e) => {
-            rlog.log(format_args!(
-                "ERROR: Can't render templates: {}\n", e));
-        }
-    }
 }

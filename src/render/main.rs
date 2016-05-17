@@ -13,6 +13,7 @@ mod fs_util;
 //mod apply;
 
 use std::path::PathBuf;
+use std::process::exit;
 
 use argparse::{ArgumentParser, Parse, StoreTrue, FromCommandLine};
 use indexed_log::Index;
@@ -49,8 +50,28 @@ fn main() {
         ap.parse_args_or_exit();
     }
     let mut log = Index::new(&log_dir, dry_run);
-    let id = vars.0.find("deployment_id").and_then(|x| x.as_string())
-        .expect("The `deployment_id` must be present");
+    let id = match vars.0.find("deployment_id").and_then(|x| x.as_string()) {
+        Some(x) => x,
+        None => exit(3),
+    };
+    let template = match vars.0.find("template").and_then(|x| x.as_string()) {
+        Some(x) => x,
+        None => exit(4),
+    };
     let mut dlog = log.deployment(&id, false);
-    let mut role = dlog.role(&role, false);
+    let mut rlog = dlog.role(&role, false);
+    match render::render_role(role, template, &vars.0, &mut rlog) {
+        Ok(actions) => {
+            //apply_list(&role_name, actions, &mut rlog, settings.dry_run);
+        }
+        Err(e) => {
+            rlog.log(format_args!(
+                "ERROR: Can't render templates: {}\n", e));
+            // TODO(tailhook) should we still check dlog.errors()
+            exit(10);
+        }
+    }
+    if dlog.errors().len() != 0 {
+        exit(81);
+    }
 }

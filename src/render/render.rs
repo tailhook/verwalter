@@ -69,9 +69,7 @@ quick_error! {
     }
 }
 
-pub fn render_role(meta: &BTreeMap<String, Json>,
-    node: &BTreeMap<String, Json>,
-    role_name: &String, role: &Role, log: &mut Role)
+pub fn render_role(name: &str, template: &str, vars: &Json log: &mut Role)
     -> Result<Vec<(String, Vec<Command>, Source)>, Error>
 {
     let rnd = match role.renderers.get(&tpl_ver) {

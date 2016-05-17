@@ -320,6 +320,9 @@ impl<'a> Deployment<'a> {
         self.global_entry(Marker::DeploymentFinish);
         return replace(&mut self.errors, Vec::new());
     }
+    pub fn errors(&self) -> &Vec<Error> {
+        &self.errors
+    }
     pub fn log(&mut self, args: Arguments) {
         if let Err(e) = self.log.write_fmt(args) {
              self.errors.push(Error::WriteGlobal(e));
