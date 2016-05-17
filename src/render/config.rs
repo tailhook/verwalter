@@ -48,13 +48,9 @@ fn command_validator<'x>() -> V::Enum<'x> {
 
 fn config_validator<'x>() -> V::Structure<'x> {
     V::Structure::new()
-    .member("render", V::Mapping::new(
-        V::Scalar::new(),
-        V::Structure::new()
-        .member("source", V::Scalar::new())
-        .member("apply", command_validator().optional())
-        .member("commands", V::Sequence::new(command_validator()))
-    ))
+    .member("source", V::Scalar::new())
+    .member("apply", command_validator().optional())
+    .member("commands", V::Sequence::new(command_validator()))
 }
 
 fn read_renderer(path: &Path, base: &Path)

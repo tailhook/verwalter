@@ -18,7 +18,7 @@ mod apply;
 mod render;
 mod config;
 
-use std::path::{Path, PathBuf};
+use std::path::{PathBuf};
 use std::process::exit;
 
 use argparse::{ArgumentParser, Parse, StoreTrue, FromCommandLine};
@@ -71,7 +71,7 @@ fn main() {
         Some(x) => x.to_string(),
         None => exit(4),
     };
-     match vars.get("verwalter_version").and_then(|x| x.as_string()) {
+    match vars.get("verwalter_version").and_then(|x| x.as_string()) {
         Some(concat!("v", env!("CARGO_PKG_VERSION"))) => {},
         Some(_) => exit(5),
         None => exit(3),
@@ -83,7 +83,7 @@ fn main() {
             Ok(rlog) => rlog,
             Err(_) => exit(81),
         };
-        match render::render_role(&Path::new(&template),
+        match render::render_role(&template_dir.join(template),
                                   &Json::Object(vars), &mut rlog)
         {
             Err(e) => {
@@ -97,6 +97,7 @@ fn main() {
                     Err(e) => {
                         rlog.log(format_args!(
                             "ERROR: Can't apply templates: {}\n", e));
+                        // TODO(tailhook) should we still check dlog.errors()
                         exit(20);
                     }
                     Ok(()) => {}

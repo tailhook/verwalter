@@ -1,0 +1,3 @@
+source: lithos.yaml.hbs
+commands:
+- !RootCommand [lithos_switch, "{{ role }}", "{{ tmp_file }}"]

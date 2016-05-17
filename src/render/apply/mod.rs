@@ -142,7 +142,7 @@ pub fn apply_list(role: &String,
         let mut action = log.action(&aname);
         for cmd in commands {
             let vars = expand::Variables::new()
-               .add("role_name", role)
+               .add("role", role)
                .add_source(&source);
             try!(cmd.execute(Task {
                 runner: &aname,

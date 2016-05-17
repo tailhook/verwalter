@@ -1,5 +1,0 @@
-render:
-  lithos:
-    source: lithos.yaml.hbs
-    commands:
-    - !RootCommand [lithos_switch, "{{ role_name }}", "{{ tmp_file }}"]
