@@ -72,9 +72,9 @@ fn merge_vars<'x, I, J>(iter: I) -> BTreeMap<String, Json>
 
 fn apply_schedule(hash: &String, scheduler_result: &Json, settings: &Settings)
 {
-    let id = thread_rng().gen_ascii_chars().take(24).collect();
+    let id: String = thread_rng().gen_ascii_chars().take(24).collect();
     let mut index = Index::new(&settings.log_dir, settings.dry_run);
-    let mut dlog = index.deployment(id);
+    let mut dlog = index.deployment(&id, true);
     dlog.string("schedule-hash", &hash);
     dlog.json("scheduler_result", &scheduler_result);
 
@@ -111,7 +111,7 @@ fn apply_schedule(hash: &String, scheduler_result: &Json, settings: &Settings)
     let all_roles = roles.keys().merge(node_roles.keys()).dedup();
 
     for role_name in all_roles {
-        let mut rlog = match dlog.role(&role_name) {
+        let mut rlog = match dlog.role(&role_name, true) {
             Ok(l) => l,
             Err(e) => {
                 error!("Can't create role log: {}", e);
@@ -124,29 +124,23 @@ fn apply_schedule(hash: &String, scheduler_result: &Json, settings: &Settings)
         let role_vars = roles.get(role_name)
             .and_then(|x| x.as_object())
             .unwrap_or(&empty);
-        let cur_vars = merge_vars(vec![
+        let mut cur_vars = merge_vars(vec![
             node_role_vars.iter(),
             node_vars.iter(),
             role_vars.iter(),
             vars.iter(),
         ].into_iter());
-
-        let template = match cur_vars.get("template")
-            .and_then(|x| x.as_string())
-        {
-            Some(t) => t.to_string(),
-            None => {
-                rlog.log(format_args!(
-                    "ERROR: Error rendering role. \
-                    No `template` key found.\n"));
-                continue;
-            }
-        };
+        cur_vars.insert(String::from("deployment_id"),
+                        Json::String(id.clone()));
 
         let mut cmd = Command::new("verwalter_render");
         cmd.arg(role_name);
-        cmd.arg(template);
         cmd.arg(format!("{}", Json::Object(cur_vars)));
+        cmd.arg("--log-dir");
+        cmd.arg(&settings.log_dir);
+        if settings.dry_run {
+            cmd.arg("--dry-run");
+        }
         debug!("Running {:?}", cmd);
         match cmd.status() {
             Ok(x) if x.success() => {

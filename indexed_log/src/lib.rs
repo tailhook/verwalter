@@ -74,7 +74,7 @@ pub struct Deployment<'a> {
     index_file: File,
     index: &'a mut Index,
     id: String,
-    segment: String,
+    global_segment: String,
     log: File,
     errors: Vec<Error>,
     done: bool,
@@ -121,27 +121,52 @@ impl Index {
             stdout: stdout,
         }
     }
-    pub fn deployment<'x>(&'x mut self, id: String)
+    pub fn deployment<'x>(&'x mut self, id: &str, start: bool)
         -> Deployment<'x>
     {
-        let segment = format!("{}", now_utc().strftime("%Y%m%d").unwrap());
         let idx;
         let log;
+        let segment;
         let mut errors = Vec::new();
 
         if self.stdout {
+            segment = "dry-run".to_string();
             idx = open_stdout();
             log = open_stdout();
-        } else {
-            match open_global(&self.log_dir, &segment) {
+        } else if start {
+            let seg = format!("{}", now_utc().strftime("%Y%m%d").unwrap());
+            match open_global(&self.log_dir, &seg) {
                 Ok((index, lg)) => {
                     idx = index;
                     log = lg;
+                    segment = seg
                 }
                 Err(e) => {
                     errors.push(Error::OpenGlobal(e));
                     idx = open_null();
                     log = open_null();
+                    segment = "null".to_string();
+                }
+            }
+        } else {
+            match check_log(&self.log_dir.join(".index"), false) {
+                Ok((_, index)) => {
+                    idx = index;
+                }
+                Err(e) => {
+                    errors.push(Error::OpenGlobal(e));
+                    idx = open_null();
+                }
+            }
+            match check_log(&self.log_dir.join(".global"), false) {
+                Ok((seg, lg)) => {
+                    segment = seg;
+                    log = lg;
+                }
+                Err(e) => {
+                    errors.push(Error::OpenGlobal(e));
+                    log = open_null();
+                    segment = "null".to_string();
                 }
             }
         }
@@ -149,13 +174,15 @@ impl Index {
         let mut depl = Deployment {
             index_file: idx,
             index: self,
-            id: id,
-            segment: segment,
+            id: id.to_string(),
+            global_segment: segment,
             log: log,
             errors: errors,
-            done: false,
+            done: !start,
         };
-        depl.global_entry(Marker::DeploymentStart);
+        if start {
+            depl.global_entry(Marker::DeploymentStart);
+        }
         return depl;
     }
 }
@@ -174,7 +201,7 @@ impl<'a> Deployment<'a> {
             }
         };
         {
-            let ptr = Pointer::Global(&self.segment, pos);
+            let ptr = Pointer::Global(&self.global_segment, pos);
             let entry: IndexEntry = (&time, &self.id, ptr, marker);
             let buf = format!("{}\n", as_json(&entry));
             // We rely on POSIX semantics of atomic writes, but even if that
@@ -249,7 +276,7 @@ impl<'a> Deployment<'a> {
              self.errors.push(Error::WriteGlobal(e));
         }
     }
-    pub fn role<'x>(&'x mut self, name: &'x str)
+    pub fn role<'x>(&'x mut self, name: &'x str, start: bool)
         -> Result<Role<'a, 'x>, Error>
     {
         let segment;
@@ -261,7 +288,7 @@ impl<'a> Deployment<'a> {
         } else {
             let role_dir = self.index.log_dir.join(name);
             match ensure_dir(&role_dir)
-                .and_then(|()| check_log(&role_dir))
+                .and_then(|()| check_log(&role_dir, start))
                 .map_err(|e| Error::OpenRole(e, name.to_string()))
             {
                 Ok((seg, log)) => {
@@ -283,7 +310,9 @@ impl<'a> Deployment<'a> {
             log: log_file,
             err: None,
         };
-        role.entry(Marker::RoleStart);
+        if start {
+            role.entry(Marker::RoleStart);
+        }
         Ok(role)
     }
     pub fn done(mut self) -> Vec<Error> {
@@ -385,7 +414,9 @@ impl<'a, 'b, 'c> Drop for Action<'a, 'b, 'c> {
     }
 }
 
-fn check_log(dir: &Path) -> Result<(String, File), io::Error> {
+fn check_log(dir: &Path, do_rotate: bool)
+    -> Result<(String, File), io::Error>
+{
     let link = dir.join("latest");
     let seg = match read_link(&link) {
         Ok(ref path) => {
@@ -410,7 +441,7 @@ fn check_log(dir: &Path) -> Result<(String, File), io::Error> {
     if let Some(sname) = seg {
         let mut log_file = try!(open_segment(
             &dir, &format!("log.{}.txt", &sname)));
-        if try!(log_file.seek(Current(0))) < MAX_ROLE_LOG {
+        if !do_rotate || try!(log_file.seek(Current(0))) < MAX_ROLE_LOG {
             return Ok((sname, log_file));
         }
     }
