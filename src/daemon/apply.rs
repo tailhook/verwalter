@@ -17,6 +17,7 @@ pub struct Settings {
     pub hostname: String,
     pub dry_run: bool,
     pub log_dir: PathBuf,
+    pub config_dir: PathBuf,
     pub schedule_file: PathBuf,
 }
 
@@ -130,14 +131,19 @@ fn apply_schedule(hash: &String, scheduler_result: &Json, settings: &Settings)
             role_vars.iter(),
             vars.iter(),
         ].into_iter());
+        cur_vars.insert(String::from("role"),
+            Json::String(role_name.clone()));
         cur_vars.insert(String::from("deployment_id"),
-                        Json::String(id.clone()));
+            Json::String(id.clone()));
+        cur_vars.insert(String::from("verwalter_version"),
+            Json::String(concat!("v", env!("CARGO_PKG_VERSION")).into()));
 
         let mut cmd = Command::new("verwalter_render");
-        cmd.arg(role_name);
         cmd.arg(format!("{}", Json::Object(cur_vars)));
         cmd.arg("--log-dir");
         cmd.arg(&settings.log_dir);
+        cmd.arg("--template-dir");
+        cmd.arg(&settings.config_dir.join("templates"));
         if settings.dry_run {
             cmd.arg("--dry-run");
         }

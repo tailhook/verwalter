@@ -207,6 +207,7 @@ fn main() {
         dry_run: options.dry_run,
         hostname: hostname.clone(),
         log_dir: options.log_dir,
+        config_dir: options.config_dir.clone(),
         schedule_file: schedule_file,
     };
     let apply_state = state.clone();
