@@ -14,11 +14,10 @@ style:
     animation-timing-function: linear
 
 
-view _leftmenu(config, schedule):
+view _leftmenu(schedule):
   <ul.nav.nav-pills.nav-stacked.col-lg-2>
-    if schedule and schedule.data and schedule.data.role_metadata:
-      for [name, _] of entries(config.roles) key name:
-        let role = schedule.data.role_metadata[name]
+    if schedule and schedule.roles:
+      for [name, role] of entries(schedule.roles) key name:
         <li.active?(@router[1] == name) role="presentation">
           <a href=`/role/${name}`>
             link {click} go(event) -> @router
@@ -27,43 +26,56 @@ view _leftmenu(config, schedule):
             if role and role.badge:
               <span.badge>
                 role.badge
-    elif config:
-      for [name, _] of entries(config.roles) key name:
-        <li role="presentation">
-          <a href=`/role/${name}`>
-            name
 
 view main(status):
   <div>
-    store @config = json_store | refresher | json('/v1/config')
     store @schedule = json_store | refresher | json('/v1/schedule')
-    _leftmenu(@config, @schedule)
+    _leftmenu(@schedule and @schedule.data)
 
     <div.col-lg-4>
-      if (not @schedule or not @schedule.data or
-          not @schedule.data.role_metadata):
+      if not @schedule:
         <div.panel.panel-default>
           <div.panel-body>
             "Loading..."
       elif @router[1]:
         let role_name = @router[1]
-        let role = @schedule.data.role_metadata[role_name]
+        let role = @schedule.data.roles[role_name]
         <h1>
           role and role.title or @router[1]
         if role:
-          <h2> "Status Info"
+          if role.info:
+            <h2> "Status Info"
+            <table.table>
+              <thead>
+                <tr>
+                  <th> "Property"
+                  <th> "Value"
+              <tbody>
+                for [name, value] of entries(role.info) key name:
+                  <tr>
+                    <td>
+                      name
+                    <td>
+                      value
+          <h2> "Processes"
           <table.table>
             <thead>
               <tr>
-                <th> "Property"
-                <th> "Value"
-            <tbody>
-              for [name, value] of entries(role.info) key name:
-                <tr>
-                  <td>
-                    name
-                  <td>
-                    value
+                <th> "Host"
+                <th> "Kind"
+                <th> "Num"
+            for [host, node] of entries(@schedule.data.nodes) key host:
+              let hrole = node.roles[@router[1]]
+              <tbody>
+                if hrole:
+                  for [kind, props] of entries(hrole.daemons) key kind:
+                    <tr>
+                      <td>
+                        host
+                      <td>
+                        kind
+                      <td>
+                        props.instances
           if status.scheduler_state.substr(0, 7) == 'leader:':
             <h2> "Available actions"
             <table.table>
@@ -83,7 +95,7 @@ view main(status):
                         ) -> @actions
                         button.title or button.id
                         for [id, act] of entries(@actions) key id:
-                          if act.button.version == button.action.version:
+                          if act.button.process == button.action.process:
                             " "
                             <span.glyphicon.glyphicon-refresh.rotate>
                     <td>
