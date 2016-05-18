@@ -18,6 +18,7 @@ use hash::hash;
 use watchdog::{Alarm, ExitOnReturn};
 use shared::{Id, SharedState};
 use scheduler::Schedule;
+use scheduler::state::num_roles;
 
 
 pub struct Settings {
@@ -153,6 +154,7 @@ pub fn main(state: SharedState, settings: Settings, mut alarm: Alarm) -> !
 
             let hash = hash(json.to_string());
             state.set_schedule_by_leader(cookie, Schedule {
+                num_roles: num_roles(&json),
                 timestamp: timestamp.to_msec(),
                 hash: hash,
                 data: json,

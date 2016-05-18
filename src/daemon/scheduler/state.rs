@@ -8,6 +8,7 @@ use hash::hash;
 use shared::Id;
 use super::prefetch::PrefetchInfo;
 use time_util::ToMsec;
+use itertools::Itertools;
 
 
 #[derive(Clone, Debug, RustcEncodable)]
@@ -16,6 +17,7 @@ pub struct Schedule {
     pub hash: String,
     pub data: Json,
     pub origin: Id,
+    pub num_roles: usize,
 }
 
 #[derive(Clone, Debug, RustcEncodable)]
@@ -95,6 +97,19 @@ impl Encodable for LeaderState {
      }
 }
 
+pub fn num_roles(json: &Json) -> usize {
+    (
+        json.find("roles")
+        .and_then(|x| x.as_object())
+        .map(|x| x.keys())
+    ).into_iter().chain(
+        json.find("nodes")
+        .and_then(|x| x.as_object())
+        .map(|x| x.values().filter_map(|x| x.as_object().map(|x| x.keys())))
+        .into_iter().flat_map(|x| x)
+    ).kmerge().dedup().count()
+}
+
 pub fn from_json(json: Json) -> Result<Schedule, String> {
     let mut j = match json {
         Json::Object(ob) => ob,
@@ -114,6 +129,7 @@ pub fn from_json(json: Json) -> Result<Schedule, String> {
                 Err(format!("Invalid hash {:?} data {}", h, d))
             } else {
                 Ok(Schedule {
+                    num_roles: num_roles(&d),
                     timestamp: t,
                     hash: h.to_string(),
                     data: d,

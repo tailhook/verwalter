@@ -171,11 +171,13 @@ fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
                 peers: usize,
                 leader: Option<LeaderInfo<'a>>,
                 scheduler_state: &'static str,
+                roles: usize,
                 election_epoch: Epoch,
                 errors: HashMap<&'static str, Arc<String>>,
             }
             let peers = scope.state.peers();
             let election = scope.state.election();
+            let schedule = scope.state.schedule();
             let leader_id = if election.is_leader {
                 Some(scope.state.id())
             } else {
@@ -193,6 +195,7 @@ fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
                     hostname: &peer.hostname,
                     addr: peer.addr.map(|x| x.to_string()),
                 }),
+                roles: schedule.map(|x| x.num_roles).unwrap_or(0),
                 scheduler_state: scope.state.scheduler_state().describe(),
                 election_epoch: election.epoch,
                 errors: scope.state.errors(),

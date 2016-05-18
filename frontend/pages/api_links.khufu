@@ -10,7 +10,6 @@ view main():
   <ul.nav.nav-pills.nav-stacked.col-lg-2>
     <li role="presentation">
       <a href="/v1/status.pretty"> "Status"
-      <a href="/v1/config.pretty"> "Config"
       <a href="/v1/peers.pretty"> "Peers"
       <a href="/v1/schedule.pretty"> "Schedule"
       <a href="/v1/scheduler.pretty"> "Scheduler"
