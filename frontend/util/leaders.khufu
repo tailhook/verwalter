@@ -1,0 +1,29 @@
+import {set_port} from '../util/port'
+
+
+view show_leaders(title, suffix, status):
+    <div.panel.panel-warning>
+      <div.panel-heading>
+        title
+      if status.leader:
+        <div.panel-body>
+          "Known addresses of a leader are:"
+          <ul>
+            <li>
+              <a href=`http://${status.leader.addr}${suffix}`>
+                `http://${status.leader.addr}`
+            <li>
+              let url = set_port(status.leader.hostname,
+                                  status.leader.addr)
+              <a href=url>
+                url
+            if status.leader.name != status.leader.hostname:
+              <li>
+                let url = set_port(status.leader.name,
+                                   status.leader.addr)
+                <a href=url>
+                  url
+      else:
+        <div.panel-body>
+          "The cluster is unstable, wait a little bit for leader
+           to come up"

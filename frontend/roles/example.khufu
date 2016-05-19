@@ -1,0 +1,73 @@
+// This is example frontend for example role
+// We will probably change it as soon as we figure out better way to make
+// frontends that suit many needs
+
+import {entries, repr, pretty, is_string} from '../util/object'
+import pending_actions from '../stores/actions'
+import {refresher, json} from '../middleware/request'
+import {execute} from '../util/action'
+import {is_leader} from '../util/status'
+import {known_leaders} from '../util/leaders.khufu'
+
+
+view main(role, role_name, {schedule, system_status}):
+  if role.info:
+    <h2> "Status Info"
+    <table.table>
+      <thead>
+        <tr>
+          <th> "Property"
+          <th> "Value"
+      <tbody>
+        for [name, value] of entries(role.info) key name:
+          <tr>
+            <td>
+              name
+            <td>
+              value
+  <h2> "Processes"
+  <table.table>
+    <thead>
+      <tr>
+        <th> "Host"
+        <th> "Kind"
+        <th> "Num"
+    for [host, node] of entries(schedule.nodes) key host:
+      let hrole = node.roles[role_name]
+      <tbody>
+        if hrole:
+          for [kind, props] of entries(hrole.daemons) key kind:
+            <tr>
+              <td>
+                host
+              <td>
+                kind
+              <td>
+                props.instances
+  if is_leader(system_status):
+    <h2> "Available actions"
+    <table.table>
+      <thead>
+        <tr>
+          <th> "Action"
+          <th> "Description"
+      <tbody>
+        store @actions = pending_actions | refresher
+          | json('/v1/pending_actions')
+        for button of role.buttons or [] key repr(button.action):
+          <tr>
+            <td>
+              <button.btn.btn-default>
+                link {click} execute(
+                  {"button": button.action}
+                ) -> @actions
+                button.title or button.id
+                for [id, act] of entries(@actions) key id:
+                  if act.button.process == button.action.process:
+                    " "
+                    <span.glyphicon.glyphicon-refresh.rotate>
+            <td>
+              button.description or '(no description)'
+  else:
+    known_leaders("Actions are Only Available on Leader", `/role/${role_name}`,
+      system_status)

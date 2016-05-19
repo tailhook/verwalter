@@ -16,7 +16,8 @@ end
 function _scheduler(state)
     trace.object("INPUT", state)
 
-    nums = state.parents and state.parents[1].processes or {celery=2, worker=1}
+    nums = state.parents and #state.parents > 0 and
+           state.parents[1].processes or {celery=2, worker=1}
     for _, act in pairs(state.actions) do
         nums[act.button.process] = nums[act.button.process] + act.button.incr
     end
@@ -39,6 +40,7 @@ function _scheduler(state)
     result = {
         roles={
             pyapp={
+                frontend={kind='example'},
                 buttons={
                     {title="Incr celery", action={process='celery', incr=1}},
                     {title="Decr celery", action={process='celery', incr=-1}},

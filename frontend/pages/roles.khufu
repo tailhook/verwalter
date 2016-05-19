@@ -2,9 +2,9 @@ import {entries, repr, pretty, is_string} from '../util/object'
 import {@router, go} from '../util/routing'
 import {refresher, json} from '../middleware/request'
 import json_store from '../stores/json'
-import pending_actions from '../stores/actions'
-import {execute} from '../util/action'
-import {set_port} from '../util/port'
+
+// Frontend kinds
+import {main as example} from '../roles/example.khufu'
 
 style:
   .rotate
@@ -41,91 +41,20 @@ view main(status):
         let role_name = @router[1]
         let role = @schedule.data.roles[role_name]
         <h1>
-          role and role.title or @router[1]
+          role and role.title or role_name
         if role:
-          if role.info:
-            <h2> "Status Info"
-            <table.table>
-              <thead>
-                <tr>
-                  <th> "Property"
-                  <th> "Value"
-              <tbody>
-                for [name, value] of entries(role.info) key name:
-                  <tr>
-                    <td>
-                      name
-                    <td>
-                      value
-          <h2> "Processes"
-          <table.table>
-            <thead>
-              <tr>
-                <th> "Host"
-                <th> "Kind"
-                <th> "Num"
-            for [host, node] of entries(@schedule.data.nodes) key host:
-              let hrole = node.roles[@router[1]]
-              <tbody>
-                if hrole:
-                  for [kind, props] of entries(hrole.daemons) key kind:
-                    <tr>
-                      <td>
-                        host
-                      <td>
-                        kind
-                      <td>
-                        props.instances
-          if status.scheduler_state.substr(0, 7) == 'leader:':
-            <h2> "Available actions"
-            <table.table>
-              <thead>
-                <tr>
-                  <th> "Action"
-                  <th> "Description"
-              <tbody>
-                store @actions = pending_actions | refresher
-                  | json('/v1/pending_actions')
-                for button of role.buttons or [] key repr(button.action):
-                  <tr>
-                    <td>
-                      <button.btn.btn-default>
-                        link {click} execute(
-                          {"button": button.action}
-                        ) -> @actions
-                        button.title or button.id
-                        for [id, act] of entries(@actions) key id:
-                          if act.button.process == button.action.process:
-                            " "
-                            <span.glyphicon.glyphicon-refresh.rotate>
-                    <td>
-                      button.description or '(no description)'
+          let frontend = role.frontend and role.frontend.kind
+          if not frontend or frontend == 'example':
+              example(role, role_name, {
+                schedule: @schedule.data,
+                system_status: status
+              })
           else:
             <div.panel.panel-warning>
-              <div.panel-heading>
-                "Actions are Only Available on Leader"
-              if status.leader:
-                <div.panel-body>
-                  "Known addresses of a leader are:"
-                  <ul>
-                    <li>
-                      <a href=`http://${status.leader.addr}/role/${role_name}`>
-                        `http://${status.leader.addr}`
-                    <li>
-                      let url = set_port(status.leader.hostname,
-                                          status.leader.addr)
-                      <a href=url>
-                        url
-                    if status.leader.name != status.leader.hostname:
-                      <li>
-                        let url = set_port(status.leader.name,
-                                           status.leader.addr)
-                        <a href=url>
-                          url
-              else:
-                <div.panel-body>
-                  "The cluster is unstable, wait a little bit for leader
-                   to come up"
+              <div.panel-body>
+                "Unknown frontend "
+                repr(frontend)
+
         else:
           <div.panel.panel-warning>
             <div.panel-body>
