@@ -98,7 +98,7 @@ pub fn read_dir(path: &Path) -> (Json, Vec<MetadataError>) {
     scan_dir::ScanDir::files().walk(path, |iter| {
         for (entry, _) in iter {
             let fpath = entry.path();
-            let ext = fpath.extension().map(|x| x.to_str()).unwrap();
+            let ext = fpath.extension().and_then(|x| x.to_str());
             if ext.is_none() { continue; }
             let value = match read_entry(&fpath, ext.unwrap()) {
                 Ok(Some(value)) => value,
@@ -114,8 +114,16 @@ pub fn read_dir(path: &Path) -> (Json, Vec<MetadataError>) {
                     Normal(p) => Some(p),
                     _ => None,
                 })
-                .filter_map(|p| Path::new(p).file_stem()
-                                .and_then(|x| x.to_str()))
+                .map(|pstr| {
+                    let p = Path::new(pstr);
+                    match p.extension().and_then(|x| x.to_str()).unwrap_or("")
+                    {
+                        "yaml" | "yml" | "json" | "txt" | "d" => {
+                            p.file_stem().and_then(|x| x.to_str()).unwrap()
+                        }
+                        _ => pstr.to_str().unwrap(),
+                    }
+                })
                 .fold(&mut data, |map, key| {
                     if !map.is_object() {
                         *map = Json::Object(BTreeMap::new())
