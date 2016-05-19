@@ -64,6 +64,7 @@ pub struct Options {
     listen_host: String,
     listen_port: u16,
     machine_id: Option<Id>,
+    use_sudo: bool,
 }
 
 fn init_logging(id: &Id, log_id: bool) {
@@ -99,6 +100,7 @@ fn main() {
         listen_host: "127.0.0.1".to_string(),
         listen_port: 8379,
         machine_id: None,
+        use_sudo: false,
     };
     {
         let mut ap = ArgumentParser::new();
@@ -144,6 +146,9 @@ fn main() {
         ap.refer(&mut options.listen_port)
             .add_option(&["--port"], Parse, "
                 Bind to port, for web and cluster messaging");
+        ap.refer(&mut options.use_sudo)
+            .add_option(&["--use-sudo"], StoreTrue, "
+                Run verwalter-render with sudo");
         ap.parse_args_or_exit();
     }
 
@@ -205,6 +210,7 @@ fn main() {
 
     let apply_settings = apply::Settings {
         dry_run: options.dry_run,
+        use_sudo: options.use_sudo,
         hostname: hostname.clone(),
         log_dir: options.log_dir,
         config_dir: options.config_dir.clone(),

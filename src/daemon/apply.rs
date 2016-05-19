@@ -16,6 +16,7 @@ use watchdog::{ExitOnReturn, Alarm};
 pub struct Settings {
     pub hostname: String,
     pub dry_run: bool,
+    pub use_sudo: bool,
     pub log_dir: PathBuf,
     pub config_dir: PathBuf,
     pub schedule_file: PathBuf,
@@ -138,7 +139,13 @@ fn apply_schedule(hash: &String, scheduler_result: &Json, settings: &Settings)
         cur_vars.insert(String::from("verwalter_version"),
             Json::String(concat!("v", env!("CARGO_PKG_VERSION")).into()));
 
-        let mut cmd = Command::new("verwalter_render");
+        let mut cmd = if settings.use_sudo {
+            let mut cmd = Command::new("sudo");
+            cmd.arg("verwalter_render");
+            cmd
+        } else {
+            Command::new("verwalter_render")
+        };
         cmd.arg(format!("{}", Json::Object(cur_vars)));
         cmd.arg("--log-dir");
         cmd.arg(&settings.log_dir);
