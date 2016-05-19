@@ -1,3 +1,4 @@
+==========
 Exit Codes
 ==========
 
@@ -42,7 +43,7 @@ This may be visible in verwalter's deployment log:
 * ``81`` -- error when doing logging, this probably means that some errors are
   absent in logs
 
-The error codes marked with ``♻`` mean that no actual rendering process is
+The error codes marked with ♻ mean that no actual rendering process is
 started. I.e. system is consistent (old) state. With other codes we can't
 easily say whether configuration was appllied partial, comprehensively or not
 at all.
