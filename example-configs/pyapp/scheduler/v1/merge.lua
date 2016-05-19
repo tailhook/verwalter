@@ -7,7 +7,7 @@ function merge_schedules(list)
     for role_name, info in pairs(list) do
         result.state[role_name] = info.state
         result.roles[role_name] = info.role
-        for node_name, node_role in pairs(info.node_roles) do
+        for node_name, node_role in pairs(info.nodes) do
             local mnode = result.nodes[node_name]
             if mnode == nil then
                 mnode = {

@@ -1,0 +1,106 @@
+// A frontend that allows to switch version of the role
+import {entries, repr, pretty, is_string} from '../util/object'
+import pending_actions from '../stores/actions'
+import {refresher, json} from '../middleware/request'
+import {execute} from '../util/action'
+import {is_leader} from '../util/status'
+import {known_leaders} from '../util/leaders.khufu'
+
+
+style:
+  .rotate
+    animation-name: rotateThis
+    animation-duration: .5s
+    animation-iteration-count: infinite
+    animation-timing-function: linear
+
+
+view main(role, role_name, {role_state, schedule, system_status}):
+  <h2> "Status Info"
+  <table.table>
+    <thead>
+      <tr>
+        <th> "Property"
+        <th> "Value"
+    <tbody>
+      <tr>
+        <td> "Version"
+        <td>
+          role_state.version
+    if role.info:
+      <tbody>
+        for [name, value] of entries(role.info) key name:
+          <tr>
+            <td>
+              name
+            <td>
+              value
+  <h2> "Processes"
+  <table.table>
+    <thead>
+      <tr>
+        <th> "Host"
+        <th> "Image"
+        <th> "Num"
+    for [host, node] of entries(schedule.nodes) key host:
+      let hrole = node.roles[role_name]
+      <tbody>
+        if hrole:
+          for [kind, props] of entries(hrole.daemons) key kind:
+            <tr>
+              <td>
+                host
+              <td>
+                props.image
+              <td>
+                props.instances
+  if is_leader(system_status):
+    <div>
+      store @actions = pending_actions | refresher
+        | json('/v1/pending_actions')
+      <h2> "Available Versions"
+      <table.table>
+        <thead>
+          <tr>
+            <th> "Version"
+        <tbody>
+          for version of role.versions or []:
+            <tr>
+              <td>
+                "Switch to "
+                <button.btn.btn-default>
+                  link {click} execute(
+                    {"button": {"version": version, "role": role_name}}
+                  ) -> @actions
+                  version
+                  for [id, act] of entries(@actions) key id:
+                    if act.button.version == version:
+                      " "
+                      <span.glyphicon.glyphicon-refresh.rotate>
+      if role.frontend.allow_stop:
+        <h2>
+          if role_state.running:
+            "Running "
+            <button.btn.btn-default>
+              link {click} execute(
+                {"button": {"stop": true, "role": role_name}}
+              ) -> @actions
+              "Stop"
+              for [id, act] of entries(@actions) key id:
+                if act.button.stop:
+                  " "
+                  <span.glyphicon.glyphicon-refresh.rotate>
+          else:
+            "Stopped "
+            <button.btn.btn-default>
+              link {click} execute(
+                {"button": {"start": true, "role": role_name}}
+              ) -> @actions
+              "Start"
+              for [id, act] of entries(@actions) key id:
+                if act.button.start:
+                  " "
+                  <span.glyphicon.glyphicon-refresh.rotate>
+  else:
+    known_leaders("Actions are Only Available on Leader", `/role/${role_name}`,
+      system_status)

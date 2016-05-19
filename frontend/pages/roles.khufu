@@ -5,6 +5,7 @@ import json_store from '../stores/json'
 
 // Frontend kinds
 import {main as example} from '../roles/example.khufu'
+import {main as version} from '../roles/version.khufu'
 
 view _leftmenu(schedule):
   <ul.nav.nav-pills.nav-stacked.col-lg-2>
@@ -25,19 +26,28 @@ view main(status):
     _leftmenu(@schedule and @schedule.data)
 
     <div.col-lg-4>
-      if not @schedule:
+      if not @schedule or not @schedule.data:
         <div.panel.panel-default>
           <div.panel-body>
             "Loading..."
       elif @router[1]:
+        let schedule = @schedule.data
         let role_name = @router[1]
-        let role = @schedule.data.roles[role_name]
+        let role = schedule.roles[role_name]
+        let role_state = schedule.state and schedule.state[role_name]
         <h1>
           role and role.title or role_name
         if role:
           let frontend = role.frontend and role.frontend.kind
           if not frontend or frontend == 'example':
               example(role, role_name, {
+                role_state: role_state,
+                schedule: @schedule.data,
+                system_status: status
+              })
+          elif frontend == 'version':
+              version(role, role_name, {
+                role_state: role_state,
                 schedule: @schedule.data,
                 system_status: status
               })
