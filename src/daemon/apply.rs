@@ -157,7 +157,7 @@ fn apply_schedule(hash: &String, scheduler_result: &Json, settings: &Settings)
         debug!("Running {:?}", cmd);
         match cmd.status() {
             Ok(x) if x.success() => {
-                rlog.log(format_args!("Rendered successfully"));
+                rlog.log(format_args!("Rendered successfully\n"));
             }
             Ok(s) => {
                 rlog.log(format_args!(
