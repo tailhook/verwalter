@@ -6,14 +6,6 @@ import json_store from '../stores/json'
 // Frontend kinds
 import {main as example} from '../roles/example.khufu'
 
-style:
-  .rotate
-    animation-name: rotateThis
-    animation-duration: .5s
-    animation-iteration-count: infinite
-    animation-timing-function: linear
-
-
 view _leftmenu(schedule):
   <ul.nav.nav-pills.nav-stacked.col-lg-2>
     if schedule and schedule.roles:

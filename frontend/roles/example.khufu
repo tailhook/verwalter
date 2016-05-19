@@ -10,6 +10,14 @@ import {is_leader} from '../util/status'
 import {known_leaders} from '../util/leaders.khufu'
 
 
+style:
+  .rotate
+    animation-name: rotateThis
+    animation-duration: .5s
+    animation-iteration-count: infinite
+    animation-timing-function: linear
+
+
 view main(role, role_name, {schedule, system_status}):
   if role.info:
     <h2> "Status Info"
