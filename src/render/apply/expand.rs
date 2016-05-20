@@ -17,7 +17,7 @@ impl Variables {
     }
     pub fn expand(&self, src: &str) -> String {
         // TODO(tailhook) proper failure when no such var
-        VAR_REGEX.replace(src, |caps: &Captures| {
+        VAR_REGEX.replace_all(src, |caps: &Captures| {
             let name = caps.at(1).unwrap();
             match self.0.get(name) {
                 Some(x) => x.clone(),
