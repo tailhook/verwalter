@@ -13,3 +13,9 @@ export function pretty(x) {
 export function is_string(x) {
     return typeof x == 'string'
 }
+
+export function reversed(x) {
+    let r = x.concat();
+    r.reverse();
+    return r
+}

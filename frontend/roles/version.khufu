@@ -1,5 +1,5 @@
 // A frontend that allows to switch version of the role
-import {entries, repr, pretty, is_string} from '../util/object'
+import {entries, repr, pretty, is_string, reversed} from '../util/object'
 import pending_actions from '../stores/actions'
 import {refresher, json} from '../middleware/request'
 import {execute} from '../util/action'
@@ -67,7 +67,7 @@ view main(role, role_name, {role_state, schedule, system_status}):
           <tr>
             <th> "Version"
         <tbody>
-          for version of role.versions or []:
+          for version of reversed(role.versions).slice(0, 20) or []:
             <tr>
               <td>
                 "Switch to "
