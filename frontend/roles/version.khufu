@@ -40,6 +40,7 @@ view main(role, role_name, {role_state, schedule, system_status}):
     <thead>
       <tr>
         <th> "Host"
+        <th> "Process"
         <th> "Image"
         <th> "Num"
     for [host, node] of entries(schedule.nodes) key host:
@@ -50,6 +51,8 @@ view main(role, role_name, {role_state, schedule, system_status}):
             <tr>
               <td>
                 host
+              <td>
+                kind
               <td>
                 props.image
               <td>
