@@ -18,6 +18,7 @@
     "babel-plugin-transform-es2015-block-scoping": "6.3.13",
     "babel-plugin-transform-es2015-parameters": "6.3.13",
     "babel-plugin-transform-es2015-destructuring": "6.3.13",
+    "babel-plugin-transform-es2015-arrow-functions ": "6.3.13",
     "babel-core": "6.3.26",
     "khufu": "0.4.2"
   },
