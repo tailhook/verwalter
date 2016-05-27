@@ -48,8 +48,7 @@ fn command_validator<'x>() -> V::Enum<'x> {
 
 fn config_validator<'x>() -> V::Structure<'x> {
     V::Structure::new()
-    .member("source", V::Scalar::new())
-    .member("apply", command_validator().optional())
+    .member("templates", V::Mapping::new(V::Scalar::new(), V::Scalar::new()))
     .member("commands", V::Sequence::new(command_validator()))
 }
 
@@ -57,14 +56,16 @@ fn read_renderer(path: &Path, base: &Path)
     -> Result<(String, Renderer), TemplateError>
 {
     let path_rel = path.strip_prefix(base).unwrap();
+    let template_base = path_rel.parent().unwrap();
     let orig: Renderer = try!(parse_config(&path,
         &config_validator(), Default::default())
         .map_err(|e| TemplateError::Config(e, path.to_path_buf())));
     Ok((path_rel.to_string_lossy().to_string(), Renderer {
             // Normalize path to be relative to base path
             // rather than relative to current subdir
-        source: path_rel.parent().unwrap().join(orig.source)
-            .to_string_lossy().to_string(),
+        templates: orig.templates.into_iter()
+            .map(|(name, path)| (name, template_base.join(path)))
+            .collect(),
         commands: orig.commands,
     }))
 }

@@ -48,7 +48,7 @@ trait Action: Debug + Send + ToJson + Sync {
 pub struct Command(Arc<Action>);
 
 pub enum Source {
-    TmpFile(NamedTempFile),
+    TmpFiles(HashMap<String, NamedTempFile>),
 }
 
 quick_error!{

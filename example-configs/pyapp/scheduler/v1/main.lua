@@ -17,6 +17,7 @@ function app_num_workers(name, nums, actions, peers)
         state=nums,
         role={
             frontend={kind='example'},
+            template="pyapp/v1",
             buttons={
                 {title="Incr celery",
                  action={process='celery', incr=1, role=name}},
@@ -55,6 +56,7 @@ function versioned_app(name, state, actions, peers)
         end,
         actions)
     local nodes = func.map_pairs(function (node) return {
+            template="pyapp/v1",
             daemons={
                 worker={key="worker", instances=1,
                         image="worker."..state.version,

@@ -5,7 +5,10 @@ use apply;
 
 
 lazy_static! {
-    static ref VAR_REGEX: Regex = Regex::new(r"\{\{\s*(\w+)\s*\}\}").unwrap();
+    static ref VAR_REGEX: Regex = {
+        Regex::new(r"\{\{\s*([\w\.]+)\s*\}\}")
+        .expect("regex compiles")
+    };
 }
 
 #[derive(Debug)]
@@ -36,9 +39,11 @@ impl Variables {
         // TODO(tailhook) proper failure when tmpfile can't be stringified
         use apply::Source::*;
         match *src {
-            TmpFile(ref x) => {
-                self.0.insert("tmp_file".into(),
-                              x.path().display().to_string());
+            TmpFiles(ref templates) => {
+                for (name, path) in templates {
+                    self.0.insert(format!("files.{}", name),
+                                  path.path().display().to_string());
+                }
             }
         }
         self
