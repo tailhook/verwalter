@@ -11,7 +11,7 @@
     "babel-es6-polyfill": "1.0.1"
   },
   "devDependencies": {
-    "webpack": "2.1.0-beta.4",
+    "webpack": "2.1.0-beta.7",
     "babel-loader": "6.2",
     "babel-plugin-transform-object-rest-spread": "6.3.13",
     "babel-plugin-transform-strict-mode": "6.3.13",
@@ -24,7 +24,7 @@
   },
   "optionalDependencies": {
     "webpack-dev-server": "// For hot reload, with dependencies",
-    "webpack-dev-server": "1.14",
+    "webpack-dev-server": "2.1.0-beta.0",
     "sockjs-client": "*",
     "strip-ansi": "*",
     "debug": "*",
@@ -38,7 +38,7 @@
     "babel-polyfill": "// Temporary dependencies",
     "babel-cli": "6.3.17",
     "babel-register": "6.3.13",
-    "babel-types": "6.4.1",
+    "babel-types": "6.9",
     "babel-polyfill": "6.3.14",
     "jison": "0.4.15",
     "postcss": "5.0.14"

@@ -61,7 +61,6 @@ commands:
         - webpack-dev-server
         - --hot
         - --progress
-        - --colors
 
   doc: !Command
     description: Build docs
@@ -136,8 +135,8 @@ containers:
 
   build:
     setup:
-    - !Ubuntu trusty
-    - !UbuntuUniverse ~
+    - !Ubuntu xenial
+    - !UbuntuUniverse
     - !Install [make, checkinstall, wget, ca-certificates,
                 libssl-dev, build-essential, git]
     - !Install [libreadline-dev] # for lua
@@ -147,15 +146,15 @@ containers:
       optional: true
 
     - !TarInstall
-      url: "http://static.rust-lang.org/dist/rust-1.8.0-x86_64-unknown-linux-gnu.tar.gz"
+      url: "http://static.rust-lang.org/dist/rust-1.9.0-x86_64-unknown-linux-gnu.tar.gz"
       script: "./install.sh --prefix=/usr \
                --components=rustc,rust-std-x86_64-unknown-linux-gnu,cargo"
     - !Download
       url: https://github.com/tailhook/cantal/releases/download/v0.3.6/cantal_0.3.6-1_amd64.deb
       path: /tmp/cantal.deb
     - !Sh "dpkg -i /tmp/cantal.deb"
-    - !Sh |
-        cargo install --root=/usr cargo-outdated
+    #- !Sh |
+    #    cargo install --root=/usr cargo-outdated
 
     environ:
       HOME: /work/target
