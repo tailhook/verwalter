@@ -36,9 +36,11 @@ commands:
       RUST_LOG: debug
     run:
     - ./target/debug/verwalter
-    - --config-dir=tmp/cfg
+    - --config-dir=/work/example-configs/pyapp
+    - --log-dir=/tmp/logs
     - --storage-dir=tmp/storage
     - --override-machine-id=dead0beef1
+    - --dry-run
 
   live: !Supervise
     description: "Run verwalter with live reload of web"
@@ -52,7 +54,7 @@ commands:
         - ./target/debug/verwalter
         - --config-dir=/work/example-configs/pyapp
         - --storage-dir=tmp/storage
-        - --dry-run
+        - --log-dir=/tmp/logs
         - --override-machine-id=dead0beef1
       cantal: !Command
         container: build
@@ -102,6 +104,7 @@ commands:
             --host=0.0.0.0 --override-machine-id=beef01 &
           RUST_LOG=debug ./target/debug/verwalter \
             --config-dir=example-configs/pyapp --storage-dir=tmp/storage \
+            --log-dir=/tmp/logs \
             --dry-run \
             --host=0.0.0.0 --override-machine-id=beef01
       n2: !Command
@@ -115,6 +118,7 @@ commands:
             --host=0.0.0.0 --override-machine-id=beef02 &
           RUST_LOG=debug ./target/debug/verwalter \
             --config-dir=example-configs/pyapp --storage-dir=tmp/storage \
+            --log-dir=/tmp/logs \
             --dry-run \
             --host=0.0.0.0 --override-machine-id=beef02
       n3: !Command
@@ -128,6 +132,7 @@ commands:
             --host=0.0.0.0 --override-machine-id=beef03 &
           RUST_LOG=debug ./target/debug/verwalter \
             --config-dir=example-configs/pyapp --storage-dir=tmp/storage \
+            --log-dir=/tmp/logs \
             --dry-run \
             --host=0.0.0.0 --override-machine-id=beef03
       connector: !BridgeCommand
@@ -169,6 +174,12 @@ containers:
       HOME: /work/target
       NODE_PATH: /usr/local/lib/node_modules:/usr/lib/node_modules
       PATH: /bin:/usr/bin:/usr/local/bin:/work/target/debug
+
+    volumes:
+      /tmp: !Tmpfs
+        size: 100Mi
+        subdirs:
+          logs:
 
   rust-musl:
     environ: &rustenv

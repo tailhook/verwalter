@@ -1,8 +1,9 @@
 use std::path::{Path, PathBuf};
 use std::default::Default;
+use std::collections::HashMap;
 
 use scan_dir::{ScanDir, Error as ScanDirError};
-use quire::validate::{Structure, Sequence, Scalar};
+use quire::validate::{Structure, Mapping, Scalar};
 use quire::sky::{parse_config};
 use quick_error::ResultExt;
 
@@ -11,7 +12,7 @@ pub type QuireError = String;  // TODO(tailhook) hopefully quire fixes this
 
 #[derive(RustcDecodable, Clone)]
 pub struct Sandbox {
-    pub log_dirs: Vec<PathBuf>,
+    pub log_dirs: HashMap<String, PathBuf>,
 }
 
 quick_error! {
@@ -37,7 +38,7 @@ quick_error! {
 impl Sandbox {
     pub fn validator() -> Structure<'static> {
         Structure::new()
-        .member("log_dirs", Sequence::new(Scalar::new()))
+        .member("log_dirs", Mapping::new(Scalar::new(), Scalar::new()))
     }
     pub fn parse<P: AsRef<Path>>(p: P) -> Result<Sandbox, QuireError> {
         parse_config(p.as_ref(), &Sandbox::validator(), Default::default())
@@ -45,7 +46,7 @@ impl Sandbox {
     pub fn parse_all<P: AsRef<Path>>(dir: P) -> Result<Sandbox, Error> {
         ScanDir::files().walk(dir, |iter| {
             let mut config = Sandbox {
-                log_dirs: Vec::new(),
+                log_dirs: HashMap::new(),
             };
             let filtered = iter.filter(|&(_, ref name)|
                 name.ends_with(".yaml") || name.ends_with(".yml"));

@@ -129,36 +129,35 @@ impl Index {
         let segment;
         let mut errors = Vec::new();
 
+
         if self.stdout {
             segment = "dry-run".to_string();
             idx = open_stdout();
             log = open_stdout();
-        } else if start {
-            let seg = format!("{}", now_utc().strftime("%Y%m%d").unwrap());
-            match open_global(&self.log_dir, &seg) {
-                Ok((index, lg)) => {
-                    idx = index;
-                    log = lg;
-                    segment = seg
-                }
-                Err(e) => {
-                    errors.push(Error::OpenGlobal(e));
-                    idx = open_null();
-                    log = open_null();
-                    segment = "null".to_string();
-                }
-            }
         } else {
-            match check_log(&self.log_dir.join(".index"), false) {
-                Ok((_, index)) => {
-                    idx = index;
+            let index_dir = self.log_dir.join(".index");
+            let idx_res = ensure_dir(&index_dir);
+
+            let global_dir = self.log_dir.join(".global");
+            let glob_res = ensure_dir(&global_dir);
+
+            let file = idx_res.and_then(|()| {
+                if start {
+                    open_segment(&index_dir, &format!("index.{}.json",
+                        now_utc().strftime("%Y%m%d").unwrap()))
+                } else {
+                    OpenOptions::new().create(true).append(true)
+                    .open(&index_dir.join("latest"))
                 }
+            });
+            match file {
+                Ok(file) => idx = file,
                 Err(e) => {
                     errors.push(Error::OpenGlobal(e));
                     idx = open_null();
                 }
             }
-            match check_log(&self.log_dir.join(".global"), false) {
+            match glob_res.and_then(|()| check_log(&global_dir, start)) {
                 Ok((seg, lg)) => {
                     segment = seg;
                     log = lg;
@@ -463,20 +462,6 @@ fn open_segment(dir: &Path, name: &String) -> Result<File, io::Error> {
     let file = try!(OpenOptions::new().write(true).create(true)
         .append(true).open(&filename));
     Ok(file)
-}
-
-fn open_global(dir: &Path, segment: &str) -> Result<(File, File), io::Error>
-{
-    let index_dir = dir.join(".index");
-    try!(ensure_dir(&index_dir));
-    let global_dir = dir.join(".global");
-    try!(ensure_dir(&global_dir));
-
-    let idx_file = try!(open_segment(
-        &index_dir, &format!("index.{}.json", segment)));
-    let log_file = try!(open_segment(
-        &global_dir, &format!("log.{}.txt", segment)));
-    return Ok((idx_file, log_file));
 }
 
 fn open_stdout() -> File {
