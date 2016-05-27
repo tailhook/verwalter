@@ -21,7 +21,7 @@ mod config;
 use std::path::{PathBuf};
 use std::process::exit;
 
-use argparse::{ArgumentParser, Parse, StoreTrue, FromCommandLine};
+use argparse::{ArgumentParser, Parse, ParseOption, StoreTrue, FromCommandLine};
 use indexed_log::Index;
 use rustc_serialize::json::Json;
 
@@ -38,42 +38,65 @@ fn main() {
     let mut vars = ParseJson(Json::Null);
     let mut log_dir = PathBuf::from("/var/log/verwalter");
     let mut template_dir = PathBuf::from("/etc/verwalter/templates");
+    let mut check_dir = None::<PathBuf>;
     let mut dry_run = false;
     {
         let mut ap = ArgumentParser::new();
-        ap.set_description("Internal verwalter's utility to render it");
+        ap.set_description("
+            Internal verwalter's utility to render it.
+            With `-C` option can also be used to check whether templates
+            can be rendered fine locally (where you don't have verwalter
+            daemon).
+        ");
         ap.refer(&mut vars).add_argument("vars", Parse, "
             Variables to pass to renderer
             ").required();
+        ap.refer(&mut check_dir)
+            .add_option(&["-C", "--check", "--check-dir"], ParseOption, "
+                Render things in specified log dir, and show output.
+                This is used to check templates locally.
+                Implies `--dry-run`. Doesn't touch `--log-dir`.
+                Ignores so`template` key in var.");
         ap.refer(&mut dry_run).add_option(&["--dry-run"], StoreTrue, "
             Don't run commands just show the templates and command-lines.
             ");
         ap.refer(&mut log_dir).add_option(&["--log-dir"], Parse, "
             Log directory (default `/var/log/verwalter`)");
         ap.refer(&mut template_dir).add_option(&["--template-dir"], Parse, "
-            Directory with templates (default `/etc/verwalter/templates`");
+            Base directory with templates
+            (default `/etc/verwalter/templates`");
         ap.parse_args_or_exit();
     }
     let vars = match vars {
         ParseJson(Json::Object(v)) => v,
         _ => exit(3),
     };
+    if check_dir.is_some() {
+        dry_run = true;
+    }
     let mut log = Index::new(&log_dir, dry_run);
-    let id = match vars.get("deployment_id").and_then(|x| x.as_string()) {
-        Some(x) => x.to_string(),
-        None => exit(3),
+
+    let (id, dir) = if let Some(dir) = check_dir {
+        ("dry-run-dep-id-dead-beef".into(), dir)
+    } else {
+        let id = match vars.get("deployment_id").and_then(|x| x.as_string()) {
+            Some(x) => x.to_string(),
+            None => exit(3),
+        };
+        let template = match vars.get("template").and_then(|x| x.as_string()) {
+            Some(x) => x.to_string(),
+            None => exit(4),
+        };
+        match vars.get("verwalter_version").and_then(|x| x.as_string()) {
+            Some(concat!("v", env!("CARGO_PKG_VERSION"))) => {},
+            Some(_) => exit(5),
+            None => exit(3),
+        };
+        (id, template_dir.join(template))
     };
+
     let role = match vars.get("role").and_then(|x| x.as_string()) {
         Some(x) => x.to_string(),
-        None => exit(3),
-    };
-    let template = match vars.get("template").and_then(|x| x.as_string()) {
-        Some(x) => x.to_string(),
-        None => exit(4),
-    };
-    match vars.get("verwalter_version").and_then(|x| x.as_string()) {
-        Some(concat!("v", env!("CARGO_PKG_VERSION"))) => {},
-        Some(_) => exit(5),
         None => exit(3),
     };
 
@@ -83,8 +106,7 @@ fn main() {
             Ok(rlog) => rlog,
             Err(_) => exit(81),
         };
-        match render::render_role(&template_dir.join(template),
-                                  &Json::Object(vars), &mut rlog)
+        match render::render_role(&dir, &Json::Object(vars), &mut rlog)
         {
             Err(e) => {
                 rlog.log(format_args!(

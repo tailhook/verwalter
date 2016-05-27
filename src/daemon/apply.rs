@@ -138,6 +138,8 @@ fn apply_schedule(hash: &String, scheduler_result: &Json, settings: &Settings)
             Json::String(id.clone()));
         cur_vars.insert(String::from("verwalter_version"),
             Json::String(concat!("v", env!("CARGO_PKG_VERSION")).into()));
+        let vars = format!("{}", Json::Object(cur_vars));
+        rlog.log(format_args!("Template variables: {}\n", vars));
 
         let mut cmd = if settings.use_sudo {
             let mut cmd = Command::new("sudo");
@@ -146,7 +148,7 @@ fn apply_schedule(hash: &String, scheduler_result: &Json, settings: &Settings)
         } else {
             Command::new("verwalter_render")
         };
-        cmd.arg(format!("{}", Json::Object(cur_vars)));
+        cmd.arg(&vars);
         cmd.arg("--log-dir");
         cmd.arg(&settings.log_dir);
         cmd.arg("--template-dir");
