@@ -30,14 +30,16 @@ Verwalter Render
 
 This may be visible in verwalter's deployment log:
 
+.. Please, keep this list in sync with `src/daemon/apply.rs`
+
 * ♻ ``2`` -- argparse error, should not happen, but may be if version of
   verwalter-render (on disk) doesn't match verwalter daemon running
 * ♻ ``3`` -- error validating arguments, should be treated same as ``2``
+* ♻ ``4`` -- no ``template`` key found in metadata, this means scheduler
+  returned incomplete data for this role
 * ♻ ``5`` -- verwalter daemon is running different version from
   verwalter-render. This probably means you should restart verwalter daemon.
   For other things it should be treated same as ``2``
-* ♻ ``4`` -- no ``template`` key found in metadata, this means scheduler
-  returned incomplete data for this role
 * ♻ ``10`` -- error when reading or rendering templates
 * ``20`` -- error appling templates (executing commands)
 * ``81`` -- error when doing logging, this probably means that some errors are

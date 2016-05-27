@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use std::time::Duration;
-use std::process::Command;
+use std::borrow::Cow;
+use std::process::{Command, ExitStatus};
 use std::collections::{BTreeMap};
 
 use rand::{thread_rng, Rng};
@@ -70,6 +71,26 @@ fn merge_vars<'x, I, J>(iter: I) -> BTreeMap<String, Json>
                 .map(|(k, v)| (k.clone(), v.clone())).collect()))
         }
     }).collect()
+}
+
+fn decode_render_error(s: ExitStatus) -> Cow<'static, str> {
+    match s.code() {
+        // Please, keep the docs in `doc/running/exit_codes` up to date
+        Some(2) => "argparse error (should be a bug or version mismatch)",
+        Some(3) => "argument validation error \
+                    (should be a bug or version mismatch)",
+        Some(4) => "no `template` key found => fix the scheduler",
+        Some(5) => "version mismatch => restart the verwalter daemon",
+        Some(10) => "error rendering templates",
+        Some(20) => "error executing commands",
+        Some(81) => "error when doing logging",
+        Some(_) => {
+            return format!("unknown code {}, please report a bug!", s).into();
+        }
+        None => {
+            return format!("dead on signal: {}", s).into();
+        }
+    }.into()
 }
 
 fn apply_schedule(hash: &String, scheduler_result: &Json, settings: &Settings)
@@ -161,10 +182,13 @@ fn apply_schedule(hash: &String, scheduler_result: &Json, settings: &Settings)
             Ok(x) if x.success() => {
                 rlog.log(format_args!("Rendered successfully\n"));
             }
-            Ok(s) => {
+            Ok(status) => {
                 rlog.log(format_args!(
                     "ERROR: Error rendering role. \
-                    verwalter_render {}\n", s));
+                    verwalter_render {}\n", status));
+                rlog.log(format_args!(
+                    "Decoded verwalter render failure: {}\n",
+                    decode_render_error(status)));
             }
             Err(e) => {
                 rlog.log(format_args!(
