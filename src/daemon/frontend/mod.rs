@@ -6,6 +6,7 @@ use std::path::Path;
 use std::path::Component::ParentDir;
 use std::fs::File;
 use std::time::{Duration};
+use std::ascii::AsciiExt;
 use std::collections::HashMap;
 
 use rotor::{Scope, Time};
@@ -30,6 +31,22 @@ pub enum ApiRoute {
     PendingActions,
 }
 
+#[derive(Clone, Debug)]
+pub enum Range {
+    FromTo(u64, u64),
+    AllFrom(u64),
+    Last(u64),
+}
+
+
+#[derive(Clone, Debug)]
+pub enum LogRoute {
+    Index(Range),
+    Global(Range),
+    Role(String, Range),
+    External(String, Range),
+}
+
 #[derive(Clone, Debug, Copy)]
 pub enum Format {
     Json,
@@ -41,6 +58,7 @@ pub enum Route {
     Index,
     Static(String),
     Api(ApiRoute, Format),
+    Log(LogRoute),
 }
 
 pub struct Public(Route);
@@ -91,32 +109,94 @@ fn read_file<P:AsRef<Path>>(path: P, res: &mut Response)
     Ok(())
 }
 
-fn parse_api(path: &str) -> Option<Route> {
+
+fn api_suffix(path: &str) -> Format {
+    use self::Format::*;
+    if suffix(path) == "pretty" { Plain } else { Json }
+}
+
+fn parse_range_bytes(x: &str) -> Option<Range> {
+    use self::Range::*;
+    let mut iter = x.splitn(2, "-");
+    match (iter.next(), iter.next()) {
+        (_, None) | (None, _) => return None,
+        (Some(""), Some(neg)) => neg.parse().ok().map(Last),
+        (Some(st), Some("")) => st.parse().ok().map(AllFrom),
+        (Some(start), Some(end)) => {
+            start.parse().and_then(
+                |start| end.parse().map(|end| FromTo(start, end))
+            ).ok()
+        }
+    }
+}
+
+fn parse_range(head: &Head) -> Option<(&'static str, Range)> {
+    let mut result = None;
+    for header in head.headers {
+        if header.name.eq_ignore_ascii_case("Range") {
+            let s = match from_utf8(header.value) {
+                Ok(s) => s,
+                // TODO(tailhook) implement 416 or 400
+                Err(..) => return None,
+            };
+            if result.is_some() {
+                // TODO(tailhook) implement 416 or 400
+                return None;
+            }
+            if s.trim().starts_with("bytes=") {
+                match parse_range_bytes(&s[6..]) {
+                    Some(x) => result = Some(("bytes", x)),
+                    // TODO(tailhook) implement 400
+                    None => return None,
+                }
+            } else if s.trim().starts_with("records=") {
+                match parse_range_bytes(&s[8..]) {
+                    Some(x) => result = Some(("records", x)),
+                    // TODO(tailhook) implement 400
+                    None => return None,
+                }
+            } else {
+                // TODO(tailhook) implement 400
+                return None;
+            }
+        }
+    }
+    return result;
+}
+
+fn parse_log_route(path: &str, head: &Head) -> Option<LogRoute> {
+    use self::LogRoute::*;
+    // TODO(tailhook) implement 416
+    parse_range(head).and_then(|(typ, rng)| {
+        match (path_component(path), typ) {
+            (("index", ""), "records") => Some(Index(rng)),
+            (("global", ""), "bytes") => Some(Global(rng)),
+            (("role", tail), "bytes") => Some(Role(tail.to_owned(), rng)),
+            (("external", tail), "bytes") => Some(External(tail.into(), rng)),
+            _ => None,
+        }
+    })
+}
+
+fn parse_api(path: &str, head: &Head) -> Option<Route> {
     use self::Route::*;
     use self::ApiRoute::*;
-    use self::Format::*;
+    use self::Format::Plain;
     match path_component(path) {
-        ("status", "") => Some(Api(Status,
-            if suffix(path) == "pretty" { Plain } else { Json })),
-        ("peers", "") => Some(Api(Peers,
-            if suffix(path) == "pretty" { Plain } else { Json })),
-        ("schedule", "") => Some(Api(Schedule,
-            if suffix(path) == "pretty" { Plain } else { Json })),
-        ("scheduler", "") => Some(Api(Scheduler,
-            if suffix(path) == "pretty" { Plain } else { Json })),
+        ("status", "") => Some(Api(Status, api_suffix(path))),
+        ("peers", "") => Some(Api(Peers, api_suffix(path))),
+        ("schedule", "") => Some(Api(Schedule, api_suffix(path))),
+        ("scheduler", "") => Some(Api(Scheduler, api_suffix(path))),
         ("scheduler_debug_info", "") => Some(Api(SchedulerDebugInfo, Plain)),
-        ("election", "") => Some(Api(Election,
-            if suffix(path) == "pretty" { Plain } else { Json })),
-        ("action", "") => Some(Api(PushAction,
-            if suffix(path) == "pretty" { Plain } else { Json })),
+        ("election", "") => Some(Api(Election, api_suffix(path))),
+        ("action", "") => Some(Api(PushAction, api_suffix(path))),
         ("action_is_pending", tail) => {
             tail.parse().map(|x| {
-                Api(ActionIsPending(x),
-                    if suffix(path) == "pretty" { Plain } else { Json })
+                Api(ActionIsPending(x), api_suffix(path))
             }).ok()
         }
-        ("pending_actions", "") => Some(Api(PendingActions,
-            if suffix(path) == "pretty" { Plain } else { Json })),
+        ("pending_actions", "") => Some(Api(PendingActions, api_suffix(path))),
+        ("log", tail) => parse_log_route(tail, &head).map(Log),
         _ => None,
     }
 }
@@ -307,7 +387,7 @@ impl Server for Public {
         };
         let route = match path_component(&path[..]) {
             ("", _) => Some(Index),
-            ("v1", suffix) => parse_api(suffix),
+            ("v1", suffix) => parse_api(suffix, &head),
             (_, _) => Some(Static(path.to_string())),
         };
         trace!("Routed {:?} to {:?}", head, route);
@@ -340,6 +420,9 @@ impl Server for Public {
                 }
             }
             Api(ref route, fmt) => serve_api(scope, route, data, fmt, res),
+            Log(ref x) => {
+                panic!("unimplemented {:?}", x);
+            }
         };
         match iores {
             Ok(()) => {}
