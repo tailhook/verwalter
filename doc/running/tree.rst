@@ -40,6 +40,11 @@ The directory layout is still in flux. Here are somewhat current draft.
     * ``common/*`` -- common files for the whole cluster (e.g. libraries)
     * ``ROLE/*`` -- role-specific things [3]_
 
+* ``sandbox`` -- this contains some security configs:
+
+    * Logs that can be served within verwalter
+    * (TODO) commands to run from verwalter-render, run-as user, etc.
+
 .. note:: We avoid the term "application" here because it's inherently vague.
    The :term:`role` is just unit that may be deployed independendly (so it's
    also versioned independently). The role may consists multiple applications

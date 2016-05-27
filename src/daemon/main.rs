@@ -34,7 +34,9 @@ use std::sync::mpsc::{channel, sync_channel};
 use std::thread;
 
 use time::now_utc;
+
 use shared::{Id, SharedState};
+use config::Sandbox;
 
 mod fs_util;
 mod config;
@@ -162,6 +164,15 @@ fn main() {
             exit(3);
         }
     };
+    let sandbox = match Sandbox::parse_all(options.config_dir.join("sandbox")){
+        Ok(cfg) => cfg,
+        Err(e) => {
+            writeln!(&mut stderr(),
+                "Error reading `/etc/sandbox`: {}", e).ok();
+            exit(3);
+        }
+    };
+
     init_logging(&id, options.log_id);
 
     let addr = (&options.listen_host[..], options.listen_port)
@@ -229,7 +240,7 @@ fn main() {
 
     info!("Started with machine id {}, listening {}", id, addr);
     net::main(&addr, id, hostname, name, state,
-        options.config_dir.join("frontend"), alarm_rx)
+        options.config_dir.join("frontend"), &sandbox, alarm_rx)
         .expect("Error running main loop");
     unreachable!();
 }

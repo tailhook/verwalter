@@ -10,6 +10,9 @@ use scan_dir;
 
 mod meta;
 mod tojson;
+mod sandbox;
+
+pub use self::sandbox::Sandbox;
 
 quick_error! {
     #[derive(Debug)]

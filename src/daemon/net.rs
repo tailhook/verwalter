@@ -9,6 +9,7 @@ use rotor::mio::tcp::{TcpListener};
 use rotor_cantal::{Schedule, connect_localhost, Fsm as CantalFsm};
 use rotor_tools::loop_ext::{LoopExt, LoopInstanceExt};
 
+use config::Sandbox;
 use shared::SharedState;
 use frontend::Public;
 use elect::{Election, peers_refresh};
@@ -30,10 +31,11 @@ pub struct Context {
     pub state: SharedState,
     pub cantal: Schedule,
     pub frontend_dir: PathBuf,
+    pub sandbox: Sandbox,
 }
 
 pub fn main(addr: &SocketAddr, id: Id, hostname: String, name: String,
-    state: SharedState, frontend_dir: PathBuf,
+    state: SharedState, frontend_dir: PathBuf, sandbox: &Sandbox,
     alarms: Receiver<SyncSender<Alarm>>)
     -> Result<(), io::Error>
 {
@@ -54,6 +56,7 @@ pub fn main(addr: &SocketAddr, id: Id, hostname: String, name: String,
         state: state.clone(),
         frontend_dir: frontend_dir,
         cantal: schedule.clone(),
+        sandbox: sandbox.clone(),
     });
     let listener = TcpListener::bind(&addr).expect("Can't bind address");
     loop_inst.add_machine_with(|scope| {
