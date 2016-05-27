@@ -9,6 +9,15 @@ commands:
       set -ex
       make
 
+  _static-verwalter_render-package: !Command
+    description: Build static verwalter_render package (.tar.gz)
+    container: rust-musl
+    run: |
+      [ -d dist ] || mkdir dist
+      cargo build --target=x86_64-unknown-linux-musl
+      tar -czf dist/verwalter-render-$(git describe).tar.gz \
+        -C target/x86_64-unknown-linux-musl/debug verwalter_render
+
   test: !Command
     description: Run tests
     container: build
@@ -160,6 +169,44 @@ containers:
       HOME: /work/target
       NODE_PATH: /usr/local/lib/node_modules:/usr/lib/node_modules
       PATH: /bin:/usr/bin:/usr/local/bin:/work/target/debug
+
+  rust-musl:
+    environ: &rustenv
+      LD_LIBRARY_PATH: /musl/lib/rustlib/x86_64-unknown-linux-musl/lib
+      CFLAGS: "-I/usr/include"
+      PATH: /musl/bin:/usr/local/bin:/usr/bin:/bin
+      HOME: /work/target
+    setup:
+    - !Ubuntu xenial
+    - !Install [build-essential, ca-certificates, git]
+    - !Install [libreadline-dev, wget] # for lua
+    - !BuildDeps [cmake, libc++-dev, curl, autoconf, automake, libtool]
+    # Build script derived from
+    # https://github.com/rust-lang/rust-buildbot/blob/master/slaves/linux/build-musl.sh
+    - !TarInstall
+      url: http://www.musl-libc.org/releases/musl-1.1.14.tar.gz
+      script: |
+        ./configure --prefix=/musl --disable-shared
+        make -j2
+        make install
+
+    - !Tar
+      url: http://llvm.org/releases/3.8.0/llvm-3.8.0.src.tar.xz
+      path: /tmp/llvm
+    - !TarInstall
+      url: http://llvm.org/releases/3.8.0/libunwind-3.8.0.src.tar.xz
+      script: |
+        cmake . -DLLVM_PATH=/tmp/llvm/llvm-3.8.0.src -DLIBUNWIND_ENABLE_SHARED=0
+        make -j2
+        cp lib/libunwind.a /musl/lib
+    - !TarInstall
+      url: "http://static.rust-lang.org/dist/rust-1.8.0-x86_64-unknown-linux-gnu.tar.gz"
+      script: "./install.sh --prefix=/usr --components=rustc,rust-std-x86_64-unknown-linux-gnu,cargo"
+    - !TarInstall
+      url: "http://static.rust-lang.org/dist/rust-std-1.8.0-x86_64-unknown-linux-musl.tar.gz"
+      script: "./install.sh --prefix=/musl \
+               --components=rust-std-x86_64-unknown-linux-musl"
+    - !Sh 'ln -s /musl/lib/rustlib/x86_64-unknown-linux-musl /usr/lib/rustlib/x86_64-unknown-linux-musl'
 
   docs:
     setup:
