@@ -91,7 +91,7 @@ fn init_logging(id: &Id, log_id: bool) {
 fn main() {
     let mut options = Options {
         config_dir: PathBuf::from("/etc/verwalter"),
-        storage_dir: PathBuf::from("/etc/verwalter"),
+        storage_dir: PathBuf::from("/var/lib/verwalter"),
         log_dir: PathBuf::from("/var/log/verwalter"),
         log_id: false,
         dry_run: false,
