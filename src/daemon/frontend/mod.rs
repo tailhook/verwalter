@@ -1,10 +1,10 @@
 use std::io;
-use std::io::Read;
+use std::io::{Read, Seek};
 use std::str::from_utf8;
 use std::sync::Arc;
 use std::path::Path;
-use std::path::Component::ParentDir;
-use std::fs::File;
+use std::path::Component::Normal;
+use std::fs::{File, metadata};
 use std::time::{Duration};
 use std::ascii::AsciiExt;
 use std::collections::HashMap;
@@ -17,6 +17,8 @@ use rustc_serialize::json::{as_json, as_pretty_json, Json};
 use net::Context;
 use elect::Epoch;
 use shared::{PushActionError, Id};
+
+const MAX_LOG_RESPONSE: u64 = 1048576;
 
 #[derive(Clone, Debug)]
 pub enum ApiRoute {
@@ -31,7 +33,7 @@ pub enum ApiRoute {
     PendingActions,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum Range {
     FromTo(u64, u64),
     AllFrom(u64),
@@ -41,8 +43,8 @@ pub enum Range {
 
 #[derive(Clone, Debug)]
 pub enum LogRoute {
-    Index(Range),
-    Global(Range),
+    Index(String, Range),
+    Global(String, Range),
     Role(String, Range),
     External(String, Range),
 }
@@ -91,18 +93,78 @@ fn read_file<P:AsRef<Path>>(path: P, res: &mut Response)
     -> Result<(), io::Error>
 {
     let path = path.as_ref();
-    for cmp in path.components() {
-        if matches!(cmp, ParentDir) {
-            return Err(io::Error::new(io::ErrorKind::PermissionDenied,
-                "Parent dir `..` path components are not allowed"));
-        }
-    }
     let mut file = try!(File::open(path));
     let mut buf = Vec::with_capacity(1024);
     try!(file.read_to_end(&mut buf));
     res.status(200, "OK");
     res.add_length(buf.len() as u64).unwrap();
     // TODO(tailhook) guess mime type
+    res.done_headers().unwrap();
+    res.write_body(&buf);
+    res.done();
+    Ok(())
+}
+
+fn serve_log(route: &LogRoute, ctx: &Context, res: &mut Response)
+    -> io::Result<()>
+{
+    use self::LogRoute::*;
+    use self::Range::*;
+    let (path, rng) = match *route {
+        Index(ref tail, rng) => {
+            let path = ctx.log_dir.join(".index").join(tail);
+            (path, rng)
+        }
+        Global(ref tail, rng) => {
+            let path = ctx.log_dir.join(".global").join(tail);
+            (path, rng)
+        }
+        Role(ref tail, rng) => {
+            let path = ctx.log_dir.join(tail);
+            (path, rng)
+        }
+        External(ref tail, rng) => {
+            let (name, suffix) = path_component(tail);
+            let path = match ctx.sandbox.log_dirs.get(name) {
+                Some(path) => path.join(suffix),
+                None => return Err(io::Error::new(io::ErrorKind::NotFound,
+                    "directory not found in sandbox")),
+            };
+            (path, rng)
+        }
+    };
+    let mut file = try!(File::open(&path));
+    let meta = try!(metadata(&path));
+
+    let (start, end) = match rng {
+        FromTo(x, y) => (x, y + 1),
+        AllFrom(x) => (x, meta.len()),
+        Last(x) => (meta.len().saturating_sub(x), meta.len()),
+    };
+    let num_bytes = match end.checked_sub(start) {
+        Some(n) => n,
+        None => {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                "Request range is invalid"));
+        }
+    };
+
+    if num_bytes > MAX_LOG_RESPONSE {
+        return Err(io::Error::new(io::ErrorKind::InvalidData,
+            "Requested range is too large"));
+    }
+
+    let mut buf = vec![0u8; num_bytes as usize];
+    if start > 0 {
+        try!(file.seek(io::SeekFrom::Start(start)));
+    }
+    try!(file.read(&mut buf));
+
+    res.status(206, "OK");
+    res.add_length(num_bytes).unwrap();
+    res.add_header("Content-Range",
+        format!("bytes {}-{}/{}", start, end-1, meta.len()).as_bytes()
+    ).unwrap();
     res.done_headers().unwrap();
     res.write_body(&buf);
     res.done();
@@ -164,14 +226,28 @@ fn parse_range(head: &Head) -> Option<(&'static str, Range)> {
     return result;
 }
 
+fn validate_path<P: AsRef<Path>>(path: P) -> bool {
+    for cmp in Path::new(path.as_ref()).components(){
+        match cmp {
+            Normal(_) => {}
+            _ => return false,
+        }
+    }
+    return true;
+}
+
 fn parse_log_route(path: &str, head: &Head) -> Option<LogRoute> {
     use self::LogRoute::*;
+    if !validate_path(path) {
+        // TODO(tailhook) implement 400
+        return None;
+    }
     // TODO(tailhook) implement 416
     parse_range(head).and_then(|(typ, rng)| {
         match (path_component(path), typ) {
-            (("index", ""), "records") => Some(Index(rng)),
-            (("global", ""), "bytes") => Some(Global(rng)),
-            (("role", tail), "bytes") => Some(Role(tail.to_owned(), rng)),
+            (("index", tail), "bytes") => Some(Index(tail.into(), rng)),
+            (("global", tail), "bytes") => Some(Global(tail.into(), rng)),
+            (("role", tail), "bytes") => Some(Role(tail.into(), rng)),
             (("external", tail), "bytes") => Some(External(tail.into(), rng)),
             _ => None,
         }
@@ -388,9 +464,15 @@ impl Server for Public {
         let route = match path_component(&path[..]) {
             ("", _) => Some(Index),
             ("v1", suffix) => parse_api(suffix, &head),
-            (_, _) => Some(Static(path.to_string())),
+            (_, _) => {
+                if !validate_path(&path[1..]) {
+                    serve_error_page(400, res);
+                    return None;
+                }
+                Some(Static(path[1..].to_string()))
+            }
         };
-        trace!("Routed {:?} to {:?}", head, route);
+        debug!("Routed {:?} to {:?}", head.path, route);
         match route {
             Some(route) => {
                 Some((Public(route), RecvMode::Buffered(65536),
@@ -411,7 +493,7 @@ impl Server for Public {
             Index => read_file(scope.frontend_dir
                                .join("common/index.html"), res),
             Static(ref x) => {
-                match read_file(scope.frontend_dir.join(&x[1..]), res) {
+                match read_file(scope.frontend_dir.join(&x), res) {
                     Err(ref e) if e.kind() == io::ErrorKind::NotFound => {
                         read_file(scope.frontend_dir
                             .join("common/index.html"), res)
@@ -421,7 +503,7 @@ impl Server for Public {
             }
             Api(ref route, fmt) => serve_api(scope, route, data, fmt, res),
             Log(ref x) => {
-                panic!("unimplemented {:?}", x);
+                serve_log(x, scope, res)
             }
         };
         match iores {

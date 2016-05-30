@@ -31,11 +31,13 @@ pub struct Context {
     pub state: SharedState,
     pub cantal: Schedule,
     pub frontend_dir: PathBuf,
+    pub log_dir: PathBuf,
     pub sandbox: Sandbox,
 }
 
 pub fn main(addr: &SocketAddr, id: Id, hostname: String, name: String,
-    state: SharedState, frontend_dir: PathBuf, sandbox: &Sandbox,
+    state: SharedState, frontend_dir: PathBuf,
+    sandbox: &Sandbox, log_dir: PathBuf,
     alarms: Receiver<SyncSender<Alarm>>)
     -> Result<(), io::Error>
 {
@@ -55,6 +57,7 @@ pub fn main(addr: &SocketAddr, id: Id, hostname: String, name: String,
     let mut loop_inst = creator.instantiate(Context {
         state: state.clone(),
         frontend_dir: frontend_dir,
+        log_dir: log_dir,
         cantal: schedule.clone(),
         sandbox: sandbox.clone(),
     });

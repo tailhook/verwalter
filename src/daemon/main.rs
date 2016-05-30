@@ -223,7 +223,7 @@ fn main() {
         dry_run: options.dry_run,
         use_sudo: options.use_sudo,
         hostname: hostname.clone(),
-        log_dir: options.log_dir,
+        log_dir: options.log_dir.clone(),
         config_dir: options.config_dir.clone(),
         schedule_file: schedule_file,
     };
@@ -240,7 +240,9 @@ fn main() {
 
     info!("Started with machine id {}, listening {}", id, addr);
     net::main(&addr, id, hostname, name, state,
-        options.config_dir.join("frontend"), &sandbox, alarm_rx)
+        options.config_dir.join("frontend"),
+        &sandbox, options.log_dir.clone(),
+        alarm_rx)
         .expect("Error running main loop");
     unreachable!();
 }
