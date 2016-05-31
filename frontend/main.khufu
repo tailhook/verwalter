@@ -2,6 +2,7 @@ import {@router, go} from './util/routing'
 import {main as roles} from './pages/roles.khufu'
 import {main as api_links} from './pages/api_links.khufu'
 import {main as peers} from './pages/peers.khufu'
+import {main as logs} from './pages/logs.khufu'
 import {refresher, fast_refresh_json} from './middleware/request'
 import json_store from './stores/json'
 import {set_port} from './util/port'
@@ -39,6 +40,10 @@ view _navbar(status, frontend_version):
             <a href="/api_links">
               link {click} go(event) -> @router
               "API Links"
+          <li.active?(@router[0] == 'logs')>
+            <a href="/logs">
+              link {click} go(event) -> @router
+              "Logs"
         <ul.nav.navbar-nav.navbar-right>
           <li.text-danger
             title=format_error_hint(status.errors)>
@@ -73,3 +78,5 @@ view main(version):
         api_links(@status)
       elif @router[0] == 'peers':
         peers(@status)
+      elif @router[0] == 'logs':
+        logs(@status)

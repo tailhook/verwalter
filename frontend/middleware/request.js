@@ -14,6 +14,7 @@ export var refresher = store => next => {
     var delay = 5000
     var body
     var response_type = 'json'
+    var headers = {}
     var decoder = x => x
     var timeout
     var request
@@ -39,7 +40,7 @@ export var refresher = store => next => {
             request = null; // not processing any more
             timeout = setTimeout(start, updated ? DEBOUNCE_DELAY : delay)
 
-            if(req.status != 200) {
+            if(req.status != 200 && req.status != 206) {
                 next({type: ERROR, request: req, latency: lcy})
                 return;
             }
@@ -47,6 +48,7 @@ export var refresher = store => next => {
                 next({
                     type: DATA,
                     data: decoder(req.response),
+                    req: req,
                     latency: lcy,
                 })
             } catch(e) {
@@ -56,9 +58,15 @@ export var refresher = store => next => {
         if(body) {
             request.open('POST', url, true);
             request.setRequestHeader('Content-Type', 'application/json')
+            for(var i in headers) {
+                request.setRequestHeader(i, headers[i]);
+            }
             request.send(body)
         } else {
             request.open('GET', url, true);
+            for(var i in headers) {
+                request.setRequestHeader(i, headers[i]);
+            }
             request.send()
         }
     }
@@ -78,6 +86,7 @@ export var refresher = store => next => {
         switch(action.type) {
             case UPDATE_REQUEST:
                 url = action.url || url
+                headers = action.headers || {}
                 delay = action.delay || delay
                 body = action.body || body
                 response_type = action.response_type || response_type

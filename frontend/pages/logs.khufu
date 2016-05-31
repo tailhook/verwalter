@@ -1,0 +1,73 @@
+import {repr} from '../util/object'
+import {refresher} from '../middleware/request'
+import {index, fetch_indexes} from '../stores/logs'
+import {bool, enable, disable} from '../stores/simple'
+import {log, view_from, show_mark} from '../stores/logs'
+
+view main():
+  <h1> "Logs"
+  <div>
+    <h2> "Index"
+    store @log = log | refresher
+    store @index = index | refresher | fetch_indexes
+    store @hardcore = bool | disable()
+    if @index.items:
+      <table class="table">
+        <thead>
+          <tr>
+            <th> "Time"
+            <th> "Deployment Id"
+            if @hardcore:
+              <th> "Mark"
+              <th>
+                "Action "
+                <button>
+                  link {click} disable() -> @hardcore
+                  "-"
+            else:
+              <th> "Role"
+              <th>
+                "Action "
+                <button>
+                  link {click} enable() -> @hardcore
+                  "*"
+            <th>
+        <tbody>
+        for record of @index.items key repr(record):
+          <tr>
+            <td>
+              record[0]
+            <td>
+              record[1]
+            if @hardcore:
+              <td>
+                repr(record[2])
+              <td>
+                repr(record[3])
+            else:
+              <td>
+                if record[2].variant == "Role":
+                  record[2].fields[0]
+                else:
+                  "-- global --"
+              <td>
+                if record[3].variant:
+                  record[3].variant
+                  " / "
+                  <code>
+                    record[3].fields
+                else:
+                  record[3]
+            <td>
+              <a href="#log">
+                link {click} view_from(record[2]) -> @log
+                link {click} show_mark(record[2]) -> @log
+                "View from here"
+    <h2 id="log"> "Logview"
+    <div>
+      <span>"Fetching"
+      <code>
+        repr(@log.fetching)
+    <pre>
+      @log.text
+
