@@ -1,0 +1,4 @@
+log-dirs:
+  # you don't need this, we put it here just to test
+  # PeekLog command
+  vw: /tmp/logs

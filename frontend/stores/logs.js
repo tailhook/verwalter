@@ -59,22 +59,24 @@ export function show_mark(mark) {
 }
 
 export function view_from(mark) {
+    let url;
+    let off;
     if(mark.variant == 'Global') {
-        return {
-            type: UPDATE_REQUEST,
-            url: "/v1/log/global/log." + mark.fields[0] + ".txt",
-            response_type: 'text',
-            headers: {'Range': 'bytes=' + mark.fields[1] + '-'},
-            decoder: x => x,
-        }
-    } else {
-        return {
-            type: UPDATE_REQUEST,
-            url: "/v1/log/role/" + mark.fields[0] +
-                "/log." + mark.fields[1] + ".txt",
-            response_type: 'text',
-            headers: {'Range': 'bytes=' + mark.fields[2] + '-'},
-            decoder: x => x,
-        }
+        url = "/v1/log/global/log." + mark.fields[0] + ".txt";
+        off = mark.fields[1];
+    } else if(mark.variant == 'Role') {
+        url = "/v1/log/role/" + mark.fields[0] +
+                "/log." + mark.fields[1] + ".txt";
+        off = mark.fields[2];
+    } else if(mark.variant == 'External') {
+        url = "/v1/log/external/" + mark.fields[0];
+        off = mark.fields[1];
+    }
+    return {
+        type: UPDATE_REQUEST,
+        url: url,
+        response_type: 'text',
+        headers: {'Range': 'bytes=' + off + '-' + (off + 65536)},
+        decoder: x => x,
     }
 }

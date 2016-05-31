@@ -100,6 +100,7 @@ type IndexEntry<'a> = (/*date*/&'a str, /*deployment_id*/&'a str,
 enum Pointer<'a> {
     Global(&'a str, u64),
     Role(&'a str, &'a str, u64),
+    External(&'a str, u64),
 }
 
 #[derive(RustcEncodable, Debug)]
@@ -108,7 +109,7 @@ enum Marker<'a> {
     RoleStart,
     ActionStart(&'a str),
     ActionFinish(&'a str),
-    ExternalLog(&'a Path, u64),
+    ExternalLog,
     RoleFinish,
     DeploymentFinish,
     DeploymentError,
@@ -391,8 +392,19 @@ impl<'a, 'b, 'c> Action<'a, 'b, 'c> {
         add_err(&mut self.role.err, self.role.log.write_fmt(args).err());
     }
     pub fn external_log(&mut self, path: &Path, position: u64) {
-        self.role.entry(Marker::ExternalLog(path, position));
-        self.role.log(format_args!("File position {:?}:{}\n", path, position));
+        self.role.log(format_args!("File position {:?}:{}\n",
+            path, position));
+        match path.to_str() {
+            Some(path) => {
+                let ptr = Pointer::External(path, position);
+                self.role.deployment
+                    .role_index_entry(ptr, &Marker::ExternalLog);
+            }
+            None => {
+                self.role.log(format_args!(
+                    "Bad file name for peek log {:?}\n", path));
+            }
+        }
     }
     pub fn error(&mut self, err: &::std::error::Error) {
         self.log(format_args!("Action error: {}\n", err));

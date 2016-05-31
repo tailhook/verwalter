@@ -12,7 +12,7 @@ view main():
     store @index = index | refresher | fetch_indexes
     store @hardcore = bool | disable()
     if @index.items:
-      <table class="table">
+      <table class="table table-striped">
         <thead>
           <tr>
             <th> "Time"
@@ -49,13 +49,17 @@ view main():
                 if record[2].variant == "Role":
                   record[2].fields[0]
                 else:
-                  "-- global --"
+                  `-- ${ record[2].variant.toLowerCase() } --`
               <td>
                 if record[3].variant:
                   record[3].variant
-                  " / "
+                  " "
                   <code>
                     record[3].fields
+                elif record[3] == "ExternalLog":
+                  "ExternalLog "
+                  <code>
+                    record[2].fields[0]
                 else:
                   record[3]
             <td>
