@@ -10,6 +10,7 @@ use rustc_serialize::json::{Json, ToJson};
 use indexed_log as log;
 
 use render::Error as RenderError;
+use config::Sandbox;
 use apply::expand::Variables;
 
 mod expand;
@@ -37,6 +38,7 @@ pub struct Task<'a: 'b, 'b: 'c, 'c: 'd, 'd> {
     pub log: &'d mut log::Action<'a, 'b, 'c>,
     pub dry_run: bool,
     pub source: &'d Source,
+    pub sandbox: &'d Sandbox,
 }
 
 trait Action: Debug + Send + ToJson + Sync {
@@ -135,7 +137,8 @@ impl<'a, 'b, 'c, 'd> Task<'a, 'b, 'c, 'd> {
 
 pub fn apply_list(role: &String,
     actions: Vec<(String, Vec<Command>, Source)>,
-    log: &mut log::Role, dry_run: bool)
+    log: &mut log::Role, dry_run: bool,
+    sandbox: &Sandbox)
     -> Result<(), Error>
 {
     for (aname, commands, source) in actions {
@@ -149,6 +152,7 @@ pub fn apply_list(role: &String,
                 log: &mut action,
                 dry_run: dry_run,
                 source: &source,
+                sandbox: sandbox,
             }, vars));
         }
     }

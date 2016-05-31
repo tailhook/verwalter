@@ -16,7 +16,6 @@ extern crate regex;
 extern crate sha1;
 extern crate inotify;
 extern crate itertools;
-extern crate indexed_log;
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate rotor;
 extern crate rotor_http;
@@ -25,6 +24,9 @@ extern crate rotor_cantal;
 #[macro_use] extern crate log;
 #[macro_use] extern crate matches;
 #[macro_use] extern crate quick_error;
+
+extern crate indexed_log;
+extern crate verwalter_config as config;
 
 use std::io::{stderr, Write};
 use std::net::ToSocketAddrs;
@@ -39,7 +41,6 @@ use shared::{Id, SharedState};
 use config::Sandbox;
 
 mod fs_util;
-mod config;
 mod scheduler;
 mod elect;
 mod frontend;

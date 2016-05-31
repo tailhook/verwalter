@@ -1,0 +1,26 @@
+[package]
+name = "verwalter_config"
+description = """
+    Verwalter's internal configuration library
+"""
+keywords = ["config", "verwalter"]
+version = "0.1.0"
+homepage = "http://github.com/tailhook/verwalter/tree/master/verwalter_config"
+#readme = "README.rst"
+#documentation = "http://verwalter.readthedocs.org"
+authors = ["Paul Colomiets <paul@colomiets.name>"]
+
+[dependencies]
+quire = "0.1.7"
+log = "0.3.2"
+rustc-serialize = "0.3.16"
+yaml-rust = "0.3"
+scan_dir = "0.3"
+handlebars = "0.15"
+
+[dependencies.quick-error]
+git = "http://github.com/tailhook/quick-error"
+branch = "context2"
+
+[lib]
+path = "src/lib.rs"

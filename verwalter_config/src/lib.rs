@@ -1,3 +1,11 @@
+extern crate yaml_rust;
+extern crate scan_dir;
+extern crate quire;
+extern crate handlebars;
+extern crate rustc_serialize;
+#[macro_use] extern crate log;
+#[macro_use] extern crate quick_error;
+
 use std::io;
 use std::num::ParseFloatError;
 use std::path::{Path, PathBuf};
@@ -6,7 +14,6 @@ use rustc_serialize::json::Json;
 use yaml_rust::Yaml;
 use rustc_serialize::json::BuilderError as JsonError;
 use yaml_rust::scanner::ScanError as YamlError;
-use scan_dir;
 
 mod meta;
 mod tojson;

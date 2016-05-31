@@ -41,6 +41,9 @@ itertools = "0.4.15"
 [dependencies.indexed_log]
 path = "./indexed_log"
 
+[dependencies.verwalter_config]
+path = "./verwalter_config"
+
 [dependencies.quick-error]
 git = "http://github.com/tailhook/quick-error"
 branch = "context2"

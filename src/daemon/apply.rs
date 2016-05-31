@@ -172,8 +172,8 @@ fn apply_schedule(hash: &String, scheduler_result: &Json, settings: &Settings)
         cmd.arg(&vars);
         cmd.arg("--log-dir");
         cmd.arg(&settings.log_dir);
-        cmd.arg("--template-dir");
-        cmd.arg(&settings.config_dir.join("templates"));
+        cmd.arg("--config-dir");
+        cmd.arg(&settings.config_dir);
         if settings.dry_run {
             cmd.arg("--dry-run");
         }

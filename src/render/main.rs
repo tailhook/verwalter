@@ -7,23 +7,28 @@ extern crate argparse;
 extern crate tempfile;
 extern crate yaml_rust;
 extern crate handlebars;
-extern crate indexed_log;
 extern crate rustc_serialize;
 #[macro_use] extern crate quick_error;
 #[macro_use] extern crate lazy_static;
+
+extern crate indexed_log;
+extern crate verwalter_config as config;
 
 #[macro_use] mod macros;
 mod fs_util;
 mod apply;
 mod render;
-mod config;
+mod renderfile;
 
+use std::io::{stderr, Write};
 use std::path::{PathBuf};
 use std::process::exit;
 
 use argparse::{ArgumentParser, Parse, ParseOption, StoreTrue, FromCommandLine};
-use indexed_log::Index;
 use rustc_serialize::json::Json;
+
+use indexed_log::Index;
+use config::Sandbox;
 
 struct ParseJson(Json);
 
@@ -37,7 +42,7 @@ impl FromCommandLine for ParseJson {
 fn main() {
     let mut vars = ParseJson(Json::Null);
     let mut log_dir = PathBuf::from("/var/log/verwalter");
-    let mut template_dir = PathBuf::from("/etc/verwalter/templates");
+    let mut config_dir = PathBuf::from("/etc/verwalter");
     let mut check_dir = None::<PathBuf>;
     let mut dry_run = false;
     {
@@ -62,9 +67,9 @@ fn main() {
             ");
         ap.refer(&mut log_dir).add_option(&["--log-dir"], Parse, "
             Log directory (default `/var/log/verwalter`)");
-        ap.refer(&mut template_dir).add_option(&["--template-dir"], Parse, "
-            Base directory with templates
-            (default `/etc/verwalter/templates`");
+        ap.refer(&mut config_dir)
+            .add_option(&["--config-dir"], Parse,
+                "Directory of configuration files (default /etc/verwalter)");
         ap.parse_args_or_exit();
     }
     let vars = match vars {
@@ -92,7 +97,15 @@ fn main() {
             Some(_) => exit(5),
             None => exit(3),
         };
-        (id, template_dir.join(template))
+        (id, config_dir.join("templates").join(template))
+    };
+    let sandbox = match Sandbox::parse_all(&config_dir.join("sandbox")) {
+        Ok(cfg) => cfg,
+        Err(e) => {
+            writeln!(&mut stderr(),
+                "Error reading `/etc/sandbox`: {}", e).ok();
+            exit(3);
+        }
     };
 
     let role = match vars.get("role").and_then(|x| x.as_string()) {
@@ -115,7 +128,9 @@ fn main() {
                 exit(10);
             }
             Ok(actions) => {
-                match apply::apply_list(&role, actions, &mut rlog, dry_run) {
+                match apply::apply_list(&role, actions, &mut rlog, dry_run,
+                        &sandbox)
+                {
                     Err(e) => {
                         rlog.log(format_args!(
                             "ERROR: Can't apply templates: {}\n", e));

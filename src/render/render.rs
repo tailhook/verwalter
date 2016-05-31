@@ -7,7 +7,7 @@ use tempfile::NamedTempFile;
 use handlebars::{Handlebars, RenderError};
 use rustc_serialize::json::Json;
 
-use config::{self, TemplateError};
+use renderfile::{self as config, TemplateError};
 use apply::{Source, Command};
 use indexed_log::Role;
 use quick_error::ResultExt;
