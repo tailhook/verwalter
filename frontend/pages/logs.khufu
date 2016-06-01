@@ -12,7 +12,7 @@ view main():
     store @index = index | refresher | fetch_indexes
     store @hardcore = bool | disable()
     if @index.items:
-      <table class="table table-striped">
+      <table.table.table-hover>
         <thead>
           <tr>
             <th> "Time"
@@ -33,40 +33,40 @@ view main():
                   "*"
             <th>
         <tbody>
-        for record of @index.items key repr(record):
-          <tr>
-            <td>
-              record[0]
-            <td>
-              record[1]
-            if @hardcore:
+          for record of @index.items key repr(record):
+            <tr>
               <td>
-                repr(record[2])
+                record[0]
               <td>
-                repr(record[3])
-            else:
-              <td>
-                if record[2].variant == "Role":
-                  record[2].fields[0]
-                else:
-                  `-- ${ record[2].variant.toLowerCase() } --`
-              <td>
-                if record[3].variant:
-                  record[3].variant
-                  " "
-                  <code>
-                    record[3].fields
-                elif record[3] == "ExternalLog":
-                  "ExternalLog "
-                  <code>
+                record[1]
+              if @hardcore:
+                <td>
+                  repr(record[2])
+                <td>
+                  repr(record[3])
+              else:
+                <td>
+                  if record[2].variant == "Role":
                     record[2].fields[0]
-                else:
-                  record[3]
-            <td>
-              <a href="#log">
-                link {click} view_from(record[2]) -> @log
-                link {click} show_mark(record[2]) -> @log
-                "View from here"
+                  else:
+                    `-- ${ record[2].variant.toLowerCase() } --`
+                <td>
+                  if record[3].variant:
+                    record[3].variant
+                    " "
+                    <code>
+                      record[3].fields
+                  elif record[3] == "ExternalLog":
+                    "ExternalLog "
+                    <code>
+                      record[2].fields[0]
+                  else:
+                    record[3]
+              <td>
+                <a href="#log">
+                  link {click} view_from(record[2]) -> @log
+                  link {click} show_mark(record[2]) -> @log
+                  "View from here"
     <h2 id="log"> "Logview"
     <div>
       <span>"Fetching"
