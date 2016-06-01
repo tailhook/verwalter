@@ -14,7 +14,7 @@ use std::io::ErrorKind::NotFound;
 use std::fs::{OpenOptions, File, read_link};
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::{FromRawFd, AsRawFd};
-use std::io::SeekFrom::Current;
+use std::io::SeekFrom;
 use std::fmt::Arguments;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -192,7 +192,7 @@ impl<'a> Deployment<'a> {
     {
         let time = now_utc().rfc3339().to_string();
         let pos = if self.index.stdout { 0 } else {
-            match self.log.seek(Current(0)) {
+            match self.log.seek(SeekFrom::End(0)) {
                 Ok(x) => x,
                 Err(e) => {
                     self.errors.push(Error::WriteGlobal(e));
@@ -341,7 +341,7 @@ impl<'a> Drop for Deployment<'a> {
 impl<'a, 'b> Role<'a, 'b> {
     fn entry(&mut self, marker: Marker) {
         let pos = if self.deployment.index.stdout { 0 } else {
-            match self.log.seek(Current(0)) {
+            match self.log.seek(SeekFrom::End(0)) {
                 Ok(x) => x,
                 Err(e) => {
                     add_err(&mut self.err, Some(e));
@@ -455,7 +455,7 @@ fn check_log(dir: &Path, do_rotate: bool)
     if let Some(sname) = seg {
         let mut log_file = try!(open_segment(
             &dir, &format!("log.{}.txt", &sname)));
-        if !do_rotate || try!(log_file.seek(Current(0))) < MAX_ROLE_LOG {
+        if !do_rotate || try!(log_file.seek(SeekFrom::End(0))) < MAX_ROLE_LOG {
             return Ok((sname, log_file));
         }
     }
