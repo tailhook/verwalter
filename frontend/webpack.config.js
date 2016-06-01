@@ -31,6 +31,7 @@ module.exports = {
             "transform-es2015-parameters",
             "transform-es2015-destructuring",
             "transform-es2015-arrow-functions",
+            "transform-es2015-block-scoped-functions",
         ],
     },
     resolve: {
