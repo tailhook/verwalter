@@ -351,8 +351,9 @@ impl<'a, 'b> Role<'a, 'b> {
         };
         let ptr = Pointer::Role(self.role, &self.segment, pos);
         let date = self.deployment.role_index_entry(ptr, &marker);
-        let row = format!("{date} {id} ------------ {marker:?} ----------- \n",
-            date=date, id=self.deployment.id, marker=marker);
+        let row = format!(
+            "{date} {id} ------------ {role}: {marker:?} ----------- \n",
+            date=date, id=self.deployment.id, role=self.role, marker=marker);
         add_err(&mut self.err, self.log.write_all(row.as_bytes()).err());
     }
     pub fn action<'x>(&'x mut self, name: &'x str) -> Action<'a, 'b, 'x> {
