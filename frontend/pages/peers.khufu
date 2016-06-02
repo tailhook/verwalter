@@ -25,19 +25,20 @@ view main():
               <td>
                 peer.hostname
                 " "
-                let lnk = set_port(peer.hostname, peer.primary_addr)
+                let lnk = set_port(peer.hostname, ":8379")
                 <a.btn.btn-default.btn-xs href=lnk>
                   <span.glyphicon.glyphicon-play>
               <td>
                 peer.name
                 " "
-                let lnk = set_port(peer.name, peer.primary_addr)
+                let lnk = set_port(peer.name, ":8379")
                 <a.btn.btn-default.btn-xs href=lnk>
                   <span.glyphicon.glyphicon-play>
               <td>
-                peer.primary_addr
+                let lnk = set_port(peer.primary_addr.split(':')[0], ":8379")
+                lnk
                 " "
-                <a.btn.btn-default.btn-xs href=`http://${peer.primary_addr}`>
+                <a.btn.btn-default.btn-xs href=lnk>
                   <span.glyphicon.glyphicon-play>
               <td>
                 format_uptime(till_now_ms(from_ms(peer.known_since)))
