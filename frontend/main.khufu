@@ -45,10 +45,11 @@ view _navbar(status, frontend_version):
               link {click} go(event) -> @router
               "Logs"
         <ul.nav.navbar-nav.navbar-right>
-          <li.text-danger
-            title=format_error_hint(status.errors)>
-            <a href="/v1/status.pretty">
-              format_error_badge(status.errors)
+          if status and status.errors:
+            <li.text-danger
+              title=format_error_hint(status.errors)>
+              <a href="/v1/status.pretty">
+                format_error_badge(status.errors)
           if status and status.leader:
             <li>
               let url = set_port(status.leader.name, status.leader.addr)
