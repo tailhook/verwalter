@@ -7,7 +7,7 @@ import pending_actions from '../stores/actions'
 import {refresher, json} from '../middleware/request'
 import {execute} from '../util/action'
 import {is_leader} from '../util/status'
-import {known_leaders} from '../util/leaders.khufu'
+import {show_leaders} from '../util/leaders.khufu'
 
 
 style:
@@ -77,5 +77,5 @@ view main(role, role_name, {schedule, system_status}):
             <td>
               button.description or '(no description)'
   else:
-    known_leaders("Actions are Only Available on Leader", `/role/${role_name}`,
+    show_leaders("Actions are Only Available on Leader", `/role/${role_name}`,
       system_status)
