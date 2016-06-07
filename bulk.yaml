@@ -1,0 +1,42 @@
+minimum-bulk: v0.4.1
+
+metadata:
+  name: verwalter
+  short-description: Container orchestration service
+  long-description: |
+    Full-featured container orchestration service
+
+versions:
+
+- files:
+  - Cargo.toml
+  - indexed_log/Cargo.toml
+  - verwalter_config/Cargo.toml
+  block-start: ^\[package\]
+  block-end: ^\[.*\]
+  regex: ^version\s*=\s*"(\S+)"
+
+- file: doc/conf.py
+  regex: ^version\s*=\s*'(\S+)'
+  partial-version: ^\d+\.\d+
+
+- file: doc/conf.py
+  regex: ^release\s*=\s*'(\S+)'
+
+  # need to update lock files, because cargo fails
+
+- files:
+  - Cargo.lock
+  block-start: ^\[root\]
+  regex: ^version\s*=\s*"(\S+)"
+  block-end: ^\[.*\]
+
+- files:
+  - Cargo.lock
+  block-start: ^name\s*=\s*"(?:indexed_log|verwalter_config)"
+  regex: ^version\s*=\s*"(\S+)"
+  block-end: ^\[.*\]
+
+- files:
+  - Cargo.lock
+  regex: ^\s+"(?:indexed_log|verwalter_config)\s+(\S+)"

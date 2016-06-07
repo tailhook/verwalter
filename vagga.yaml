@@ -169,6 +169,10 @@ containers:
     - !Sh "dpkg -i /tmp/cantal.deb"
     #- !Sh |
     #    cargo install --root=/usr cargo-outdated
+    - &bulk !Tar
+      url: "http://files.zerogw.com/bulk/bulk-0.4.1.tar.gz"
+      sha256: df4488ce6c6c856c35356b2d5bdf5774bb915420820eefdc09165e0bd34ec43e
+      path: /
 
     environ:
       HOME: /work/target
