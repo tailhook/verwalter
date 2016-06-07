@@ -61,7 +61,7 @@ Functions that verwalter calls on its own.
      Mapping of node name (short/unqualified hostname) to node metadata.
      Each node contains: `vars` and `roles`.
 
-     Example:
+     Example::
 
          {"nodes": {
              "alpha": {
