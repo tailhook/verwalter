@@ -81,8 +81,8 @@ fn main() {
     }
     let mut log = Index::new(&log_dir, dry_run);
 
-    let (id, dir) = if let Some(dir) = check_dir {
-        ("dry-run-dep-id-dead-beef".into(), dir)
+    let (id, dir, sandbox) = if let Some(dir) = check_dir {
+        ("dry-run-dep-id-dead-beef".into(), dir, Sandbox::empty())
     } else {
         let id = match vars.get("deployment_id").and_then(|x| x.as_string()) {
             Some(x) => x.to_string(),
@@ -97,15 +97,15 @@ fn main() {
             Some(_) => exit(5),
             None => exit(3),
         };
-        (id, config_dir.join("templates").join(template))
-    };
-    let sandbox = match Sandbox::parse_all(&config_dir.join("sandbox")) {
-        Ok(cfg) => cfg,
-        Err(e) => {
-            writeln!(&mut stderr(),
-                "Error reading `/etc/sandbox`: {}", e).ok();
-            exit(3);
-        }
+        let sandbox = match Sandbox::parse_all(&config_dir.join("sandbox")) {
+            Ok(cfg) => cfg,
+            Err(e) => {
+                writeln!(&mut stderr(),
+                    "Error reading `/etc/sandbox`: {}", e).ok();
+                exit(3);
+            }
+        };
+        (id, config_dir.join("templates").join(template), sandbox)
     };
 
     let role = match vars.get("role").and_then(|x| x.as_string()) {

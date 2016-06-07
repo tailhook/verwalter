@@ -40,6 +40,13 @@ impl Sandbox {
         Structure::new()
         .member("log_dirs", Mapping::new(Scalar::new(), Scalar::new()))
     }
+    /// Empty value used on verwalter_render --check-dir, because the config
+    /// is irrelevant there
+    pub fn empty() -> Sandbox {
+        Sandbox {
+            log_dirs: HashMap::new(),
+        }
+    }
     pub fn parse<P: AsRef<Path>>(p: P) -> Result<Sandbox, QuireError> {
         parse_config(p.as_ref(), &Sandbox::validator(), Default::default())
     }
