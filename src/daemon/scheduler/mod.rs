@@ -91,8 +91,17 @@ fn lua_load_file(lua: &mut Lua) -> i32 {
     debug!("Loading {:?}", path);
     let result = lua.load_file(&format!("{}", path.display()));
     if result.is_err() {
-        error!("Error loading file: {}",
-            lua.to_str(-1).unwrap_or("unknown error"));
+        let err_idx = lua.get_top();
+        lua.get_global("ERRORS");
+        let tbl_idx = lua.get_top();
+        let tbl_len = lua.raw_len(tbl_idx);
+        // This returns text, but also pushes string on the stack
+        {
+            let err_text = lua.to_str(err_idx).unwrap_or("unknown error");
+            error!("Error loading file: {}", err_text);
+        }
+        lua.raw_seti(tbl_idx, (tbl_len+1) as i64);
+        lua.pop(tbl_idx);
         return result as i32;
     }
     return 1;
@@ -131,20 +140,40 @@ pub fn read(id: Id, hostname: String, base_dir: &Path)
     lua.load_library(Library::Utf8);
     lua.load_library(Library::Math);
 
+    lua.new_table();
+    lua.set_global("ERRORS");
+
     let path = dir.join("main.lua");
-    {
-        try!(match lua.do_file(&path.to_str().unwrap_or("undecodable")) {
+    let result = {
+        match lua.do_file(&path.to_str().unwrap_or("undecodable")) {
             ThreadStatus::Ok => Ok(()),
-            ThreadStatus::Yield
-            => Err(ReadError::UnexpectedYield(path.clone())),
+            ThreadStatus::Yield => {
+                Err(ReadError::UnexpectedYield(path.clone()))
+            }
             x => {
-                let e = lua.to_str(-1).unwrap_or("undefined").to_string();
+                let mut e = lua.to_str_in_place(-1)
+                    .unwrap_or("unconvertible_error").to_string();
+                lua.get_global("ERRORS");
+                let err_idx = lua.get_top();
+                let err_num = lua.raw_len(err_idx) as i64;
+                for i in (1..err_num+1).rev() {
+                    lua.raw_geti(err_idx, i);
+                    e = format!("{}\n{}",
+                        lua.to_str_in_place(-1)
+                            .unwrap_or("unconvertible_place"),
+                        e);
+                    lua.pop(-1);
+                }
+                lua.pop(-1);
                 Err(ReadError::Lua(x, e, path.clone()))
             }
-        });
-    }
-    debug!("Scheduler loaded");
-    Ok(Scheduler {
+        }
+    };
+
+    lua.push_nil();
+    lua.set_global("ERRORS");
+
+    result.map(|()| Scheduler {
         id: id,
         hostname: hostname,
         lua: lua,
