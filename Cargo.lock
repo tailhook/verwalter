@@ -505,7 +505,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "verwalter_config"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "handlebars 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
