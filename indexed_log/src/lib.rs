@@ -478,13 +478,13 @@ fn open_segment(dir: &Path, name: &String) -> Result<File, io::Error> {
 }
 
 fn open_stdout() -> File {
-    OpenOptions::new().append(true)
+    OpenOptions::new().truncate(false).append(true)
         .open("/dev/stdout")
         .expect("Can't open /dev/stdout ?")
 }
 
 fn open_null() -> File {
-    OpenOptions::new().append(true)
+    OpenOptions::new().truncate(false).append(true)
         .open("/dev/null")
         .expect("Can't open /dev/null ?")
 }
