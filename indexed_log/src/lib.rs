@@ -478,15 +478,15 @@ fn open_segment(dir: &Path, name: &String) -> Result<File, io::Error> {
 }
 
 fn open_stdout() -> File {
-    OpenOptions::new().write(true).append(true)
+    OpenOptions::new().append(true)
         .open("/dev/stdout")
-        .ok().expect("Can't open /dev/stdout ?")
+        .expect("Can't open /dev/stdout ?")
 }
 
 fn open_null() -> File {
-    OpenOptions::new().write(true).append(true)
+    OpenOptions::new().append(true)
         .open("/dev/null")
-        .ok().expect("Can't open /dev/null ?")
+        .expect("Can't open /dev/null ?")
 }
 
 fn add_err(old: &mut Option<io::Error>, new: Option<io::Error>) {
