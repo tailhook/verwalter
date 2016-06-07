@@ -2,6 +2,8 @@ use std::io::{Read, Write};
 use std::str::FromStr;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex, Condvar, MutexGuard};
+use std::sync::atomic::Ordering::SeqCst;
+use std::sync::atomic::AtomicBool;
 use std::time::Duration;
 use std::collections::{HashMap, BTreeMap};
 use std::collections::btree_map::Entry::{Occupied, Vacant};
@@ -120,6 +122,7 @@ struct State {
 }
 
 struct Notifiers {
+    force_render: AtomicBool,
     apply_schedule: Condvar,
     run_scheduler: Condvar,
 }
@@ -155,6 +158,7 @@ impl SharedState {
             external_schedule_update: None, //unfortunately
             errors: Default::default(),
         })), Arc::new(Notifiers {
+            force_render: AtomicBool::new(false),
             apply_schedule: Condvar::new(),
             run_scheduler: Condvar::new(),
         }))
@@ -420,7 +424,9 @@ impl SharedState {
         loop {
             match stable_schedule(&mut guard) {
                 Some(schedule) => {
-                    if &schedule.hash != &hash { // only if not up to date
+                    if self.2.force_render.swap(false, SeqCst) ||  // if forced
+                        &schedule.hash != &hash  // or not up to date
+                    {
                         return schedule;
                     }
                 }
@@ -429,6 +435,10 @@ impl SharedState {
             guard = self.2.apply_schedule.wait(guard)
                 .expect("shared state lock");
         }
+    }
+    pub fn force_render(&self) {
+        self.2.force_render.store(true, SeqCst);
+        self.2.apply_schedule.notify_all();
     }
     pub fn fetched_schedule(&self, schedule: Schedule) {
         use scheduler::State::{Following, Leading};

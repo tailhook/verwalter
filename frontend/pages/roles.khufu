@@ -2,10 +2,18 @@ import {entries, repr, pretty, is_string} from '../util/object'
 import {@router, go} from '../util/routing'
 import {refresher, json} from '../middleware/request'
 import json_store from '../stores/json'
+import {preloader, action} from '../util/global_actions'
 
 // Frontend kinds
 import {main as example} from '../roles/example.khufu'
 import {main as version} from '../roles/version.khufu'
+
+style:
+  .rerender
+    position: absolute
+    bottom: 8px
+    left: 8px
+
 
 view _leftmenu(schedule):
   <ul.nav.nav-pills.nav-stacked.col-lg-2>
@@ -19,6 +27,10 @@ view _leftmenu(schedule):
             if role and role.badge:
               <span.badge>
                 role.badge
+  <button.btn.btn-danger.rerender>
+    store @preloader = preloader
+    link {click} action('force_render_all') -> @preloader
+    "Rerender all roles"
 
 view main(status):
   <div>

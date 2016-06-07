@@ -31,6 +31,7 @@ pub enum ApiRoute {
     PushAction,
     ActionIsPending(u64),
     PendingActions,
+    ForceRenderAll,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -266,6 +267,8 @@ fn parse_api(path: &str, head: &Head) -> Option<Route> {
         ("scheduler_debug_info", "") => Some(Api(SchedulerDebugInfo, Plain)),
         ("election", "") => Some(Api(Election, api_suffix(path))),
         ("action", "") => Some(Api(PushAction, api_suffix(path))),
+        ("force_render_all", "") => Some(Api(ForceRenderAll,
+                                         api_suffix(path))),
         ("action_is_pending", tail) => {
             tail.parse().map(|x| {
                 Api(ActionIsPending(x), api_suffix(path))
@@ -380,6 +383,10 @@ fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
         }
         PendingActions => {
             respond(res, format, &scope.state.pending_actions())
+        }
+        ForceRenderAll => {
+            scope.state.force_render();
+            respond(res, format, "ok")
         }
         PushAction => {
             let jdata = from_utf8(data).ok()
