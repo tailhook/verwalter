@@ -1,12 +1,12 @@
 [root]
 name = "verwalter"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "argparse 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "cbor-codec 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "handlebars 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "indexed_log 0.3.3",
+ "indexed_log 0.3.4",
  "inotify 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "itertools 0.4.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -29,7 +29,7 @@ dependencies = [
  "sha1 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempfile 1.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
- "verwalter_config 0.3.3",
+ "verwalter_config 0.3.4",
  "yaml-rust 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -115,7 +115,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "indexed_log"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "nix 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -505,7 +505,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "verwalter_config"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "handlebars 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
