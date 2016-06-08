@@ -28,6 +28,7 @@ impl Environ {
                     net::Ipv4Addr::new(127, 0, 0, 1),
                     12345))),
                 hostname: format!("{}", id),
+                name: format!("{}", id),
                 last_report: Some(get_time()),
             })].into_iter().collect(),
             now: Time::zero(),
@@ -61,6 +62,7 @@ impl Environ {
                 net::Ipv4Addr::new(127, 0, (n >> 8) as u8, (n & 0xFF) as u8),
                 12345))),
             hostname: format!("{}", id),
+            name: format!("{}", id),
             last_report: Some(self.tspec),
         });
         id
