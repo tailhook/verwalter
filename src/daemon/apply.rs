@@ -68,7 +68,9 @@ fn merge_vars<'x, I, J>(iter: I) -> BTreeMap<String, Json>
                 x.iter()
                 .map(|x| x.as_object().unwrap().iter())
                 .map(|x| x.map(Wrapper)).kmerge().map(|x| x.0)
-                .map(|(k, v)| (k.clone(), v.clone())).collect()))
+                .group_by_lazy(|&(k, _)| k).into_iter()
+                .map(|(k, mut vv)| (k.clone(), vv.next().unwrap().1.clone()))
+                .collect()))
         }
     }).collect()
 }
@@ -219,5 +221,37 @@ pub fn run(state: SharedState, settings: Settings, mut alarm: Alarm) -> ! {
             .map(|e| error!("Writing schedule failed: {:?}", e)).ok();
         apply_schedule(&schedule.hash, &schedule.data, &settings);
         prev_schedule = schedule.hash.clone();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rustc_serialize::json::Json;
+    use super::merge_vars;
+
+    fn parse_str(s: &str) -> Json {
+        Json::from_str(s).unwrap()
+    }
+
+    #[test]
+    fn test_merge_simple() {
+        let a = parse_str(r#"{"lamp": "blue", "table": "green"}"#);
+        let b = parse_str(r#"{"lamp": "yellow", "chair": "black"}"#);
+        assert_eq!(Json::Object(merge_vars(vec![
+            a.as_object().unwrap().iter(),
+            b.as_object().unwrap().iter(),
+            ].into_iter())), parse_str(
+            r#"{"lamp": "yellow", "table": "green", "chair": "black"}"#));
+    }
+
+    #[test]
+    fn test_merge_nested() {
+        let a = parse_str(r#"{"a": {"lamp": "blue", "table": "green"}}"#);
+        let b = parse_str(r#"{"a": {"lamp": "yellow", "chair": "black"}}"#);
+        assert_eq!(Json::Object(merge_vars(vec![
+            a.as_object().unwrap().iter(),
+            b.as_object().unwrap().iter(),
+            ].into_iter())), parse_str(
+        r#"{"a": {"lamp": "yellow", "table": "green", "chair": "black"}}"#));
     }
 }
