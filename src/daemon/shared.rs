@@ -14,8 +14,9 @@ use cbor::{Encoder, EncodeResult, Decoder, DecodeResult};
 use rotor_cantal::{Schedule as Cantal, RemoteQuery};
 use rustc_serialize::hex::{FromHex, ToHex, FromHexError};
 use rustc_serialize::{Encodable, Encoder as RustcEncoder};
-use rustc_serialize::json::Json;
+use rustc_serialize::json::{Json, ToJson};
 
+use time_util::ToMsec;
 use elect::{ElectionState, ScheduleStamp, Epoch};
 use scheduler::{self, Schedule, PrefetchInfo, MAX_PREFETCH_TIME};
 
@@ -106,13 +107,23 @@ pub struct Peer {
      pub last_report: Option<Timespec>,
 }
 
+impl ToJson for Peer {
+    fn to_json(&self) -> Json {
+        Json::Object(vec![
+            ("hostname".to_string(), self.hostname.to_json()),
+            ("timestamp".to_string(),
+                self.last_report.map(|x| x.to_msec()).to_json()),
+        ].into_iter().collect())
+    }
+}
+
 #[derive(Debug)]
 struct State {
     peers: Option<Arc<(Time, HashMap<Id, Peer>)>>,
     last_known_schedule: Option<Arc<Schedule>>,
     // TODO(tailhook) rename schedule -> scheduleR
     schedule: Arc<scheduler::State>,
-    last_scheduler_debug_info: Arc<String>,
+    last_scheduler_debug_info: Arc<(Json, String)>,
     election: Arc<ElectionState>,
     actions: BTreeMap<u64, Arc<Json>>,
     cantal: Option<Cantal>,
@@ -151,7 +162,7 @@ impl SharedState {
             peers: None,
             schedule: Arc::new(scheduler::State::Unstable),
             last_known_schedule: old_schedule.map(Arc::new),
-            last_scheduler_debug_info: Arc::new(String::new()),
+            last_scheduler_debug_info: Arc::new((Json::Null, String::new())),
             election: Default::default(),
             actions: BTreeMap::new(),
             cantal: None,
@@ -177,7 +188,7 @@ impl SharedState {
     pub fn schedule(&self) -> Option<Arc<Schedule>> {
         self.lock().last_known_schedule.clone()
     }
-    pub fn scheduler_debug_info(&self) -> Arc<String> {
+    pub fn scheduler_debug_info(&self) -> Arc<(Json, String)> {
         self.lock().last_scheduler_debug_info.clone()
     }
     pub fn scheduler_state(&self) -> Arc<scheduler::State> {
@@ -232,12 +243,12 @@ impl SharedState {
         // changes.
         self.2.run_scheduler.notify_all();
     }
-    pub fn set_schedule_debug_info(&self, debug: String)
+    pub fn set_schedule_debug_info(&self, json: Json, debug: String)
     {
-        self.lock().last_scheduler_debug_info = Arc::new(debug);
+        self.lock().last_scheduler_debug_info = Arc::new((json, debug));
     }
     pub fn set_schedule_by_leader(&self, cookie: LeaderCookie,
-        val: Schedule, debug: String)
+        val: Schedule, input: Json, debug: String)
     {
         use scheduler::State::{Leading};
         use scheduler::LeaderState::{Stable, Calculating};
@@ -251,7 +262,7 @@ impl SharedState {
                 let sched = Arc::new(val);
                 guard.schedule = Arc::new(Leading(Stable(sched.clone())));
                 guard.last_known_schedule = Some(sched);
-                guard.last_scheduler_debug_info = Arc::new(debug);
+                guard.last_scheduler_debug_info = Arc::new((input, debug));
                 for (aid, _) in cookie.actions {
                     guard.actions.remove(&aid);
                 }

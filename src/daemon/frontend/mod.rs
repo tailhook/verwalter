@@ -26,6 +26,7 @@ pub enum ApiRoute {
     Peers,
     Schedule,
     Scheduler,
+    SchedulerInput,
     SchedulerDebugInfo,
     Election,
     PushAction,
@@ -264,11 +265,11 @@ fn parse_api(path: &str, head: &Head) -> Option<Route> {
         ("peers", "") => Some(Api(Peers, api_suffix(path))),
         ("schedule", "") => Some(Api(Schedule, api_suffix(path))),
         ("scheduler", "") => Some(Api(Scheduler, api_suffix(path))),
+        ("scheduler_input", "") => Some(Api(SchedulerInput, api_suffix(path))),
         ("scheduler_debug_info", "") => Some(Api(SchedulerDebugInfo, Plain)),
         ("election", "") => Some(Api(Election, api_suffix(path))),
         ("action", "") => Some(Api(PushAction, api_suffix(path))),
-        ("force_render_all", "") => Some(Api(ForceRenderAll,
-                                         api_suffix(path))),
+        ("force_render_all", "") => Some(Api(ForceRenderAll, Plain)),
         ("action_is_pending", tail) => {
             tail.parse().map(|x| {
                 Api(ActionIsPending(x), api_suffix(path))
@@ -375,8 +376,11 @@ fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
         Scheduler => {
             respond(res, format, &scope.state.scheduler_state())
         }
+        SchedulerInput => {
+            respond(res, format, &scope.state.scheduler_debug_info().0)
+        }
         SchedulerDebugInfo => {
-            respond_text(res, &*scope.state.scheduler_debug_info())
+            respond_text(res, &scope.state.scheduler_debug_info().1)
         }
         Election => {
             respond(res, format, &scope.state.election())

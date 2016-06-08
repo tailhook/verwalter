@@ -1,21 +1,12 @@
-use std::sync::Arc;
-use std::collections::{HashMap, BTreeMap};
-
 use lua::{ThreadStatus, Type};
-use rotor_cantal::RemoteQuery;
 use rustc_serialize::json::Json;
 
-use shared::{Id, Peer};
-use config::Runtime;
-use scheduler::{Scheduler, Error, Schedule};
-use scheduler::input::Input;
+use scheduler::{Scheduler, Error};
+use scheduler::lua_json::push_json;
 
 
 impl Scheduler {
-    pub fn execute(&mut self, runtime: &Runtime, peers: &HashMap<Id, Peer>,
-        parents: &Vec<Arc<Schedule>>,
-        actions: &BTreeMap<u64, Arc<Json>>,
-        metrics: Option<Arc<RemoteQuery>>)
+    pub fn execute(&mut self, input: &Json)
         -> (Result<Json, Error>, String)
     {
         match self.lua.get_global("scheduler") {
@@ -26,15 +17,7 @@ impl Scheduler {
                     String::from("Scheduler function not found"));
             }
         }
-        self.lua.push(Input {
-            runtime: runtime,
-            peers: peers,
-            id: &self.id,
-            hostname: &self.hostname,
-            parents: parents,
-            actions: actions,
-            metrics: metrics,
-        });
+        push_json(&mut self.lua, input);
         match self.lua.pcall(1, 2, 0) {
             ThreadStatus::Ok => {}
             ThreadStatus::Yield => {

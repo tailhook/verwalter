@@ -13,6 +13,7 @@ view main():
       <a href="/v1/peers.pretty"> "Peers"
       <a href="/v1/schedule.pretty"> "Schedule"
       <a href="/v1/scheduler.pretty"> "Scheduler"
+      <a href="/v1/scheduler_input.pretty"> "Scheduler Input"
       <a href="/v1/scheduler_debug_info"> "Scheduler Debug Log"
       <a href="/v1/election.pretty"> "Election"
       <a href="/v1/pending_actions.pretty"> "Pending Actions"

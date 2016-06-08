@@ -4,7 +4,6 @@ use lua::{State as Lua, ThreadStatus, Type, Library};
 use lua::ffi::{lua_upvalueindex};
 use shared::Id;
 
-mod input;
 mod main;
 mod lua_json;
 mod state;

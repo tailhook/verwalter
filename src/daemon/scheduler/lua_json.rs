@@ -3,22 +3,6 @@ use std::i64;
 use lua::{State};
 use rustc_serialize::json::Json;
 
-pub fn push_json_object_with_id(lua: &mut State, json: &Json, id: u64) {
-    use rustc_serialize::json::Json::*;
-    match json {
-        &Object(ref v) => {
-            lua.create_table(0, (v.len()+1) as i32);
-            let tbl = lua.get_top();
-            for (key, val) in v.iter() {
-                push_json(lua, val);
-                lua.set_field(tbl, &key);
-            }
-            lua.push_integer(id as i64);
-            lua.set_field(tbl, "id");
-        }
-        _ => unreachable!(),
-    }
-}
 
 pub fn push_json(lua: &mut State, json: &Json) {
     use rustc_serialize::json::Json::*;
