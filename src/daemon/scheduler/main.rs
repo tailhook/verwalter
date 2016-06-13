@@ -31,6 +31,14 @@ pub struct Settings {
 }
 
 fn watch_dir(notify: &mut INotify, path: &Path) {
+    notify.add_watch(&path,
+        IN_MODIFY | IN_ATTRIB | IN_CLOSE_WRITE | IN_MOVED_FROM |
+        IN_MOVED_TO | IN_CREATE | IN_DELETE | IN_DELETE_SELF |
+        IN_MOVE_SELF)
+    .map_err(|e| {
+        warn!("Error adding directory {:?} to inotify: {}.",
+              path, e);
+    }).ok();
     ScanDir::dirs().walk(path, |iter| {
         for (entry, _) in iter {
             notify.add_watch(&entry.path(),
