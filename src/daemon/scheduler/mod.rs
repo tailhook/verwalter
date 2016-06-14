@@ -37,11 +37,11 @@ quick_error! {
     #[derive(Debug)]
     pub enum ReadError {
         Lua(err: ThreadStatus, msg: String, path: PathBuf) {
-            display("error parsing lua script {:?}: {:?}: {}", path, err, msg)
+            display("lua script error {:?} -> {:?}: {}", path, err, msg)
             description("error parsing lua script")
         }
-        UnexpectedYield(path: PathBuf) {
-            description("script loading should not yield")
+        File(err: ThreadStatus, msg: String, path: PathBuf) {
+            display("cound not read file {:?} ->  {:?}: {}", path, err, msg)
         }
     }
 }
@@ -54,7 +54,8 @@ quick_error! {
             description("error running scheduler")
         }
         FunctionNotFound(name: &'static str, typ: Type) {
-            display("Global function {:?} expected {:?} found", name, typ)
+            display("Main expected to export {:?} expected {:?} found",
+                name, typ)
             description("scheduler function not found")
         }
         /*
@@ -91,7 +92,7 @@ fn lua_load_file(lua: &mut Lua) -> i32 {
     let result = lua.load_file(&format!("{}", path.display()));
     if result.is_err() {
         let err_idx = lua.get_top();
-        lua.get_global("ERRORS");
+        lua.get_global("_VERWALTER_ERRORS");
         let tbl_idx = lua.get_top();
         let tbl_len = lua.raw_len(tbl_idx);
         // This returns text, but also pushes string on the stack
@@ -140,19 +141,42 @@ pub fn read(id: Id, hostname: String, base_dir: &Path)
     lua.load_library(Library::Math);
 
     lua.new_table();
-    lua.set_global("ERRORS");
+    lua.set_global("_VERWALTER_ERRORS");
 
     let path = dir.join("main.lua");
     let result = {
-        match lua.do_file(&path.to_str().unwrap_or("undecodable")) {
-            ThreadStatus::Ok => Ok(()),
-            ThreadStatus::Yield => {
-                Err(ReadError::UnexpectedYield(path.clone()))
+        let strpath = match path.to_str() {
+            Some(x) => x,
+            None => return Err(ReadError::File(ThreadStatus::FileError,
+                "can't stringify path".into(), path.to_path_buf())),
+        };
+        match lua.load_file(&strpath) {
+            ThreadStatus::Ok => {},
+            err @ ThreadStatus::Yield => {
+                return Err(ReadError::File(err,
+                    "unexpected yield".into(), path.to_path_buf()));
+            }
+            err => {
+                let msg = lua.to_str_in_place(-1)
+                    .unwrap_or("no message").to_string();
+                lua.pop(-1);
+                return Err(ReadError::File(err, msg, path.to_path_buf()));
+            }
+        }
+        // TODO(tailhook) pass error function
+        match lua.pcall(0, 1, 0) {
+            ThreadStatus::Ok => {
+                lua.set_global("_VERWALTER_MAIN");
+                Ok(())
+            }
+            err @ ThreadStatus::Yield => {
+                return Err(ReadError::File(err,
+                    "unexpected yield".to_string(), path.to_path_buf()));
             }
             x => {
                 let mut e = lua.to_str_in_place(-1)
                     .unwrap_or("unconvertible_error").to_string();
-                lua.get_global("ERRORS");
+                lua.get_global("_VERWALTER_ERRORS");
                 let err_idx = lua.get_top();
                 let err_num = lua.raw_len(err_idx) as i64;
                 for i in (1..err_num+1).rev() {
@@ -170,7 +194,7 @@ pub fn read(id: Id, hostname: String, base_dir: &Path)
     };
 
     lua.push_nil();
-    lua.set_global("ERRORS");
+    lua.set_global("_VERWALTER_ERRORS");
 
     result.map(|()| Scheduler {
         id: id,

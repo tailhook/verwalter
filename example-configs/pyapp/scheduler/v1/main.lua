@@ -109,4 +109,6 @@ function _scheduler(state)
         end, roles)))
 end
 
-scheduler = trace.wrap_scheduler(_scheduler)
+return {
+    scheduler=trace.wrap_scheduler(_scheduler),
+}

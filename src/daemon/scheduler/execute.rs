@@ -9,7 +9,8 @@ impl Scheduler {
     pub fn execute(&mut self, input: &Json)
         -> (Result<Json, Error>, String)
     {
-        match self.lua.get_global("scheduler") {
+        self.lua.get_global("_VERWALTER_MAIN");
+        match self.lua.get_field(-1, "scheduler") {
             Type::Function => {}
             typ => {
                 // TODO(tailhook) should we pop stack? Or pop only if not None
@@ -41,8 +42,7 @@ impl Scheduler {
             Some(ref x) => Json::from_str(x).map_err(|_| Error::Conversion),
             None => Err(Error::Conversion),
         };
-        self.lua.pop(top);
-        self.lua.pop(top-1);
+        self.lua.pop(5);
         return (result, dbg);
     }
 }
