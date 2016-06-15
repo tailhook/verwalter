@@ -1,0 +1,12 @@
+[Unit]
+Description=Verwalter configuration service
+
+[Service]
+Type=simple
+Environment="RUST_LOG=warn"
+; TODO(tailhook) don't run as root
+; User=verwalter
+ExecStart=/usr/bin/verwalter
+
+[Install]
+WantedBy=multi-user.target

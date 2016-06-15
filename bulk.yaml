@@ -1,4 +1,4 @@
-minimum-bulk: v0.4.1
+minimum-bulk: v0.4.5
 
 metadata:
   name: verwalter
@@ -41,3 +41,116 @@ versions:
 - files:
   - Cargo.lock
   regex: ^\s+"(?:indexed_log|verwalter_config)\s+(\S+)"
+
+repositories:
+
+# trusty
+- kind: debian
+  suite: trusty
+  component: verwalter
+  keep-releases: 1
+  match-version: ^\d+\.\d+\.\d+\+trusty1$
+
+- kind: debian
+  suite: trusty
+  component: verwalter-stable
+  keep-releases: 1000
+  match-version: ^\d+\.\d+\.\d+\+trusty1$
+
+- kind: debian
+  suite: trusty
+  component: verwalter-testing
+  keep-releases: 100
+  match-version: \+trusty1$
+
+- kind: debian
+  suite: trusty
+  component: verwalter-noinit
+  keep-releases: 1
+  match-version: ^\d+\.\d+\.\d+\+trusty1.noinit$
+
+- kind: debian
+  suite: trusty
+  component: verwalter-noinit-stable
+  keep-releases: 1000
+  match-version: ^\d+\.\d+\.\d+\+trusty1.noinit$
+
+- kind: debian
+  suite: trusty
+  component: verwalter-noinit-testing
+  keep-releases: 100
+  match-version: \+trusty1.noinit$
+
+# precise
+- kind: debian
+  suite: precise
+  component: verwalter
+  keep-releases: 1
+  match-version: ^\d+\.\d+\.\d+\+precise1$
+
+- kind: debian
+  suite: precise
+  component: verwalter-stable
+  keep-releases: 1000
+  match-version: ^\d+\.\d+\.\d+\+precise1$
+
+- kind: debian
+  suite: precise
+  component: verwalter-testing
+  keep-releases: 100
+  match-version: \+precise1$
+
+- kind: debian
+  suite: precise
+  component: verwalter-noinit
+  keep-releases: 1
+  match-version: ^\d+\.\d+\.\d\+precise1.noinit$
+
+- kind: debian
+  suite: precise
+  component: verwalter-noinit-stable
+  keep-releases: 1000
+  match-version: ^\d+\.\d+\.\d\+precise1.noinit$
+
+- kind: debian
+  suite: precise
+  component: verwalter-noinit-testing
+  keep-releases: 100
+  match-version: \+precise1.noinit$
+
+# xenial
+- kind: debian
+  suite: xenial
+  component: verwalter
+  keep-releases: 1
+  match-version: ^\d+\.\d+\.\d+\+xenial1$
+
+- kind: debian
+  suite: xenial
+  component: verwalter-stable
+  keep-releases: 1000
+  match-version: ^\d+\.\d+\.\d+\+xenial1$
+
+- kind: debian
+  suite: xenial
+  component: verwalter-testing
+  keep-releases: 100
+  match-version: \+xenial1$
+
+- kind: debian
+  suite: xenial
+  component: verwalter-noinit
+  keep-releases: 1
+  match-version: ^\d+\.\d+\.\d\+xenial1.noinit$
+
+- kind: debian
+  suite: xenial
+  component: verwalter-noinit-stable
+  keep-releases: 1000
+  match-version: ^\d+\.\d+\.\d\+xenial1.noinit$
+
+- kind: debian
+  suite: xenial
+  component: verwalter-noinit-testing
+  keep-releases: 100
+  match-version: \+xenial1.noinit$

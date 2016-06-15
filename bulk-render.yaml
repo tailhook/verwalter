@@ -1,0 +1,27 @@
+minimum-bulk: v0.4.5
+
+metadata:
+  name: verwalter-render
+  short-description: A command-line tool to check verwalter templates offline
+  long-description: |
+    This is actually a same verwalter_render utility from verwalter package
+    but statically compiles to use it on any machine.
+
+repositories:
+
+- kind: debian
+  suite: static
+  component: verwalter-render
+  keep-releases: 1
+  match-version: ^\d+\.\d+\.\d+$
+
+- kind: debian
+  suite: static
+  component: verwalter-render-stable
+  keep-releases: 1000
+  match-version: ^\d+\.\d+\.\d+$
+
+- kind: debian
+  suite: static
+  component: verwalter-render-testing
+  keep-releases: 100

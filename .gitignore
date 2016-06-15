@@ -5,3 +5,5 @@
 /todo.txt
 /figwheel_server.log
 /public/js
+/dist
+/pkg

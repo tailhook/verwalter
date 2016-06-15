@@ -2,12 +2,16 @@ minimum-vagga: v0.5.0-120-g42de958
 
 commands:
 
+  make-js: !Command
+    description: Make default javascripts
+    container:  js
+    work-dir: frontend
+    run: [webpack]
+
   make: !Command
     description: Build binaries and frontend
-    container: build
-    run: |
-      set -ex
-      make
+    container: xenial
+    run: [cargo, build]
 
   _static-verwalter_render-package: !Command
     description: Build static verwalter_render package (.tar.gz)
@@ -145,38 +149,66 @@ commands:
           done
           sleep 100000
 
+  _package-trusty: !Command
+    container: trusty
+    run: [make, ubuntu-packages, SYSTEM_KIND=upstart]
+
+  _package-precise: !Command
+    container: precise
+    run: [make, ubuntu-packages, SYSTEM_KIND=upstart]
+
+  _package-xenial: !Command
+    container: xenial
+    run: [make, ubuntu-packages, SYSTEM_KIND=systemd]
+
+  _package-verwalter_render: !Command
+    container: rust-musl
+    run: [make, ubuntu-verwalter_render-package]
+
+  packages: !Command
+    container: xenial
+    description: Build packages and repostories (mostly for CI)
+    prerequisites: [_package-trusty, _package-precise, _package-xenial,
+                    _package-verwalter_render]
+    accepts_arguments: true
+    run: |
+      bulk repo-add --config bulk-render.yaml \
+        --repository-base dist/repos \
+        dist/verwalter-render-*.deb "$@"
+      bulk repo-add --config bulk.yaml --repository-base dist/repos \
+        dist/verwalter-[0-9]*.deb "$@"
+
 containers:
 
-  build:
+  js:
     setup:
-    - !Ubuntu xenial
-    - !UbuntuUniverse
-    - !Install [make, checkinstall, wget, ca-certificates,
-                libssl-dev, build-essential, git]
-    - !Install [libreadline-dev] # for lua
-
+    - !Alpine v3.4
     - !NpmDependencies
       file: "frontend/package.json"
       optional: true
 
-    - !TarInstall
-      url: "http://static.rust-lang.org/dist/rust-1.9.0-x86_64-unknown-linux-gnu.tar.gz"
-      script: "./install.sh --prefix=/usr \
+  xenial:
+    setup:
+    - !Ubuntu xenial
+    - &pkgs !Install [build-essential, ca-certificates, git, lsb-release,
+                      libreadline-dev, wget] # these two are for lua
+    - &rust !TarInstall
+      url: https://static.rust-lang.org/dist/rust-1.9.0-x86_64-unknown-linux-gnu.tar.gz
+      script: "./install.sh --prefix=/usr --components=rustc,cargo \
                --components=rustc,rust-std-x86_64-unknown-linux-gnu,cargo"
-    - !Download
+
+    - !Download  # this is only for development
       url: https://github.com/tailhook/cantal/releases/download/v0.3.6/cantal_0.3.6-1_amd64.deb
       path: /tmp/cantal.deb
     - !Sh "dpkg -i /tmp/cantal.deb"
-    #- !Sh |
-    #    cargo install --root=/usr cargo-outdated
+
     - &bulk !Tar
-      url: "http://files.zerogw.com/bulk/bulk-0.4.1.tar.gz"
-      sha256: df4488ce6c6c856c35356b2d5bdf5774bb915420820eefdc09165e0bd34ec43e
+      url: "http://files.zerogw.com/bulk/bulk-0.4.5.tar.gz"
+      sha256: 8ee5a5f6386c1b408543a82bf22f184ddbc8add8e5eb6cb6b7e8492e5d4036e3
       path: /
 
-    environ:
+    environ: &environ
       HOME: /work/target
-      NODE_PATH: /usr/local/lib/node_modules:/usr/lib/node_modules
       PATH: /bin:/usr/bin:/usr/local/bin:/work/target/debug
 
     volumes:
@@ -185,43 +217,43 @@ containers:
         subdirs:
           logs:
 
+  trusty:
+    setup:
+    - !Ubuntu trusty
+    - *pkgs
+    - *rust
+    - *bulk
+    environ: *environ
+
+  precise:
+    setup:
+    - !Ubuntu precise
+    - *pkgs
+    - *rust
+    - *bulk
+    environ: *environ
+
+
   rust-musl:
     environ: &rustenv
       LD_LIBRARY_PATH: /musl/lib/rustlib/x86_64-unknown-linux-musl/lib
-      CFLAGS: "-I/musl/include -I/usr/include"
+      CFLAGS: -I/musl/include -I/usr/include
       PATH: /musl/bin:/usr/local/bin:/usr/bin:/bin
       HOME: /work/target
     setup:
     - !Ubuntu xenial
-    - !Install [build-essential, ca-certificates, git]
-    - !Install [libreadline-dev, wget] # for lua
-    - !BuildDeps [cmake, libc++-dev, curl, autoconf, automake, libtool]
-    # Build script derived from
-    # https://github.com/rust-lang/rust-buildbot/blob/master/slaves/linux/build-musl.sh
+    - !UbuntuUniverse
+    - *pkgs
+    - *rust
+    - !Install [musl-tools]
     - !TarInstall
-      url: http://www.musl-libc.org/releases/musl-1.1.14.tar.gz
-      script: |
-        ./configure --prefix=/musl --disable-shared
-        make -j2
-        make install
-
-    - !Tar
-      url: http://llvm.org/releases/3.8.0/llvm-3.8.0.src.tar.xz
-      path: /tmp/llvm
-    - !TarInstall
-      url: http://llvm.org/releases/3.8.0/libunwind-3.8.0.src.tar.xz
-      script: |
-        cmake . -DLLVM_PATH=/tmp/llvm/llvm-3.8.0.src -DLIBUNWIND_ENABLE_SHARED=0
-        make -j2
-        cp lib/libunwind.a /musl/lib
-    - !TarInstall
-      url: "http://static.rust-lang.org/dist/rust-1.9.0-x86_64-unknown-linux-gnu.tar.gz"
-      script: "./install.sh --prefix=/usr --components=rustc,rust-std-x86_64-unknown-linux-gnu,cargo"
-    - !TarInstall
-      url: "http://static.rust-lang.org/dist/rust-std-1.9.0-x86_64-unknown-linux-musl.tar.gz"
+      url: "https://static.rust-lang.org/dist/rust-std-1.9.0-x86_64-unknown-linux-musl.tar.gz"
       script: "./install.sh --prefix=/musl \
                --components=rust-std-x86_64-unknown-linux-musl"
     - !Sh 'ln -s /musl/lib/rustlib/x86_64-unknown-linux-musl /usr/lib/rustlib/x86_64-unknown-linux-musl'
+    - *bulk
+
+
 
   docs:
     setup:
