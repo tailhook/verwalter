@@ -1,0 +1,41 @@
+import {refresher} from '../middleware/request'
+import {repr} from '../util/object'
+import {enumerate} from '../util/iter'
+import {role_messages, fetch_indexes} from '../stores/logs'
+
+
+style:
+  td.id
+    width: 16px
+    font-family: Hack, monospace
+    overflow: hidden
+    text-overflow: ellipsis
+
+
+view logs(role_name):
+  <h2> "Logs"
+  <table.table.table-hover>
+    store @index = role_messages(role_name) | refresher | fetch_indexes
+    <thead>
+      <tr>
+        <th> "Time"
+        <th.id> "Id"
+        <th> "Log"
+    <tbody>
+      if @index.deploys:
+        for [dep_id, dep] of @index.deploys.entries() key dep_id:
+          <tr>
+            <td>
+              (dep.start or dep.finish)[0]
+            <td.id>
+              dep_id
+            <td>
+              if dep.start and dep.finish:
+                let bytes = dep.finish[2].fields[2] - dep.start[2].fields[2]
+                <a href="#">
+                  `render(${ bytes }b)`
+              for [i, pair] of enumerate(dep.externals.entries()) key pair[0]:
+                let [fname, mark] = pair
+                let pos = mark[2].fields[1]
+                <a href="#" title=`${ fname } at ${ pos }`>
+                  ` [${ i+1 }]`

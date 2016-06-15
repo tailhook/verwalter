@@ -37,7 +37,7 @@ view main(status):
     store @schedule = json_store | refresher | json('/v1/schedule')
     _leftmenu(@schedule and @schedule.data)
 
-    <div.col-lg-4>
+    <div.col-lg-10>
       if not @schedule or not @schedule.data:
         <div.panel.panel-default>
           <div.panel-body>

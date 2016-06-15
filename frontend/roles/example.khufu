@@ -8,6 +8,7 @@ import {refresher, json} from '../middleware/request'
 import {execute} from '../util/action'
 import {is_leader} from '../util/status'
 import {show_leaders} from '../util/leaders.khufu'
+import {logs} from './logs.khufu'
 
 
 style:
@@ -21,7 +22,7 @@ style:
 view main(role, role_name, {schedule, system_status}):
   if role.info:
     <h2> "Status Info"
-    <table.table>
+    <table.table.table-hover>
       <thead>
         <tr>
           <th> "Property"
@@ -34,7 +35,7 @@ view main(role, role_name, {schedule, system_status}):
             <td>
               value
   <h2> "Processes"
-  <table.table>
+  <table.table.table-hover>
     <thead>
       <tr>
         <th> "Host"
@@ -52,9 +53,10 @@ view main(role, role_name, {schedule, system_status}):
                 kind
               <td>
                 props.instances
+  logs(role_name)
   if is_leader(system_status):
     <h2> "Available Actions"
-    <table.table>
+    <table.table.table-hover>
       <thead>
         <tr>
           <th> "Action"

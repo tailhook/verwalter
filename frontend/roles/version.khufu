@@ -5,6 +5,7 @@ import {refresher, json} from '../middleware/request'
 import {execute} from '../util/action'
 import {is_leader} from '../util/status'
 import {show_leaders} from '../util/leaders.khufu'
+import {logs} from './logs.khufu'
 
 
 style:
@@ -17,7 +18,7 @@ style:
 
 view main(role, role_name, {role_state, schedule, system_status}):
   <h2> "Status Info"
-  <table.table>
+  <table.table.table-hover>
     <thead>
       <tr>
         <th> "Property"
@@ -36,7 +37,7 @@ view main(role, role_name, {role_state, schedule, system_status}):
             <td>
               value
   <h2> "Processes"
-  <table.table>
+  <table.table.table-hover>
     <thead>
       <tr>
         <th> "Host"
@@ -57,12 +58,14 @@ view main(role, role_name, {role_state, schedule, system_status}):
                 props.image
               <td>
                 props.instances
+  logs(role_name)
+
   if is_leader(system_status):
     <div>
       store @actions = pending_actions | refresher
         | json('/v1/pending_actions')
       <h2> "Available Versions"
-      <table.table>
+      <table.table.table-hover>
         <thead>
           <tr>
             <th> "Version"

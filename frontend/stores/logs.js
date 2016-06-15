@@ -8,28 +8,67 @@ export var fetch_indexes = {
     decoder: x => x,
 }
 
+export var role_messages = role => (state={}, action) => {
+    switch(action.type) {
+        case DATA:
+            let items = parse_log(action.data, action.req)
+            let deploys = new Map()
+            let myitems = []
+            let in_role = false
+            for(let record of items) {
+                let [time, dep, {variant, fields: [ident]}, val] = record
+                if(ident != role && !in_role) {
+                    continue
+                }
+                if(!deploys.get(dep)) {
+                    deploys.set(dep, {externals: new Map()})
+                }
+                switch(val) {
+                    case 'RoleStart':
+                        deploys.get(dep).start = record;
+                        in_role = true;
+                        break;
+                    case 'RoleFinish':
+                        deploys.get(dep).finish = record;
+                        in_role = false;
+                        break;
+                    case 'ExternalLog':
+                        deploys.get(dep).externals.set(ident, record);
+                        break;
+                }
+            }
+            return {deploys: deploys}
+    }
+    return {}
+}
+
+function parse_log(data, req) {
+    let lines = data.split('\n');
+    // last item is always either empty or broken
+    lines.pop();
+    let rng = req.getResponseHeader("Content-Range")
+    if(rng.substr(0, 8) != 'bytes 0-') {
+        // if not a start of file, first item is broken too
+        lines.shift();
+    }
+    let items = [];
+    for(var line of lines) {
+        let record
+        try {
+            record = JSON.parse(line);
+        } catch(e) {
+            console.log("Bad index line", line, e);
+            continue
+        }
+        items.push(record);
+    }
+    return items
+}
+
 export function index(state={}, action) {
     switch(action.type) {
         case DATA:
-            let lines = action.data.split('\n');
-            // last item is always either empty or broken
-            lines.pop();
-            let rng = action.req.getResponseHeader("Content-Range")
-            if(rng.substr(0, 8) != 'bytes 0-') {
-                // if not a start of file, first item is broken too
-                lines.shift();
-            }
-            let items = [];
-            for(var line of lines) {
-                let record
-                try {
-                    record = JSON.parse(line);
-                } catch(e) {
-                    console.log("Bad index line", line, e);
-                    continue
-                }
-                items.push(record);
-            }
+            let items = parse_log(action.data, action.req)
             state = {...state, 'items': items};
             break;
     }
