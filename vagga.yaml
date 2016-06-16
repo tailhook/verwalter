@@ -178,6 +178,12 @@ commands:
       bulk repo-add --config bulk.yaml --repository-base dist/repos \
         dist/verwalter-[0-9]*.deb "$@"
 
+  check-scheduler: !Command
+    container: luacheck
+    prerequisites: []
+    run: |
+      exec luacheck example-configs/pyapp/scheduler/v1/*.lua
+
 containers:
 
   js:
@@ -262,3 +268,16 @@ containers:
     - !Alpine v3.3
     - !Install [py-sphinx, make, py-sphinx_rtd_theme]
     - !Py2Requirements doc/requirements.txt
+
+  luacheck:
+    setup:
+    - !Alpine v3.4
+    - !Sh |
+        echo 'http://mirror.yandex.ru/mirrors/alpine/edge/testing/' >> /etc/apk/repositories
+    - !Sh 'apk update'
+    - !Install [lua5.3, luarocks5.3, ca-certificates, curl]
+    - !Sh |
+        echo 'variables = { CC = "gcc -I/usr/include/lua5.3" }' >> /etc/luarocks/config-5.3.lua
+
+    - !BuildDeps [build-base, lua5.3-dev]
+    - !Sh luarocks-5.3 install luacheck
