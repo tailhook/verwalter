@@ -24,18 +24,18 @@ commands:
 
   test: !Command
     description: Run tests
-    container: build
+    container: xenial
     run: [cargo, test]
 
   cargo: !Command
     description: Run any cargo command
-    container: build
+    container: xenial
     run: [cargo]
 
   run: !Command
     description: "Run verwalter"
     prerequisites: [make]
-    container: build
+    container: xenial
     environ:
       RUST_LOG: debug
     run:
@@ -51,7 +51,7 @@ commands:
     prerequisites: [make]
     children:
       verw: !Command
-        container: build
+        container: xenial
         environ:
           RUST_LOG: debug
         run:
@@ -61,7 +61,7 @@ commands:
         - --log-dir=/tmp/logs
         - --override-machine-id=dead0beef1
       cantal: !Command
-        container: build
+        container: xenial
         environ:
           RUST_LOG: warn
         run:
@@ -70,7 +70,7 @@ commands:
         - --host=0.0.0.0
         - --override-machine-id=dead0beef1
       webpack: !Command
-        container: build
+        container: js
         work-dir: frontend
         run:
         - webpack-dev-server
@@ -85,7 +85,7 @@ commands:
 
   webpack: !Command
     description: "Run webpack (compile javascripts)"
-    container: build
+    container: js
     work-dir: frontend
     run:
     - webpack-dev-server
@@ -98,7 +98,7 @@ commands:
     prerequisites: [make]
     children:
       n1: !Command
-        container: build
+        container: xenial
         network: &n1
           ip: 172.23.0.1
           ports: {20001: 22682, 21001: 8379}
@@ -112,7 +112,7 @@ commands:
             --dry-run \
             --host=0.0.0.0 --override-machine-id=beef01
       n2: !Command
-        container: build
+        container: xenial
         network: &n2
           ip: 172.23.0.2
           ports: {20002: 22682, 21002: 8379}
@@ -126,7 +126,7 @@ commands:
             --dry-run \
             --host=0.0.0.0 --override-machine-id=beef02
       n3: !Command
-        container: build
+        container: xenial
         network: &n3
           ip: 172.23.0.3
           ports: {20003: 22682, 21003: 8379}
@@ -140,7 +140,7 @@ commands:
             --dry-run \
             --host=0.0.0.0 --override-machine-id=beef03
       connector: !BridgeCommand
-        container: build
+        container: xenial
         run: |
           sleep 2
           for i in $(seq 2 3); do
@@ -186,6 +186,8 @@ containers:
     - !NpmDependencies
       file: "frontend/package.json"
       optional: true
+    environ:
+      NODE_PATH: /usr/lib/node_modules
 
   xenial:
     setup:
