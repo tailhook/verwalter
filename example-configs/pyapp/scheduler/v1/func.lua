@@ -42,7 +42,7 @@ end
 
 local function filter(func, array)
   local new_array = {}
-  for _, v in ipairs(array) do
+  for _, v in pairs(array) do
     if func(v) then
         new_array[#new_array+1] = v
     end
