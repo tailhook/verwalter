@@ -101,8 +101,9 @@ fn lua_load_file(lua: &mut Lua) -> i32 {
             error!("Error loading file: {}", err_text);
         }
         lua.raw_seti(tbl_idx, (tbl_len+1) as i64);
-        lua.pop(tbl_idx);
-        return result as i32;
+        lua.pop(1); // table
+        assert_eq!(err_idx, lua.get_top());
+        return 0;
     }
     return 1;
 }
@@ -139,6 +140,12 @@ pub fn read(id: Id, hostname: String, base_dir: &Path)
     lua.load_library(Library::String);
     lua.load_library(Library::Utf8);
     lua.load_library(Library::Math);
+    // TODO(tailhook) include debug.traceback but not interactive functions
+    lua.load_library(Library::Debug);
+
+    lua.get_global("debug");
+    lua.get_field(-1, "traceback");
+    let error_handler = lua.get_top();
 
     lua.new_table();
     lua.set_global("_VERWALTER_ERRORS");
@@ -164,7 +171,7 @@ pub fn read(id: Id, hostname: String, base_dir: &Path)
             }
         }
         // TODO(tailhook) pass error function
-        match lua.pcall(0, 1, 0) {
+        match lua.pcall(0, 1, error_handler) {
             ThreadStatus::Ok => {
                 lua.set_global("_VERWALTER_MAIN");
                 Ok(())
@@ -195,6 +202,8 @@ pub fn read(id: Id, hostname: String, base_dir: &Path)
 
     lua.push_nil();
     lua.set_global("_VERWALTER_ERRORS");
+
+    lua.pop(2); // error handler, and global
 
     result.map(|()| Scheduler {
         id: id,

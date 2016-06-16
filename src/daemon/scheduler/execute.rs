@@ -9,6 +9,10 @@ impl Scheduler {
     pub fn execute(&mut self, input: &Json)
         -> (Result<Json, Error>, String)
     {
+        self.lua.get_global("debug");
+        self.lua.get_field(-1, "traceback");
+        let error_handler = self.lua.get_top();
+
         self.lua.get_global("_VERWALTER_MAIN");
         match self.lua.get_field(-1, "scheduler") {
             Type::Function => {}
@@ -19,7 +23,7 @@ impl Scheduler {
             }
         }
         push_json(&mut self.lua, input);
-        match self.lua.pcall(1, 2, 0) {
+        match self.lua.pcall(1, 2, error_handler) {
             ThreadStatus::Ok => {}
             ThreadStatus::Yield => {
                 return (Err(Error::UnexpectedYield),
@@ -42,7 +46,7 @@ impl Scheduler {
             Some(ref x) => Json::from_str(x).map_err(|_| Error::Conversion),
             None => Err(Error::Conversion),
         };
-        self.lua.pop(5);
+        self.lua.pop(7);
         return (result, dbg);
     }
 }
