@@ -23,6 +23,9 @@ versions:
 - file: doc/conf.py
   regex: ^release\s*=\s*'(\S+)'
 
+- file: frontend/webpack.config.js
+  regex: VERSION:\s*JSON\.stringify\("v([^"]+)"\)
+
   # need to update lock files, because cargo fails
 
 - files:
