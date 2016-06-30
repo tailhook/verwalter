@@ -3,6 +3,8 @@ rust:
 - stable
 - beta
 - nightly
+install:
+- apt-get install -y cmake bison gperf python pkg-config libicu-dev ruby1.9.1
 script:
 - cargo build --verbose
 - cargo test --verbose
