@@ -198,7 +198,9 @@ containers:
   xenial:
     setup:
     - !Ubuntu xenial
+    - !UbuntuUniverse
     - &pkgs !Install [build-essential, ca-certificates, git, lsb-release,
+                      cmake, bison, gperf, python, pkg-config, libicu-dev, ruby1.9.1, # for jsc
                       libreadline-dev, wget] # these two are for lua
     - &rust !TarInstall
       url: https://static.rust-lang.org/dist/rust-1.9.0-x86_64-unknown-linux-gnu.tar.gz
