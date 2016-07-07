@@ -105,7 +105,10 @@ pub fn num_roles(json: &Json) -> usize {
     ).into_iter().chain(
         json.find("nodes")
         .and_then(|x| x.as_object())
-        .map(|x| x.values().filter_map(|x| x.as_object().map(|x| x.keys())))
+        .map(|x| x.values().filter_map(|x|
+            x.find("roles")
+             .and_then(|x| x.as_object())
+             .map(|x| x.keys())))
         .into_iter().flat_map(|x| x)
     ).kmerge().dedup().count()
 }
