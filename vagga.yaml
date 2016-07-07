@@ -13,6 +13,11 @@ commands:
     container: xenial
     run: [cargo, build]
 
+  bulk: !Command
+    description: Run bulk (basically, to bump version)
+    container: xenial
+    run: [bulk]
+
   _static-verwalter_render-package: !Command
     description: Build static verwalter_render package (.tar.gz)
     container: rust-musl
