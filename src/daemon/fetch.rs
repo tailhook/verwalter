@@ -18,7 +18,7 @@ use rustc_serialize::json::Json;
 
 use net::Context;
 use scheduler;
-use shared::{Peer, Id};
+use shared::Peer;
 
 pub type LeaderFetcher = Spawn<Uniform<Monitor>>;
 
@@ -77,6 +77,7 @@ impl Action for Monitor {
                 self.stop_copying();
                 let now = SteadyTime::now();
                 let time_cut = now - Dur::milliseconds(FETCH_TIME_HINT);
+                let peers = scope.state.peers();
                 let lock = &mut *mutex.lock().expect("prefech info locked");
                 for (ref hash, ref mut fetching) in lock.fetching.iter_mut() {
                     if lock.all_schedules.contains_key(*hash) {
@@ -85,7 +86,14 @@ impl Action for Monitor {
                     if fetching.time.map(|x| x < time_cut).unwrap_or(true) {
                         let mut result = None;
                         for id in &fetching.sources {
-                            if let Some(addr) = Monitor::get_addr(scope, &id) {
+                             let addr = peers.as_ref()
+                                .and_then(|x| x.1.get(&id))
+                                .and_then(|peer| match peer {
+                                    &Peer { addr: Some(addr), ..}
+                                    => Some(addr),
+                                    _ => None,
+                                });
+                            if let Some(addr) = addr {
                                 fetching.time = Some(now);
                                 result = Some((addr, id.clone()));
                             }
@@ -109,7 +117,15 @@ impl Action for Monitor {
                 Response::ok(Inactive)
             }
             Following(ref id, _) => {
-                match Monitor::get_addr(scope, id) {
+                let peers = scope.state.peers();
+                let addr = peers.as_ref()
+                    .and_then(|x| x.1.get(&id))
+                    .and_then(|peer| match peer {
+                        &Peer { addr: Some(addr), ..}
+                        => Some(addr),
+                        _ => None,
+                    });
+                match addr {
                     Some(naddr) => {
                         let still_valid = match self {
                             Copying { addr, ref active }
@@ -151,17 +167,6 @@ impl Monitor {
                 // TODO(tailhook) notifier.wakeup();
             }
         }
-    }
-    fn get_addr(scope: &mut Scope<Context>, leader_id: &Id)
-        -> Option<SocketAddr>
-    {
-        if let Some(pair) = scope.state.peers() {
-            let peer = pair.1.get(leader_id);
-            if let Some(&Peer { addr: Some(addr), .. }) = peer {
-                return Some(addr);
-            }
-        }
-        return None;
     }
 }
 
