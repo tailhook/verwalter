@@ -134,9 +134,8 @@ fn apply_schedule(hash: &String, scheduler_result: &Json, settings: &Settings)
     let node_roles = node.get("roles")
         .and_then(|x| x.as_object())
         .unwrap_or(&empty);
-    let all_roles = roles.keys().merge(node_roles.keys()).dedup();
 
-    for role_name in all_roles {
+    for (role_name, ref node_role_vars) in node_roles.iter() {
         let mut rlog = match dlog.role(&role_name, true) {
             Ok(l) => l,
             Err(e) => {
@@ -144,9 +143,7 @@ fn apply_schedule(hash: &String, scheduler_result: &Json, settings: &Settings)
                 return;
             }
         };
-        let node_role_vars = node_roles.get(role_name)
-            .and_then(|x| x.as_object())
-            .unwrap_or(&empty);
+        let node_role_vars = node_role_vars.as_object().unwrap_or(&empty);
         let role_vars = roles.get(role_name)
             .and_then(|x| x.as_object())
             .unwrap_or(&empty);
