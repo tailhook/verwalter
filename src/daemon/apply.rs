@@ -4,6 +4,7 @@ use std::borrow::Cow;
 use std::process::{Command, ExitStatus};
 use std::collections::{BTreeMap};
 
+use time::now_utc;
 use rand::{thread_rng, Rng};
 use itertools::Itertools;
 use rustc_serialize::json::{Json};
@@ -161,6 +162,8 @@ fn apply_schedule(hash: &String, scheduler_result: &Json, settings: &Settings)
             Json::String(id.clone()));
         cur_vars.insert(String::from("verwalter_version"),
             Json::String(concat!("v", env!("CARGO_PKG_VERSION")).into()));
+        cur_vars.insert(String::from("timestamp"),
+            Json::String(now_utc().rfc3339().to_string()));
         let vars = format!("{}", Json::Object(cur_vars));
         rlog.log(format_args!("Template variables: {}\n", vars));
 
