@@ -41,6 +41,7 @@ impl FromCommandLine for ParseJson {
 
 fn main() {
     let mut vars = ParseJson(Json::Null);
+    let mut schedule = ParseJson(Json::Null);
     let mut log_dir = PathBuf::from("/var/log/verwalter");
     let mut config_dir = PathBuf::from("/etc/verwalter");
     let mut check_dir = None::<PathBuf>;
@@ -56,6 +57,9 @@ fn main() {
         ap.refer(&mut vars).add_argument("vars", Parse, "
             Variables to pass to renderer
             ").required();
+        ap.refer(&mut schedule)
+            .add_option(&["--schedule"], Parse, "
+                Global variables to pass to global renderer.");
         ap.refer(&mut check_dir)
             .add_option(&["-C", "--check", "--check-dir"], ParseOption, "
                 Render things in specified log dir, and show output.
@@ -72,7 +76,7 @@ fn main() {
                 "Directory of configuration files (default /etc/verwalter)");
         ap.parse_args_or_exit();
     }
-    let vars = match vars {
+    let mut vars = match vars {
         ParseJson(Json::Object(v)) => v,
         _ => exit(3),
     };
@@ -112,6 +116,7 @@ fn main() {
         Some(x) => x.to_string(),
         None => exit(3),
     };
+    vars.insert(String::from("full_schedule"), schedule.0);
 
     let mut dlog = log.deployment(&id, false);
     {

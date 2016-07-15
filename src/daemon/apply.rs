@@ -134,6 +134,7 @@ fn apply_schedule(hash: &String, scheduler_result: &Json, settings: &Settings)
     let node_roles = node.get("roles")
         .and_then(|x| x.as_object())
         .unwrap_or(&empty);
+    let string_schedule = format!("{}", scheduler_result);
 
     for (role_name, ref node_role_vars) in node_roles.iter() {
         let mut rlog = match dlog.role(&role_name, true) {
@@ -176,6 +177,8 @@ fn apply_schedule(hash: &String, scheduler_result: &Json, settings: &Settings)
         cmd.arg(&settings.log_dir);
         cmd.arg("--config-dir");
         cmd.arg(&settings.config_dir);
+        cmd.arg("--schedule");
+        cmd.arg(&string_schedule);
         if settings.dry_run {
             cmd.arg("--dry-run");
         }
