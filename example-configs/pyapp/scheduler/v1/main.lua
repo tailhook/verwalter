@@ -3,6 +3,7 @@ local trace = require "trace"
 local func = require "func"
 local merge = require "merge"
 local split = require "split"
+local preprocess = require "preprocess"
 
 local function app_num_workers(props)
     local name = props.role
@@ -39,7 +40,7 @@ local function app_num_workers(props)
                         image="v1", config="/cfg/web-worker.yaml"},
                 celery={key="celery", instances=nums.celery,
                         image="v1", config="/cfg/celery.yaml"},
-            }} end, peers),
+            }} end, props.peer_set),
     }
 end
 
@@ -71,7 +72,7 @@ local function versioned_app(props)
                 celery={key="celery", instances=2,
                         image="celery."..state.version,
                         config="/cfg/celery.yaml"},
-            }} end, peers)
+            }} end, props.peer_set)
     if not state.running then
         nodes = {}
     end
@@ -90,6 +91,7 @@ local function _scheduler(state)
         app1=app_num_workers,
         app2=versioned_app,
     }
+    preprocess.state(state)
     return JSON:encode(merge.schedules(
         func.map_pairs(function (role_name, role_func)
             print("-------------- ROLE", role_name, "-----------------")
@@ -100,6 +102,7 @@ local function _scheduler(state)
                 parents=split.states(state, role_name),
                 metrics=split.metrics(state, role_name),
                 peers=state.peers,
+                peer_set=state.peer_set,
                 now=state.now,
             }
         end, roles)))

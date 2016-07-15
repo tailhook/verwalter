@@ -19,6 +19,8 @@ end
 local function get_metrics(state, role_name)
     local pattern = "^" .. role_name:gsub("-", "%%-") .. "%.(.+)$"
     local metrics = {}
+    local trace = require('trace')
+
     if state.metrics then
         metrics = func.filter_pairs(
             function (node_id, node_metrics)

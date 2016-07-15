@@ -65,6 +65,7 @@ commands:
         - --storage-dir=tmp/storage
         - --log-dir=/tmp/logs
         - --override-machine-id=dead0beef1
+        - --hostname=singleton
       cantal: !Command
         container: xenial
         environ:
