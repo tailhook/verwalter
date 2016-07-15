@@ -460,6 +460,12 @@ impl SharedState {
             Following(ref id, Fetching(ref hash)) if &schedule.hash == hash
             => {
                 let sched = Arc::new(schedule);
+                if guard.last_scheduler_debug_info.0 != Json::Null ||
+                   guard.last_scheduler_debug_info.1 != ""
+                {
+                    guard.last_scheduler_debug_info =
+                        Arc::new((Json::Null, String::new()));
+                }
                 guard.schedule = Arc::new(
                     Following(id.clone(), Stable(sched.clone())));
                 guard.last_known_schedule = Some(sched);

@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 use std::time::Duration;
+use std::sync::Arc;
 use std::borrow::Cow;
 use std::process::{Command, ExitStatus};
 use std::collections::{BTreeMap};
@@ -96,13 +97,20 @@ fn decode_render_error(s: ExitStatus) -> Cow<'static, str> {
     }.into()
 }
 
-fn apply_schedule(hash: &String, scheduler_result: &Json, settings: &Settings)
+fn apply_schedule(hash: &String, scheduler_result: &Json, settings: &Settings,
+    debug_info: Arc<(Json, String)>)
 {
     let id: String = thread_rng().gen_ascii_chars().take(24).collect();
     let mut index = Index::new(&settings.log_dir, settings.dry_run);
     let mut dlog = index.deployment(&id, true);
     dlog.string("schedule-hash", &hash);
-    dlog.json("scheduler_result", &scheduler_result);
+    if debug_info.0 != Json::Null {
+        dlog.json("scheduler-input", &debug_info.0);
+    }
+    if debug_info.1 != "" {
+        dlog.text("scheduler-debug", &debug_info.1);
+    }
+    dlog.json("scheduler_result", scheduler_result);
 
     let empty = BTreeMap::new();
     let roles = scheduler_result.as_object()
@@ -214,7 +222,8 @@ pub fn run(state: SharedState, settings: Settings, mut alarm: Alarm) -> ! {
         let _alarm = alarm.after(Duration::from_secs(180));
         write_file(&settings.schedule_file, &*schedule)
             .map(|e| error!("Writing schedule failed: {:?}", e)).ok();
-        apply_schedule(&schedule.hash, &schedule.data, &settings);
+        apply_schedule(&schedule.hash, &schedule.data, &settings,
+            state.scheduler_debug_info());
         prev_schedule = schedule.hash.clone();
     }
     loop {
@@ -222,7 +231,8 @@ pub fn run(state: SharedState, settings: Settings, mut alarm: Alarm) -> ! {
         let _alarm = alarm.after(Duration::from_secs(180));
         write_file(&settings.schedule_file, &*schedule)
             .map(|e| error!("Writing schedule failed: {:?}", e)).ok();
-        apply_schedule(&schedule.hash, &schedule.data, &settings);
+        apply_schedule(&schedule.hash, &schedule.data, &settings,
+            state.scheduler_debug_info());
         prev_schedule = schedule.hash.clone();
     }
 }
