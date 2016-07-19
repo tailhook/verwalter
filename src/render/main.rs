@@ -105,7 +105,7 @@ fn main() {
             Ok(cfg) => cfg,
             Err(e) => {
                 writeln!(&mut stderr(),
-                    "Error reading `/etc/sandbox`: {}", e).ok();
+                    "Error reading sandbox config: {}", e).ok();
                 exit(3);
             }
         };
