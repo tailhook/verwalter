@@ -79,8 +79,20 @@ fn init_logging(id: &Id, log_id: bool) {
     if log_id {
         let id = format!("{}", id);
         let format = move |record: &LogRecord| {
-            format!("{} {} {}: {}", now_utc().rfc3339(),
+            let tm = now_utc();
+            format!("{}.{:03}Z {} {}: {}",
+                tm.strftime("%Y-%m-%dT%H:%M:%S").unwrap(),
+                tm.tm_nsec / 1000000,
                 id, record.level(), record.args())
+        };
+        builder.format(format).filter(None, LogLevelFilter::Warn);
+    } else {
+        let format = move |record: &LogRecord| {
+            let tm = now_utc();
+            format!("{}.{:03}Z {}:{}: {}",
+                tm.strftime("%Y-%m-%dT%H:%M:%S").unwrap(),
+                tm.tm_nsec / 1000000,
+                record.level(), record.location().module_path(), record.args())
         };
         builder.format(format).filter(None, LogLevelFilter::Warn);
     }

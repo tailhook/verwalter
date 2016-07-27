@@ -114,7 +114,7 @@ commands:
             --host=0.0.0.0 --override-machine-id=beef01 &
           RUST_LOG=debug ./target/debug/verwalter \
             --config-dir=example-configs/pyapp --storage-dir=tmp/storage \
-            --log-dir=/tmp/logs \
+            --log-id --log-dir=/tmp/logs \
             --dry-run \
             --host=0.0.0.0 --override-machine-id=beef01
       n2: !Command
@@ -128,7 +128,7 @@ commands:
             --host=0.0.0.0 --override-machine-id=beef02 &
           RUST_LOG=debug ./target/debug/verwalter \
             --config-dir=example-configs/pyapp --storage-dir=tmp/storage \
-            --log-dir=/tmp/logs \
+            --log-id --log-dir=/tmp/logs \
             --dry-run \
             --host=0.0.0.0 --override-machine-id=beef02
       n3: !Command
@@ -142,7 +142,7 @@ commands:
             --host=0.0.0.0 --override-machine-id=beef03 &
           RUST_LOG=debug ./target/debug/verwalter \
             --config-dir=example-configs/pyapp --storage-dir=tmp/storage \
-            --log-dir=/tmp/logs \
+            --log-id --log-dir=/tmp/logs \
             --dry-run \
             --host=0.0.0.0 --override-machine-id=beef03
       connector: !BridgeCommand
