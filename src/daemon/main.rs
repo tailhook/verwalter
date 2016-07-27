@@ -197,7 +197,11 @@ fn main() {
     let old_schedule = match fs_util::read_json(&schedule_file)
         .map(scheduler::from_json)
     {
-        Ok(Ok(x)) => Some(x),
+        Ok(Ok(x)) => {
+            warn!("Started with a schedule from {} at {}",
+                x.hash, x.timestamp);
+            Some(x)
+        }
         Ok(Err(e)) => {
             error!("Error decoding saved schedule: {}", e);
             None
