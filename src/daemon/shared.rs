@@ -364,6 +364,9 @@ impl SharedState {
             guard.errors.remove("scheduler_load");
             guard.errors.remove("scheduler");
         }
+        let mut elect = elect;
+        elect.last_stable_timestamp = elect.last_stable_timestamp
+            .or(guard.election.last_stable_timestamp);
         guard.election = Arc::new(elect);
     }
     // Utility

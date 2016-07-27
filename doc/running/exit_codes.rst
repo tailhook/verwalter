@@ -23,6 +23,7 @@ Verwalter Daemon
   a fixed timeout of 180 seconds (3 min) for all of the stuff there
   (normally it's done in a fraction of second)
 * ``94`` -- the thread that applies config have panicked (probably a bug)
+* ``95`` -- no leader was elected for last 5 min
 
 
 Verwalter Render

@@ -23,6 +23,11 @@ pub struct ElectionState {
     pub epoch: Epoch,
     /// Current timeout (for debugging), JSON-friendly, in seconds
     pub deadline: u64,
+    /// Last known timestamp when cluster was known to be stable
+    /// the `ElectionState::from` timestamp returns it either None or now
+    /// depending on whether cluster is table. And `shared` module keeps track
+    /// of the last one
+    pub last_stable_timestamp: Option<u64>,
 }
 
 impl ElectionState {
@@ -39,6 +44,7 @@ impl ElectionState {
                 num_votes_for_me: None,
                 epoch: 0,
                 deadline: scope.estimate_timespec(leader_deadline).to_msec(),
+                last_stable_timestamp: None,
             },
             Electing { epoch, ref votes_for_me, deadline } => ElectionState {
                 is_leader: false,
@@ -48,6 +54,7 @@ impl ElectionState {
                 num_votes_for_me: Some(votes_for_me.len()),
                 epoch: epoch,
                 deadline: scope.estimate_timespec(deadline).to_msec(),
+                last_stable_timestamp: None,
             },
             Voted { epoch, ref peer, election_deadline } => ElectionState {
                 is_leader: false,
@@ -57,6 +64,7 @@ impl ElectionState {
                 num_votes_for_me: None,
                 epoch: epoch,
                 deadline: scope.estimate_timespec(election_deadline).to_msec(),
+                last_stable_timestamp: None,
             },
             Leader { epoch, next_ping_time } => ElectionState {
                 is_leader: true,
@@ -66,6 +74,8 @@ impl ElectionState {
                 num_votes_for_me: None,
                 epoch: epoch,
                 deadline: scope.estimate_timespec(next_ping_time).to_msec(),
+                last_stable_timestamp:
+                    Some(scope.estimate_timespec(scope.now()).to_msec()),
             },
             Follower { ref leader, epoch, leader_deadline } => ElectionState {
                 is_leader: false,
@@ -75,6 +85,8 @@ impl ElectionState {
                 num_votes_for_me: None,
                 epoch: epoch,
                 deadline: scope.estimate_timespec(leader_deadline).to_msec(),
+                last_stable_timestamp:
+                    Some(scope.estimate_timespec(scope.now()).to_msec()),
             },
         }
     }
