@@ -333,7 +333,9 @@ fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
                 scheduler_state: &'static str,
                 roles: usize,
                 election_epoch: Epoch,
+                last_stable_timestamp: u64,
                 errors: HashMap<&'static str, Arc<String>>,
+                num_errors: usize,
             }
             let peers = scope.state.peers();
             let election = scope.state.election();
@@ -345,6 +347,7 @@ fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
             };
             let leader = leader_id.and_then(
                 |id| peers.as_ref().and_then(|x| x.1.get(id)));
+            let errors = scope.state.errors();
             respond(res, format, &Status {
                 version: concat!("v", env!("CARGO_PKG_VERSION")),
                 id: scope.state.id(),
@@ -358,7 +361,10 @@ fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
                 roles: schedule.map(|x| x.num_roles).unwrap_or(0),
                 scheduler_state: scope.state.scheduler_state().describe(),
                 election_epoch: election.epoch,
-                errors: scope.state.errors(),
+                last_stable_timestamp:
+                    election.last_stable_timestamp.unwrap_or(0),
+                num_errors: errors.len(),
+                errors: errors,
             })
         }
         Peers => {
