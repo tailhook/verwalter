@@ -221,7 +221,7 @@ pub fn run(state: SharedState, settings: Settings, mut alarm: Alarm) -> ! {
     if let Some(schedule) = state.stable_schedule() {
         let _alarm = alarm.after(Duration::from_secs(180));
         write_file(&settings.schedule_file, &*schedule)
-            .map(|e| error!("Writing schedule failed: {:?}", e)).ok();
+            .map_err(|e| error!("Writing schedule failed: {:?}", e)).ok();
         apply_schedule(&schedule.hash, &schedule.data, &settings,
             state.scheduler_debug_info());
         prev_schedule = schedule.hash.clone();
@@ -230,7 +230,7 @@ pub fn run(state: SharedState, settings: Settings, mut alarm: Alarm) -> ! {
         let schedule = state.wait_new_schedule(&prev_schedule);
         let _alarm = alarm.after(Duration::from_secs(180));
         write_file(&settings.schedule_file, &*schedule)
-            .map(|e| error!("Writing schedule failed: {:?}", e)).ok();
+            .map_err(|e| error!("Writing schedule failed: {:?}", e)).ok();
         apply_schedule(&schedule.hash, &schedule.data, &settings,
             state.scheduler_debug_info());
         prev_schedule = schedule.hash.clone();
