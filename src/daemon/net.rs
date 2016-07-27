@@ -41,7 +41,9 @@ pub fn main(addr: &SocketAddr, id: Id, hostname: String, name: String,
     alarms: Receiver<SyncSender<Alarm>>)
     -> Result<(), io::Error>
 {
-    let mut creator = rotor::Loop::new(&rotor::Config::new())
+    let mut cfg = rotor::Config::new();
+    cfg.mio().timer_tick_ms(20);
+    let mut creator = rotor::Loop::new(&cfg)
         .expect("create loop");
     let schedule = creator.add_and_fetch(Fsm::Cantal, |scope| {
         connect_localhost(scope)
