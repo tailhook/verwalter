@@ -98,7 +98,7 @@ fn decode_render_error(s: ExitStatus) -> Cow<'static, str> {
 }
 
 fn apply_schedule(hash: &String, scheduler_result: &Json, settings: &Settings,
-    debug_info: Arc<(Json, String)>)
+    debug_info: Arc<(Json, String)>, state: &SharedState)
 {
     let id: String = thread_rng().gen_ascii_chars().take(24).collect();
     let mut index = Index::new(&settings.log_dir, settings.dry_run);
@@ -194,8 +194,10 @@ fn apply_schedule(hash: &String, scheduler_result: &Json, settings: &Settings,
         match cmd.status() {
             Ok(x) if x.success() => {
                 rlog.log(format_args!("Rendered successfully\n"));
+                state.reset_role_failure(role_name);
             }
             Ok(status) => {
+                state.mark_role_failure(role_name);
                 rlog.log(format_args!(
                     "ERROR: Error rendering role. \
                     verwalter_render {}\n", status));
@@ -204,6 +206,7 @@ fn apply_schedule(hash: &String, scheduler_result: &Json, settings: &Settings,
                     decode_render_error(status)));
             }
             Err(e) => {
+                state.mark_role_failure(role_name);
                 rlog.log(format_args!(
                     "ERROR: Error rendering role. \
                     Can't run verwalter_render: {}\n", e));
@@ -223,7 +226,7 @@ pub fn run(state: SharedState, settings: Settings, mut alarm: Alarm) -> ! {
         write_file(&settings.schedule_file, &*schedule)
             .map_err(|e| error!("Writing schedule failed: {:?}", e)).ok();
         apply_schedule(&schedule.hash, &schedule.data, &settings,
-            state.scheduler_debug_info());
+            state.scheduler_debug_info(), &state);
         prev_schedule = schedule.hash.clone();
     }
     loop {
@@ -232,7 +235,7 @@ pub fn run(state: SharedState, settings: Settings, mut alarm: Alarm) -> ! {
         write_file(&settings.schedule_file, &*schedule)
             .map_err(|e| error!("Writing schedule failed: {:?}", e)).ok();
         apply_schedule(&schedule.hash, &schedule.data, &settings,
-            state.scheduler_debug_info());
+            state.scheduler_debug_info(), &state);
         prev_schedule = schedule.hash.clone();
     }
 }

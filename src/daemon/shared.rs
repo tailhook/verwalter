@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex, Condvar, MutexGuard};
 use std::sync::atomic::Ordering::SeqCst;
 use std::sync::atomic::AtomicBool;
 use std::time::Duration;
-use std::collections::{HashMap, BTreeMap};
+use std::collections::{HashMap, BTreeMap, HashSet};
 use std::collections::btree_map::Entry::{Occupied, Vacant};
 
 use time::{SteadyTime, Timespec, Duration as Dur, get_time};
@@ -129,7 +129,8 @@ struct State {
     cantal: Option<Cantal>,
     /// Fetch update notifier
     external_schedule_update: Option<Notifier>,
-    errors: HashMap<&'static str, Arc<String>>,
+    errors: Arc<HashMap<&'static str, String>>,
+    failed_roles: Arc<HashSet<String>>,
 }
 
 struct Notifiers {
@@ -167,7 +168,8 @@ impl SharedState {
             actions: BTreeMap::new(),
             cantal: None,
             external_schedule_update: None, //unfortunately
-            errors: Default::default(),
+            errors: Arc::new(HashMap::new()),
+            failed_roles: Arc::new(HashSet::new()),
         })), Arc::new(Notifiers {
             force_render: AtomicBool::new(false),
             apply_schedule: Condvar::new(),
@@ -219,8 +221,11 @@ impl SharedState {
     pub fn pending_actions(&self) -> BTreeMap<u64, Arc<Json>> {
         self.lock().actions.clone()
     }
-    pub fn errors(&self) -> HashMap<&'static str, Arc<String>> {
+    pub fn errors(&self) -> Arc<HashMap<&'static str, String>> {
         self.lock().errors.clone()
+    }
+    pub fn failed_roles(&self) -> Arc<HashSet<String>> {
+        self.lock().failed_roles.clone()
     }
     pub fn metrics(&self) -> Option<Arc<RemoteQuery>> {
         self.lock().cantal.as_ref().unwrap().get_remote_query()
@@ -274,10 +279,10 @@ impl SharedState {
         }
     }
     pub fn set_error(&self, domain: &'static str, value: String) {
-        self.lock().errors.insert(domain, Arc::new(value));
+        Arc::make_mut(&mut self.lock().errors).insert(domain, value);
     }
     pub fn clear_error(&self, domain: &'static str) {
-        self.lock().errors.remove(domain);
+        Arc::make_mut(&mut self.lock().errors).remove(domain);
     }
     // TODO(tailhook) this method does too much, refactor it
     pub fn update_election(&self, elect: ElectionState,
@@ -360,9 +365,10 @@ impl SharedState {
 
         }
         if !elect.is_leader {
-            guard.errors.remove("reload_configs");
-            guard.errors.remove("scheduler_load");
-            guard.errors.remove("scheduler");
+            let errors = Arc::make_mut(&mut guard.errors);
+            errors.remove("reload_configs");
+            errors.remove("scheduler_load");
+            errors.remove("scheduler");
         }
         let mut elect = elect;
         elect.last_stable_timestamp = elect.last_stable_timestamp
@@ -524,5 +530,15 @@ impl SharedState {
     }
     pub fn check_action(&self, action: u64) -> bool {
         self.lock().actions.get(&action).is_some()
+    }
+    pub fn mark_role_failure(&self, role_name: &str) {
+        let ref mut lock = self.lock();
+        let ref mut role_errors = Arc::make_mut(&mut lock.failed_roles);
+        if !role_errors.contains(role_name) {
+            role_errors.insert(role_name.to_string());
+        }
+    }
+    pub fn reset_role_failure(&self, role_name: &str) {
+        Arc::make_mut (&mut self.lock().failed_roles).remove(role_name);
     }
 }

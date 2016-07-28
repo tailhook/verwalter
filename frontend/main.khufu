@@ -11,6 +11,11 @@ import {format_error_hint, format_error_badge} from './util/format_err'
 style:
   .subtext
     font-size: xx-small
+  // This is needed to override bootstrap's styles
+  a.error-status.error-status
+    color: red
+    font-weight: bold
+    font-size: 120%
 
 view _navbar(status, frontend_version):
   <nav.navbar.navbar-default>
@@ -47,9 +52,9 @@ view _navbar(status, frontend_version):
         <ul.nav.navbar-nav.navbar-right>
           if status and status.errors:
             <li.text-danger
-              title=format_error_hint(status.errors)>
-              <a href="/v1/status.pretty">
-                format_error_badge(status.errors)
+              title=format_error_hint(status)>
+              <a.error-status href="/v1/status.pretty">
+                format_error_badge(status)
           if status and status.leader:
             <li>
               let url = set_port(status.leader.name, status.leader.addr)

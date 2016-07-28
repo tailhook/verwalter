@@ -1,13 +1,12 @@
 use std::io;
 use std::io::{Read, Seek};
 use std::str::from_utf8;
-use std::sync::Arc;
 use std::path::Path;
 use std::path::Component::Normal;
 use std::fs::{File, metadata};
 use std::time::{Duration};
 use std::ascii::AsciiExt;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use rotor::{Scope, Time};
 use rotor_http::server::{Server, Response, RecvMode, Head};
@@ -334,8 +333,9 @@ fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
                 roles: usize,
                 election_epoch: Epoch,
                 last_stable_timestamp: u64,
-                errors: HashMap<&'static str, Arc<String>>,
                 num_errors: usize,
+                errors: &'a HashMap<&'static str, String>,
+                failed_roles: &'a HashSet<String>,
             }
             let peers = scope.state.peers();
             let election = scope.state.election();
@@ -348,6 +348,7 @@ fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
             let leader = leader_id.and_then(
                 |id| peers.as_ref().and_then(|x| x.1.get(id)));
             let errors = scope.state.errors();
+            let failed_roles = scope.state.failed_roles();
             respond(res, format, &Status {
                 version: concat!("v", env!("CARGO_PKG_VERSION")),
                 id: scope.state.id(),
@@ -363,8 +364,9 @@ fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
                 election_epoch: election.epoch,
                 last_stable_timestamp:
                     election.last_stable_timestamp.unwrap_or(0),
-                num_errors: errors.len(),
-                errors: errors,
+                num_errors: errors.len() + failed_roles.len(),
+                errors: &*errors,
+                failed_roles: &*failed_roles,
             })
         }
         Peers => {
