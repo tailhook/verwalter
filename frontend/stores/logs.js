@@ -14,6 +14,8 @@ export var role_messages = role => (state={}, action) => {
             let items = parse_log(action.data, action.req)
             let deploys = new Map()
             let myitems = []
+            // TODO(tailhook) use computed `record.role` produced
+            // by `parse_log`
             let in_role = false
             for(let record of items) {
                 let [time, dep, {variant, fields: [ident]}, val] = record
@@ -51,7 +53,8 @@ function parse_log(data, req) {
         // if not a start of file, first item is broken too
         lines.shift();
     }
-    let items = [];
+    let items = []
+    let in_role = null
     for(var line of lines) {
         let record
         try {
@@ -60,7 +63,19 @@ function parse_log(data, req) {
             console.log("Bad index line", line, e);
             continue
         }
+        let in_role_next = in_role
+        let [time, dep, {variant, fields: [ident]}, val] = record
+        switch(val) {
+            case 'RoleStart':
+                in_role = in_role_next = ident;
+                break;
+            case 'RoleFinish':
+                in_role_next = null;
+                break;
+        }
+        record.role = in_role;
         items.push(record);
+        in_role = in_role_next;
     }
     return items
 }
@@ -118,4 +133,15 @@ export function view_from(mark) {
         headers: {'Range': 'bytes=' + off + '-' + (off + 65536)},
         decoder: x => x,
     }
+}
+
+export function matches_filter(filter, record) {
+    if(filter == "")
+        return true;
+    if(filter == "-")
+        return record.role == null;
+    if(record.role && record.role.indexOf(filter) >= 0) {
+        return true;
+    }
+    return false;
 }

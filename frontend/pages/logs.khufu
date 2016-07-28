@@ -2,7 +2,12 @@ import {repr} from '../util/object'
 import {refresher} from '../middleware/request'
 import {index, fetch_indexes} from '../stores/logs'
 import {bool, enable, disable} from '../stores/simple'
-import {log, view_from, show_mark} from '../stores/logs'
+import {init, value, set} from '../stores/simple'
+import {log, view_from, show_mark, matches_filter} from '../stores/logs'
+
+style:
+  .RoleFinish
+    border-bottom: solid silver 2px
 
 view main():
   <h1> "Logs"
@@ -10,7 +15,8 @@ view main():
     <h2> "Index"
     store @log = log | refresher
     store @index = index | refresher | fetch_indexes
-    store @hardcore = bool | disable()
+    store @hardcore = bool | init(false)
+    store @role_filter = value
     if @index.items:
       <table.table.table-hover>
         <thead>
@@ -25,7 +31,11 @@ view main():
                   link {click} disable() -> @hardcore
                   "-"
             else:
-              <th> "Role"
+              <th>
+                <input type="text" placeholder="Role">
+                  link {
+                    change, blur, keydown, keyup
+                    } set(this.value) -> @role_filter
               <th>
                 "Action "
                 <button>
@@ -34,39 +44,40 @@ view main():
             <th>
         <tbody>
           for record of @index.items key repr(record):
-            <tr>
-              <td>
-                record[0]
-              <td>
-                record[1]
-              if @hardcore:
+            if matches_filter(@role_filter, record):
+              <tr class=(record[3].variant or record[3])>
                 <td>
-                  repr(record[2])
+                  record[0]
                 <td>
-                  repr(record[3])
-              else:
+                  record[1]
+                if @hardcore:
+                  <td>
+                    repr(record[2])
+                  <td>
+                    repr(record[3])
+                else:
+                  <td>
+                    if record.role:
+                      record.role
+                    else:
+                      `-- ${ record[2].variant.toLowerCase() } --`
+                  <td>
+                    if record[3].variant:
+                      record[3].variant
+                      " "
+                      <code>
+                        record[3].fields
+                    elif record[3] == "ExternalLog":
+                      "ExternalLog "
+                      <code>
+                        record[2].fields[0]
+                    else:
+                      record[3]
                 <td>
-                  if record[2].variant == "Role":
-                    record[2].fields[0]
-                  else:
-                    `-- ${ record[2].variant.toLowerCase() } --`
-                <td>
-                  if record[3].variant:
-                    record[3].variant
-                    " "
-                    <code>
-                      record[3].fields
-                  elif record[3] == "ExternalLog":
-                    "ExternalLog "
-                    <code>
-                      record[2].fields[0]
-                  else:
-                    record[3]
-              <td>
-                <a href="#log">
-                  link {click} view_from(record[2]) -> @log
-                  link {click} show_mark(record[2]) -> @log
-                  "View from here"
+                  <a href="#log">
+                    link {click} view_from(record[2]) -> @log
+                    link {click} show_mark(record[2]) -> @log
+                    "View from here"
     <h2 id="log"> "Logview"
     <div>
       <span>"Fetching"
