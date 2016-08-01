@@ -16,7 +16,7 @@ view main():
     store @log = log | refresher
     store @index = index | refresher | fetch_indexes
     store @hardcore = bool | init(false)
-    store @role_filter = value
+    store @role_filter = value | init("")
     if @index.items:
       <table.table.table-hover>
         <thead>
