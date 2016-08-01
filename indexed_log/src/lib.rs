@@ -86,6 +86,7 @@ pub struct Role<'a: 'b, 'b> {
     segment: String,
     log: File,
     err: Option<io::Error>,
+    full_role: bool,
 }
 
 pub struct Action<'a: 'b, 'b: 'c, 'c> {
@@ -308,6 +309,7 @@ impl<'a> Deployment<'a> {
             role: name,
             segment: segment,
             log: log_file,
+            full_role: start,
             err: None,
         };
         if start {
@@ -380,7 +382,9 @@ impl<'a, 'b> Role<'a, 'b> {
 
 impl<'a, 'b> Drop for Role<'a, 'b> {
     fn drop(&mut self) {
-        self.entry(Marker::RoleFinish);
+        if self.full_role {
+            self.entry(Marker::RoleFinish);
+        }
         if let Some(e) = self.err.take() {
             self.deployment.errors
                 .push(Error::WriteRole(e, self.role.to_string()));
