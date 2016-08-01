@@ -1,7 +1,7 @@
 export function format_error_hint(status) {
     let text = ""
     for(var k in status.errors) {
-        text += `${k}: ${err[k]}\n`
+        text += `${k}: ${status.errors[k]}\n`
     }
     for(var k of status.failed_roles) {
         text += `role ${k} failed to render\n`
