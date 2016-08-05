@@ -1,5 +1,4 @@
-use std::io;
-use std::io::{Read, Seek};
+use std::io::{self, Read, Write, Seek};
 use std::str::from_utf8;
 use std::path::Path;
 use std::path::Component::Normal;
@@ -8,6 +7,7 @@ use std::time::{Duration};
 use std::ascii::AsciiExt;
 use std::collections::{HashMap, HashSet};
 
+use gron::json_to_gron;
 use rotor::{Scope, Time};
 use rotor_http::server::{Server, Response, RecvMode, Head};
 use rustc_serialize::Encodable;
@@ -53,6 +53,7 @@ pub enum LogRoute {
 #[derive(Clone, Debug, Copy)]
 pub enum Format {
     Json,
+    Gron,
     Plain,
 }
 
@@ -175,7 +176,11 @@ fn serve_log(route: &LogRoute, ctx: &Context, res: &mut Response)
 
 fn api_suffix(path: &str) -> Format {
     use self::Format::*;
-    if suffix(path) == "pretty" { Plain } else { Json }
+    match suffix(path) {
+        "pretty" => Plain,
+        "gron" => Gron,
+        _ => Json,
+    }
 }
 
 fn parse_range_bytes(x: &str) -> Option<Range> {
@@ -284,14 +289,29 @@ fn respond<T: Encodable>(res: &mut Response, format: Format, data: T)
     -> Result<(), io::Error>
 {
     res.status(200, "OK");
-    res.add_header("Content-Type", b"application/json").unwrap();
-    let data = match format {
-        Format::Json => format!("{}", as_json(&data)),
-        Format::Plain => format!("{}", as_pretty_json(&data)),
+    let mut buf = Vec::with_capacity(8192);
+    match format {
+        Format::Json => {
+            res.add_header("Content-Type", b"application/json").unwrap();
+            try!(write!(&mut buf, "{}", as_json(&data)));
+        }
+        Format::Gron => {
+            res.add_header("Content-Type", b"text/x-gron").unwrap();
+            // TODO(tailhook) this should work without temporary conversions
+            try!(write!(&mut buf, "{}", as_pretty_json(&data)));
+            println!("DATA {}", from_utf8(&buf).unwrap());
+            let tmpjson = Json::from_str(from_utf8(&buf).unwrap()).unwrap();
+            buf.truncate(0);
+            try!(json_to_gron(&mut buf, "json", &tmpjson));
+        }
+        Format::Plain => {
+            res.add_header("Content-Type", b"application/json").unwrap();
+            try!(write!(&mut buf, "{}", as_pretty_json(&data)));
+        }
     };
-    res.add_length(data.as_bytes().len() as u64).unwrap();
+    res.add_length(buf.len() as u64).unwrap();
     res.done_headers().unwrap();
-    res.write_body(data.as_bytes());
+    res.write_body(&buf);
     res.done();
     Ok(())
 }

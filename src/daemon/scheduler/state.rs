@@ -73,10 +73,10 @@ impl Encodable for LeaderState {
             match *self {
                 Prefetching(time_started, ref x) => {
                     e.emit_enum_variant("Prefetching", 0, 2, |e| {
-                        try!(e.emit_enum_variant_arg(1, |e| {
+                        try!(e.emit_enum_variant_arg(0, |e| {
                             time_started.to_msec().encode(e)
                         }));
-                        try!(e.emit_enum_variant_arg(0, |e| {
+                        try!(e.emit_enum_variant_arg(1, |e| {
                             x.lock().expect("buildinfo lock").encode(e)
                         }));
                         Ok(())

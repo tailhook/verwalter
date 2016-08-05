@@ -7,6 +7,7 @@ extern crate tempfile;
 extern crate time;
 extern crate rand;
 extern crate libc;
+extern crate gron;
 #[macro_use] extern crate lua;
 extern crate nix;
 extern crate scan_dir;
