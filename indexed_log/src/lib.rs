@@ -1,6 +1,7 @@
 extern crate nix;
 extern crate rustc_serialize;
 extern crate time;
+extern crate gron;
 #[macro_use] extern crate quick_error;
 #[macro_use] extern crate log;
 
@@ -20,6 +21,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use time::now_utc;
+use gron::json_to_gron;
 use rustc_serialize::json::{Json, as_json, as_pretty_json};
 
 use fs_util::{raceless_symlink, ensure_dir};
@@ -273,6 +275,16 @@ impl<'a> Deployment<'a> {
              {value}\n\
              +++ metadata end: {name:?} +++\n",
              name=name, value=as_pretty_json(value))
+        {
+             self.errors.push(Error::WriteGlobal(e));
+        }
+    }
+    pub fn gron(&mut self, name: &str, value: &Json) {
+        if let Err(e) = write!(&mut self.log,
+            "+++ gron-data start: {:?} +++\n", name)
+            .and_then(|()| json_to_gron(&mut self.log, name, value))
+            .and_then(|()| write!(&mut self.log,
+            "+++ gron-data end: {:?} +++\n", name))
         {
              self.errors.push(Error::WriteGlobal(e));
         }

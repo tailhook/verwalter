@@ -105,12 +105,12 @@ fn apply_schedule(hash: &String, scheduler_result: &Json, settings: &Settings,
     let mut dlog = index.deployment(&id, true);
     dlog.string("schedule-hash", &hash);
     if debug_info.0 != Json::Null {
-        dlog.json("scheduler-input", &debug_info.0);
+        dlog.gron("scheduler_input", &debug_info.0);
     }
     if debug_info.1 != "" {
         dlog.text("scheduler-debug", &debug_info.1);
     }
-    dlog.json("scheduler_result", scheduler_result);
+    dlog.gron("scheduler_result", scheduler_result);
 
     let empty = BTreeMap::new();
     let roles = scheduler_result.as_object()
