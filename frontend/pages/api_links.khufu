@@ -3,17 +3,49 @@ import {refresher, json} from '../middleware/request'
 import json_store from '../stores/json'
 
 
+style:
+
+  .title.button
+    width: 160px
+
+  .button
+    padding: 8px
+    border-radius: 5px
+
+  .button:hover
+    background-color: #eee
+    text-decoration: none
+
+  .api-line
+    margin: 12px
+    display: flex
+    align-items: center
+
+
 view main():
   <div.alert.alert-danger>
       "Note the links are here only for information. "
       <b> "API is unstable yet."
   <ul.nav.nav-pills.nav-stacked.col-lg-2>
-    <li role="presentation">
-      <a href="/v1/status.pretty"> "Status"
-      <a href="/v1/peers.pretty"> "Peers"
-      <a href="/v1/schedule.pretty"> "Schedule"
-      <a href="/v1/scheduler.pretty"> "Scheduler"
-      <a href="/v1/scheduler_input.pretty"> "Scheduler Input"
-      <a href="/v1/scheduler_debug_info"> "Scheduler Debug Log"
-      <a href="/v1/election.pretty"> "Election"
-      <a href="/v1/pending_actions.pretty"> "Pending Actions"
+    let items = [
+      ["status", "Status"],
+      ["peers", "Peers"],
+      ["schedule", "Schedule"],
+      ["scheduler", "Scheduler"],
+      ["scheduler_input", "Scheduler Input"],
+      ["election", "Election"],
+      ["pending actions", "Pending Actions"],
+    ]
+    for [uri, title, pretty] of items key uri:
+      <li.api-line>
+        <a.title.button href=`/v1/${uri}.gron`>
+          title
+        " ("
+        <a.button href=`/v1/${uri}`> "API"
+        " / "
+        <a.button href=`/v1/${uri}.gron`> "Searchable"
+        " / "
+        <a.button href=`/v1/${uri}.pretty`> "Indented"
+        ")"
+    <li.api-line>
+      <a.button href="/v1/scheduler_debug_info"> "Scheduler Debug Log"
