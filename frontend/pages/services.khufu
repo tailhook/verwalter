@@ -1,0 +1,78 @@
+import {refresher, json} from '../middleware/request'
+import {format_uptime, format_diff, till_now_ms, from_ms} from '../util/time'
+import {entries} from '../util/object'
+import json_store from '../stores/json'
+
+
+style:
+  .nodes
+    display: flex
+    flex-direction: row
+    flex-wrap: wrap
+  .node
+    width: 440px
+    display: flex
+    flex-direction: column
+    border: solid 2px silver
+    border-radius: 5px
+    padding: 6px 12px
+  .roles
+    display: flex
+    flex-direction: row
+    flex-wrap: wrap
+  .role
+    margin: 5px
+    font-size: 150%
+  .role-name
+    font-weight: bold
+    padding-left: 4px
+    padding-right: 4px
+    white-space: nowrap
+  .service
+    padding-left: 6px
+    padding-right: 6px
+    font-family: monospace
+    font-size: 60%
+    white-space: nowrap
+  .faded
+    color: silver
+  .multiplier
+    color: green
+    font-weight: bold
+    padding-left: 2px
+  h3
+    margin-top: 0px
+    font-size: 200%
+
+
+view main():
+  <div.nodes>
+    store @schedule = json_store | refresher | json('/v1/schedule')
+    if @schedule:
+      for [node_name, info] of entries(@schedule.data.nodes) key node_name:
+        <div.node>
+          <h3>
+            node_name
+          <div.roles>
+            for [role_name, role] of entries(info.roles) key role_name:
+              <span.role>
+                <span.role-name>
+                  role_name
+                <span.services>
+                  <span.faded>
+                    "{"
+                  for [d_name, daemon] of entries(role.daemons) key d_name:
+                    if daemon.instances == 0:
+                    elif daemon.instances == 1:
+                      <span.service>
+                        d_name
+                    else:
+                      <span.service>
+                        d_name
+                        <span.multiplier>
+                          `x${ daemon.instances }`
+                  <span.faded>
+                    "}"
+
+    else:
+      "Loading..."
