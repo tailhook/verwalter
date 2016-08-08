@@ -157,15 +157,15 @@ commands:
 
   _package-trusty: !Command
     container: trusty
-    run: [make, ubuntu-packages, SYSTEM_KIND=upstart]
+    run: [make, ubuntu-packages]
 
   _package-precise: !Command
     container: precise
-    run: [make, ubuntu-packages, SYSTEM_KIND=upstart]
+    run: [make, ubuntu-packages]
 
   _package-xenial: !Command
     container: xenial
-    run: [make, ubuntu-packages, SYSTEM_KIND=systemd]
+    run: [make, ubuntu-packages]
 
   _package-verwalter_render: !Command
     container: rust-musl
@@ -174,7 +174,8 @@ commands:
   packages: !Command
     container: xenial
     description: Build packages and repostories (mostly for CI)
-    prerequisites: [_package-trusty, _package-precise, _package-xenial,
+    prerequisites: [make-js,
+                    _package-trusty, _package-precise, _package-xenial,
                     _package-verwalter_render]
     accepts_arguments: true
     run: |

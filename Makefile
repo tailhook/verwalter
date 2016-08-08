@@ -30,8 +30,6 @@ ubuntu-packages:
 	rm -rf target/debug
 	bulk with-version "$(version)" cargo build
 	make install DESTDIR=/work/pkg
-	bulk pack --package-version="$(version)+$(codename)1.noinit"
-	make install-$(SYSTEM_KIND) DESTDIR=/work/pkg
 	bulk pack --package-version="$(version)+$(codename)1"
 
 ubuntu-verwalter_render-package: version:=$(shell git describe --dirty)

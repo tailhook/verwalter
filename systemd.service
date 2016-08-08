@@ -7,6 +7,8 @@ Environment="RUST_LOG=warn"
 ; TODO(tailhook) don't run as root
 ; User=verwalter
 ExecStart=/usr/bin/verwalter
+Restart=always
+RestartSec=1
 
 [Install]
 WantedBy=multi-user.target
