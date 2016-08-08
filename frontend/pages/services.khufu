@@ -63,14 +63,14 @@ view main():
           <h3>
             node_name
           <div.roles>
-            for [role_name, role] of entries(info.roles) key role_name:
+            for [role_name, role] of entries(info.roles or {}) key role_name:
               <span.role>
                 <span.role-name>
                   role_name
                 <span.faded>
                   "{"
                 <span.services>
-                  for [d_name, daemon] of entries(role.daemons) key d_name:
+                  for [d_name, daemon] of entries(role.daemons or {}) key d_name:
                     if daemon.instances == 0:
                     elif daemon.instances == 1:
                       <span.service>
