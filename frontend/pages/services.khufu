@@ -10,6 +10,8 @@ style:
     flex-direction: row
     flex-wrap: wrap
   .node
+    margin: 4px
+  .node
     width: 440px
     display: flex
     flex-direction: column
@@ -23,6 +25,9 @@ style:
   .role
     margin: 5px
     font-size: 150%
+    display: flex
+    flex-direction: row
+    align-items: center
   .role-name
     font-weight: bold
     padding-left: 4px
@@ -34,6 +39,10 @@ style:
     font-family: monospace
     font-size: 60%
     white-space: nowrap
+  .services
+    display: flex
+    flex-direction: row
+    align-items: center
   .faded
     color: silver
   .multiplier
@@ -58,9 +67,9 @@ view main():
               <span.role>
                 <span.role-name>
                   role_name
+                <span.faded>
+                  "{"
                 <span.services>
-                  <span.faded>
-                    "{"
                   for [d_name, daemon] of entries(role.daemons) key d_name:
                     if daemon.instances == 0:
                     elif daemon.instances == 1:
@@ -71,8 +80,8 @@ view main():
                         d_name
                         <span.multiplier>
                           `x${ daemon.instances }`
-                  <span.faded>
-                    "}"
+                <span.faded>
+                  "}"
 
     else:
       "Loading..."
