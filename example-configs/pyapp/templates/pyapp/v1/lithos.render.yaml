@@ -2,4 +2,4 @@ templates:
   processes: lithos.yaml.hbs
 commands:
 - !PeekLog "vw/.global/latest"
-- !RootCommand [lithos_switch, "{{ role }}", "{{ files.processes }}"]
+- !Cmd [echo, lithos_switch, "{{ role }}", "{{ files.processes }}"]
