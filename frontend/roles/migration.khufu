@@ -1,0 +1,240 @@
+// A frontend that allows to switch version of the role
+import {entries, repr, pretty, is_string, reversed} from '../util/object'
+import pending_actions from '../stores/actions'
+import {refresher, json} from '../middleware/request'
+import {execute} from '../util/action'
+import {is_leader} from '../util/status'
+import {show_leaders} from '../util/leaders.khufu'
+import {logs} from './logs.khufu'
+import {from_ms, till_now_ms, format_diff, format_time} from '../util/time.js'
+
+
+style:
+  .rotate
+    animation-name: rotateThis
+    animation-duration: .5s
+    animation-iteration-count: infinite
+    animation-timing-function: linear
+
+  // migration title
+  h3.status-title
+    text-align: center
+    padding: 24px 32px 12px 32px
+    border-bottom: solid silver 2px
+  .bar
+    width: 100%
+    display: flex
+    align-items: center
+  .big-version
+    padding: 12px
+    font-size: 200%
+    flex-grow: 0
+  .progress-bar-base
+    flex-grow: 1
+    height: 20px
+  .buttons
+    display: flex
+    justify-content: center
+  .btn
+    margin: 4px
+  .bottom-text
+    font-style: italic
+    font-size: 120%
+  .progress-mark
+    margin-left: 4px
+    margin-right: 4px
+
+  // migration info
+  .line-info
+    display: flex
+    flex-wrap: wrap
+
+  .line-item
+    display: flex
+    flex-wrap: nowrap
+    color: gray
+    margin: 4px 12px 4px 12px
+  .line-value
+    min-width: 72px
+    margin-left: 4px
+
+  // version list
+  .versions
+    display: flex
+    flex-wrap: wrap
+  .version-block
+    display: flex
+    align-items: center
+    margin: 16px
+    border: solid 2px silver
+    border-radius: 7px
+  .version-id
+    font-size: 150%
+    padding: 4px 2px 4px 12px
+
+
+
+view migration({status_title, original, target, progress, buttons,
+                timestamp, start_time, mode},
+               role_name, is_leader, @actions):
+  <h3.status-title>
+    status_title
+  <div.bar>
+    <div.original.big-version>
+      original
+    <div.progress-bar-base>
+      <div.progress>
+        <div.progress-bar.progress-bar-striped.active?(mode != 'paused')
+            role="progressbar" aria-valuenow="40"
+            aria-valuemin="0" aria-valuemax="100"
+            style={width: `${ progress*100 }%`}>
+          if mode == 'backward':
+            <span.progress-mark.glyphicon.glyphicon-backward>
+          `${ (progress*100).toFixed(0) }%`
+          if mode == 'forward':
+            <span.progress-mark.glyphicon.glyphicon-forward>
+    <div.target.big-version>
+      target
+  if is_leader:
+    <div.buttons>
+      for button of buttons key button.id:
+        let kind = button.kind ? button.kind : 'default'
+        <button.btn class=`btn-${ kind }`
+            title=button.description>
+          link {click} execute(
+            {"button": {migration_action: button.id, "role": role_name,
+                        original_version: original,
+                        target_version: target}}
+          ) -> @actions
+          if button.icon:
+            <span.glyphicon class=`glyphicon-${ button.icon }`>
+          else:
+            button.title
+  <div.line-info>
+    <div.line-item>
+      <div.line-name>
+        "Last Update:"
+      <div.line-value>
+        format_diff(till_now_ms(from_ms(timestamp)))
+        " ago"
+    <div.line-item>
+      <div.line-name>
+        "Migration Started:"
+      <div.line-value>
+        format_diff(till_now_ms(from_ms(start_time)))
+        " ago, at "
+        format_time(from_ms(start_time))
+
+view main(role, role_name, {role_state, schedule, system_status}):
+  <div>
+    store @actions = pending_actions | refresher
+      | json('/v1/pending_actions')
+    <h2> "Status Info"
+    <table.table.table-hover>
+      <thead>
+        <tr>
+          <th> "Property"
+          <th> "Value"
+      <tbody>
+        <tr>
+          <td> "Version"
+          <td>
+            role_state.version
+      if role.info:
+        <tbody>
+          for [name, value] of entries(role.info) key name:
+            <tr>
+              <td>
+                name
+              <td>
+                value
+    <h2> "Migration"
+    if role.frontend.migration:
+      migration(role.frontend.migration, role_name,
+        is_leader(system_status), -> @actions)
+    else:
+      <p>
+        "No migration in progress"
+    if role.frontend.bottom_text:
+      <div.bottom-text>
+        role.frontend.bottom_text
+    <h2> "Processes"
+    <table.table.table-hover>
+      <thead>
+        <tr>
+          <th> "Host"
+          <th> "Process"
+          <th> "Image"
+          <th> "Num"
+      for [host, node] of entries(schedule.nodes) key host:
+        let hrole = node.roles[role_name]
+        <tbody>
+          if hrole:
+            for [kind, props] of entries(hrole.daemons) key kind:
+              <tr>
+                <td>
+                  host
+                <td>
+                  kind
+                <td>
+                  props.image
+                <td>
+                  props.instances
+    logs(role_name)
+
+    if is_leader(system_status):
+      <div>
+        store @actions = pending_actions | refresher
+          | json('/v1/pending_actions')
+        <h2> "Available Versions"
+        <div.versions>
+          for ver of role.versions:
+            <div.version-block>
+              <div.version-id>
+                ver
+              for button of role.frontend.version_buttons key button.id:
+                let kind = button.kind ? button.kind : 'default'
+                <button.btn class=`btn-${ kind }`>
+                  link {click} execute(
+                      {"button": {action: button.id,
+                                  version: ver, "role": role_name}}
+                    ) -> @actions
+                  button.title.replace('{version}', ver)
+
+
+                  // <button.btn.btn-default>
+                  //   link {click} execute(
+                  //     {"button": {"version": version, "role": role_name}}
+                  //   ) -> @actions
+                  //   version
+                  //   for [id, act] of entries(@actions) key id:
+                  //     if act.button.version == version:
+                  //       " "
+                  //       <span.glyphicon.glyphicon-refresh.rotate>
+        if role.frontend.allow_stop:
+          <h2>
+            if role_state.running:
+              "Running "
+              <button.btn.btn-default>
+                link {click} execute(
+                  {"button": {"stop": true, "role": role_name}}
+                ) -> @actions
+                "Stop"
+                for [id, act] of entries(@actions) key id:
+                  if act.button.stop:
+                    " "
+                    <span.glyphicon.glyphicon-refresh.rotate>
+            else:
+              "Stopped "
+              <button.btn.btn-default>
+                link {click} execute(
+                  {"button": {"start": true, "role": role_name}}
+                ) -> @actions
+                "Start"
+                for [id, act] of entries(@actions) key id:
+                  if act.button.start:
+                    " "
+                    <span.glyphicon.glyphicon-refresh.rotate>
+    else:
+      show_leaders("Actions are Only Available on Leader", `/role/${role_name}`,
+        system_status)

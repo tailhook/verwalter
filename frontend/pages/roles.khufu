@@ -7,13 +7,17 @@ import {preloader, action} from '../util/global_actions'
 // Frontend kinds
 import {main as example} from '../roles/example.khufu'
 import {main as version} from '../roles/version.khufu'
+import {main as migration} from '../roles/migration.khufu'
 
 style:
   .rerender
     position: absolute
     bottom: 8px
     left: 8px
-
+  .frontend-kind
+    float: right
+    font-size: 40%
+    font-family: monospace
 
 view _leftmenu(schedule):
   <ul.nav.nav-pills.nav-stacked.col-lg-2>
@@ -47,11 +51,14 @@ view main(status):
         let role_name = @router[1]
         let role = schedule.roles[role_name]
         let role_state = schedule.state and schedule.state[role_name]
+        let frontend = (role and role.frontend and role.frontend.kind or
+                        'example')
         <h1>
           role and role.title or role_name
+          <span.frontend-kind>
+            frontend
         if role:
-          let frontend = role.frontend and role.frontend.kind
-          if not frontend or frontend == 'example':
+          if frontend == 'example':
               example(role, role_name, {
                 role_state: role_state,
                 schedule: @schedule.data,
@@ -59,6 +66,12 @@ view main(status):
               })
           elif frontend == 'version':
               version(role, role_name, {
+                role_state: role_state,
+                schedule: @schedule.data,
+                system_status: status
+              })
+          elif frontend == 'migration':
+              migration(role, role_name, {
                 role_state: role_state,
                 schedule: @schedule.data,
                 system_status: status
