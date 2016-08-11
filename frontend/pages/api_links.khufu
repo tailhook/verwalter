@@ -6,7 +6,7 @@ import json_store from '../stores/json'
 style:
 
   .title.button
-    width: 160px
+    min-width: 30ex
 
   .button
     padding: 8px
