@@ -33,6 +33,7 @@ style:
     padding-left: 4px
     padding-right: 4px
     white-space: nowrap
+    align-self: flex-start
   .service
     padding-left: 6px
     padding-right: 6px
@@ -41,11 +42,18 @@ style:
     white-space: nowrap
   .services
     display: flex
-    flex-direction: row
-    align-items: center
-    flex-wrap: wrap
+    flex-direction: column
+    padding:
+      0.3em
+      0
+      0.3em
+      0
   .faded
     color: silver
+  .open-br
+    align-self: flex-start
+  .close-br
+    align-self: flex-end
   .multiplier
     color: green
     font-weight: bold
@@ -68,7 +76,7 @@ view main():
               <span.role>
                 <span.role-name>
                   role_name
-                <span.faded>
+                <span.faded.open-br>
                   "{"
                 <span.services>
                   for [d_name, daemon] of entries(role.daemons or {}) key d_name:
@@ -81,7 +89,7 @@ view main():
                         d_name
                         <span.multiplier>
                           `x${ daemon.instances }`
-                <span.faded>
+                <span.faded.close-br>
                   "}"
 
     else:
