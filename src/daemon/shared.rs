@@ -127,6 +127,7 @@ struct State {
     election: Arc<ElectionState>,
     actions: BTreeMap<u64, Arc<Json>>,
     cantal: Option<Cantal>,
+    debug_force_leader: bool,
     /// Fetch update notifier
     external_schedule_update: Option<Notifier>,
     errors: Arc<HashMap<&'static str, String>>,
@@ -156,7 +157,8 @@ fn fetch_schedule(guard: &mut MutexGuard<State>) {
 }
 
 impl SharedState {
-    pub fn new(id: Id, old_schedule: Option<Schedule>)
+    pub fn new(id: Id, debug_force_leader: bool,
+               old_schedule: Option<Schedule>)
         -> SharedState
     {
         SharedState(id, Arc::new(Mutex::new(State {
@@ -167,6 +169,7 @@ impl SharedState {
             election: Default::default(),
             actions: BTreeMap::new(),
             cantal: None,
+            debug_force_leader: debug_force_leader,
             external_schedule_update: None, //unfortunately
             errors: Arc::new(HashMap::new()),
             failed_roles: Arc::new(HashSet::new()),
@@ -182,6 +185,10 @@ impl SharedState {
     // Accessors
     pub fn id(&self) -> &Id {
         &self.0
+    }
+    pub fn debug_force_leader(&self) -> bool {
+        // -- TODO(tailhook) move this flag out of mutex
+        self.lock().debug_force_leader
     }
     pub fn peers(&self) -> Option<Arc<(Time, HashMap<Id, Peer>)>> {
         self.lock().peers.clone()

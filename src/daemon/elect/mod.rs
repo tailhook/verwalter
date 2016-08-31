@@ -32,6 +32,7 @@ pub struct Election {
     machine: machine::Machine,
     cantal: Cantal,
     socket: UdpSocket,
+    debug_force_leader: bool,
 }
 
 #[derive(Debug)]
@@ -68,4 +69,6 @@ pub struct Info<'a> {
     hosts_timestamp: Option<Time>,
     /// State machine of the leader election
     all_hosts: &'a HashMap<Id, Peer>,
+    /// Forces this node to be a leader, this is only for debugging purposes
+    debug_force_leader: bool,
 }

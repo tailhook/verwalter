@@ -82,7 +82,7 @@ impl Machine {
         let (machine, action) = match self {
             Starting { .. } => {
                 info!("[{}] Time passed. Electing as a leader", info.id);
-                if info.all_hosts.len() == 1 {
+                if info.all_hosts.len() == 1 || info.debug_force_leader {
                     // No other hosts. May safefully become a leader
                     become_leader(1, now)
                 } else {

@@ -299,7 +299,6 @@ fn respond<T: Encodable>(res: &mut Response, format: Format, data: T)
             res.add_header("Content-Type", b"text/x-gron").unwrap();
             // TODO(tailhook) this should work without temporary conversions
             try!(write!(&mut buf, "{}", as_pretty_json(&data)));
-            println!("DATA {}", from_utf8(&buf).unwrap());
             let tmpjson = Json::from_str(from_utf8(&buf).unwrap()).unwrap();
             buf.truncate(0);
             try!(json_to_gron(&mut buf, "json", &tmpjson));
@@ -356,6 +355,7 @@ fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
                 num_errors: usize,
                 errors: &'a HashMap<&'static str, String>,
                 failed_roles: &'a HashSet<String>,
+                debug_force_leader: bool,
             }
             let peers = scope.state.peers();
             let election = scope.state.election();
@@ -387,6 +387,7 @@ fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
                 num_errors: errors.len() + failed_roles.len(),
                 errors: &*errors,
                 failed_roles: &*failed_roles,
+                debug_force_leader: scope.state.debug_force_leader(),
             })
         }
         Peers => {

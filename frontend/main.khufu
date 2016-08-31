@@ -17,17 +17,24 @@ style:
     color: red
     font-weight: bold
     font-size: 120%
+  .red
+    color: red
+    font-weight: bold
 
 view _navbar(status, frontend_version):
   <nav.navbar.navbar-default>
     <div.container-fluid>
       <div.navbar-header>
-        <a.navbar-brand href="/">
+        <a.navbar-brand.red href="/">
           "Verwalter"
-          <div.subtext.text-muted>
-            frontend_version
-            " / "
-            status and status.version or "???"
+          if status.debug_force_leader:
+            <div.subtext.red>
+              "Debugging Version With A Forced Leader"
+          else:
+            <div.subtext.text-muted>
+              frontend_version
+              " / "
+              status and status.version or "???"
       <div.collapse.navbar-collapse>
         <ul.nav.navbar-nav>
           <li.active?(@router[0] == 'roles')>

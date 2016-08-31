@@ -69,6 +69,7 @@ pub struct Options {
     listen_port: u16,
     machine_id: Option<Id>,
     use_sudo: bool,
+    debug_force_leader: bool,
 }
 
 fn init_logging(id: &Id, log_id: bool) {
@@ -117,6 +118,7 @@ fn main() {
         listen_port: 8379,
         machine_id: None,
         use_sudo: false,
+        debug_force_leader: false,
     };
     {
         let mut ap = ArgumentParser::new();
@@ -165,6 +167,13 @@ fn main() {
         ap.refer(&mut options.use_sudo)
             .add_option(&["--use-sudo"], StoreTrue, "
                 Run verwalter-render with sudo");
+        ap.refer(&mut options.debug_force_leader)
+            .add_option(&["--debug-force-leader"], StoreTrue, "
+                Force this node to be a leader. This is useful for debugging
+                purposes to force single process to be a leader without
+                running as much processes as there are peers emulated by
+                `fake-cantal.py` script. This means you can test large
+                configs on single verwalter instance.");
         ap.parse_args_or_exit();
     }
 
@@ -213,7 +222,8 @@ fn main() {
         }
     };
 
-    let state = SharedState::new(id.clone(), old_schedule);
+    let state = SharedState::new(id.clone(), options.debug_force_leader,
+                                 old_schedule);
     let hostname = options.hostname
                    .unwrap_or_else(|| info::hostname().expect("gethostname"));
     // TODO(tailhook) resolve FQDN
@@ -260,6 +270,7 @@ fn main() {
     net::main(&addr, id, hostname, name, state,
         options.config_dir.join("frontend"),
         &sandbox, options.log_dir.clone(),
+        options.debug_force_leader,
         alarm_rx)
         .expect("Error running main loop");
     unreachable!();

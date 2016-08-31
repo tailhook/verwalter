@@ -37,21 +37,7 @@ commands:
     container: xenial
     run: [cargo]
 
-  run: !Command
-    description: "Run verwalter"
-    prerequisites: [make]
-    container: xenial
-    environ:
-      RUST_LOG: debug
-    run:
-    - ./target/debug/verwalter
-    - --config-dir=/work/example-configs/pyapp
-    - --log-dir=/tmp/logs
-    - --storage-dir=tmp/storage
-    - --override-machine-id=dead0beef1
-    - --dry-run
-
-  live: !Supervise
+  run: !Supervise
     description: "Run verwalter with live reload of web"
     prerequisites: [make]
     children:
@@ -64,17 +50,20 @@ commands:
         - --config-dir=/work/example-configs/pyapp
         - --storage-dir=tmp/storage
         - --log-dir=/tmp/logs
-        - --override-machine-id=dead0beef1
-        - --hostname=singleton
+        - --override-machine-id=77985419c732412ea38b94db00000001
+        - --hostname=alpha
+        - --debug-force-leader
       cantal: !Command
-        container: xenial
+        container: fake-cantal
         environ:
           RUST_LOG: warn
         run:
-        - cantal-agent
-        - --config-dir=/work/example-configs/cantal
-        - --host=0.0.0.0
-        - --override-machine-id=dead0beef1
+        - python3
+        - util/fake-cantal.py
+        - --peers
+        - alpha
+        - beta
+        - gamma
       webpack: !Command
         container: js
         work-dir: frontend
@@ -191,6 +180,11 @@ commands:
     run: |
       exec luacheck example-configs/pyapp/scheduler/v1/*.lua
 
+  fake-cantal: !Command
+    container: fake-cantal
+    run: |
+      python3 util/fake-cantal.py
+
 containers:
 
   js:
@@ -211,11 +205,6 @@ containers:
       url: https://static.rust-lang.org/dist/rust-1.9.0-x86_64-unknown-linux-gnu.tar.gz
       script: "./install.sh --prefix=/usr --components=rustc,cargo \
                --components=rustc,rust-std-x86_64-unknown-linux-gnu,cargo"
-
-    - !Download  # this is only for development
-      url: https://github.com/tailhook/cantal/releases/download/v0.3.6/cantal_0.3.6-1_amd64.deb
-      path: /tmp/cantal.deb
-    - !Sh "dpkg -i /tmp/cantal.deb"
 
     - &bulk !Tar
       url: "http://files.zerogw.com/bulk/bulk-0.4.5.tar.gz"
@@ -268,7 +257,11 @@ containers:
     - !Sh 'ln -s /musl/lib/rustlib/x86_64-unknown-linux-musl /usr/lib/rustlib/x86_64-unknown-linux-musl'
     - *bulk
 
-
+  fake-cantal:
+    setup:
+    - !Ubuntu xenial  # we need to run verwalter in same container
+    - !PipConfig { dependencies: true }
+    - !Py3Requirements util/fake-cantal-requirements.txt
 
   docs:
     setup:

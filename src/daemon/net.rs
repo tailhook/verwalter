@@ -38,6 +38,7 @@ pub struct Context {
 pub fn main(addr: &SocketAddr, id: Id, hostname: String, name: String,
     state: SharedState, frontend_dir: PathBuf,
     sandbox: &Sandbox, log_dir: PathBuf,
+    debug_force_leader: bool,
     alarms: Receiver<SyncSender<Alarm>>)
     -> Result<(), io::Error>
 {
@@ -69,7 +70,7 @@ pub fn main(addr: &SocketAddr, id: Id, hostname: String, name: String,
     }).expect("Can't add a state machine");
     loop_inst.add_machine_with(|scope| {
         schedule.add_listener(scope.notifier());
-        Election::new(id, hostname, name, addr,
+        Election::new(id, hostname, name, addr, debug_force_leader,
                       state, schedule, scope).wrap(Fsm::Election)
     }).expect("Can't add a state machine");
 

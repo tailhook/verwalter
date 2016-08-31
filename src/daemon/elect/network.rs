@@ -20,6 +20,7 @@ use shared::{Peer, Id};
 
 impl Election {
     pub fn new(id: Id, hostname: String, name: String, addr: &SocketAddr,
+        debug_force_leader: bool,
         state: SharedState, cantal: Cantal, scope: &mut Scope<Context>)
         -> Response<Election, Void>
     {
@@ -41,6 +42,7 @@ impl Election {
             cantal: cantal,
             machine: mach,
             socket: sock,
+            debug_force_leader: debug_force_leader,
         }).deadline(dline)
     }
 }
@@ -130,6 +132,7 @@ impl Machine for Election {
                 id: &self.id,
                 hosts_timestamp: peers_opt.as_ref().map(|x| x.0),
                 all_hosts: &peers,
+                debug_force_leader: self.debug_force_leader,
             };
             let ref socket = self.socket;
             let ref state = self.state;
@@ -180,6 +183,7 @@ impl Machine for Election {
                 id: &self.id,
                 hosts_timestamp: peers_opt.as_ref().map(|x| x.0),
                 all_hosts: &peers,
+                debug_force_leader: self.debug_force_leader,
             };
             let ref socket = self.socket;
             let ref state = self.state;

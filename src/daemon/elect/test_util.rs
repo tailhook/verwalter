@@ -40,6 +40,7 @@ impl Environ {
             id: &self.id,
             hosts_timestamp: Some(self.now),  // TODO(tailhook)
             all_hosts: &self.all_hosts,
+            debug_force_leader: false,
         }
     }
     pub fn sleep(&mut self, ms: u64) {
