@@ -132,6 +132,7 @@ export function view_from(mark) {
         response_type: 'text',
         headers: {'Range': 'bytes=' + off + '-' + (off + 65536)},
         decoder: x => x,
+        immediate: true,
     }
 }
 
