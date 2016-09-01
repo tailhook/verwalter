@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Fake Cantal Server
 
 This server is able to enulate large cluster with many peers, so that

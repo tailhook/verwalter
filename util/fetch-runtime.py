@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """This tool fetches data from real verwalter and stores it in the folder
 in a form that a (fake) verwalter can consume.
 """
