@@ -1,0 +1,3 @@
+# Common requirements file, to have smaller number of containers
+-r fetch-runtime-requirements.txt
+-r fake-cantal-requirements.txt
