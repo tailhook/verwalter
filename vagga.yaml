@@ -54,7 +54,7 @@ commands:
         - --hostname=alpha
         - --debug-force-leader
       cantal: !Command
-        container: fake-cantal
+        container: util
         environ:
           RUST_LOG: warn
         run:

@@ -4,10 +4,13 @@ import {main as api_links} from './pages/api_links.khufu'
 import {main as peers} from './pages/peers.khufu'
 import {main as services} from './pages/services.khufu'
 import {main as logs} from './pages/logs.khufu'
-import {refresher, fast_refresh_json} from './middleware/request'
+import {refresher, fast_refresh_json, json} from './middleware/request'
 import json_store from './stores/json'
+import {value, toggle, init, bool} from './stores/simple'
 import {set_port} from './util/port'
 import {format_error_hint, format_error_badge} from './util/format_err'
+import * as self_meter from './blocks/self_meter.khufu'
+
 
 style:
   .subtext
@@ -20,6 +23,12 @@ style:
   .red
     color: red
     font-weight: bold
+  .meter
+    float: right
+    font: xx-small
+    min-width: 200px
+  .meter-btn
+    margin-left: 8px
 
 view _navbar(status, frontend_version):
   <nav.navbar.navbar-default>
@@ -90,6 +99,19 @@ view main(version):
     store @status = json_store | refresher | fast_refresh_json('/v1/status')
     _navbar(@status, version)
     <div class="container-fluid">
+      <div.meter.text-muted>
+        store @expand = bool | init(false)
+        if @status:
+          self_meter.small(@status.self_report, @status.threads_report)
+          <button.btn.btn-default.btn-xs.meter-btn>
+            link {click} toggle(@expand) -> @expand
+            if @expand:
+              "▲"
+            else:
+              "▼"
+        if @expand and @status:
+          self_meter.big(@status.self_report, @status.threads_report)
+
       if @router[0] == 'roles' or @router[0] == 'role':
         roles(@status)
       elif @router[0] == 'api_links':

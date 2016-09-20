@@ -17,6 +17,7 @@ extern crate regex;
 extern crate sha1;
 extern crate inotify;
 extern crate itertools;
+extern crate self_meter;
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate rotor;
 extern crate rotor_http;
@@ -32,6 +33,8 @@ extern crate verwalter_config as config;
 use std::io::{stderr, Write};
 use std::net::ToSocketAddrs;
 use std::path::PathBuf;
+use std::time::Duration;
+use std::sync::{Arc, Mutex};
 use std::process::exit;
 use std::sync::mpsc::{channel, sync_channel};
 use std::thread;
@@ -197,6 +200,10 @@ fn main() {
     };
 
     init_logging(&id, options.log_id);
+    let meter = Arc::new(Mutex::new(
+        self_meter::Meter::new(Duration::new(1, 0))
+        .expect("meter created")));
+    meter.lock().unwrap().track_current_thread("main");
 
     let addr = (&options.listen_host[..], options.listen_port)
         .to_socket_addrs().expect("Can't resolve hostname")
@@ -238,7 +245,9 @@ fn main() {
     };
     let scheduler_state = state.clone();
     let scheduler_alarm_tx = alarm_tx.clone();
+    let mymeter = meter.clone();
     thread::spawn(move || {
+        mymeter.lock().unwrap().track_current_thread("scheduler");
         let alarm = {
             let (tx, rx) = sync_channel(1);
             {scheduler_alarm_tx}.send(tx).expect("sent alarm task");
@@ -257,7 +266,9 @@ fn main() {
     };
     let apply_state = state.clone();
     let apply_alarm_tx = alarm_tx; // this is last one, no clone
+    let mymeter = meter.clone();
     thread::spawn(move || {
+        mymeter.lock().unwrap().track_current_thread("apply");
         let alarm = {
             let (tx, rx) = sync_channel(1);
             {apply_alarm_tx}.send(tx).expect("sent alarm task");
@@ -271,7 +282,7 @@ fn main() {
         options.config_dir.join("frontend"),
         &sandbox, options.log_dir.clone(),
         options.debug_force_leader,
-        alarm_rx)
+        alarm_rx, meter)
         .expect("Error running main loop");
     unreachable!();
 }

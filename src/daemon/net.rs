@@ -1,6 +1,8 @@
 use std::io;
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::time::Duration;
+use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{Receiver, SyncSender};
 
 use rotor;
@@ -8,6 +10,8 @@ use rotor_http::server;
 use rotor::mio::tcp::{TcpListener};
 use rotor_cantal::{Schedule, connect_localhost, Fsm as CantalFsm};
 use rotor_tools::loop_ext::{LoopExt, LoopInstanceExt};
+use rotor_tools::timer::{IntervalFunc, interval_func};
+use self_meter::Meter;
 
 use config::Sandbox;
 use shared::SharedState;
@@ -24,6 +28,7 @@ rotor_compose!(pub enum Fsm/Seed<Context> {
     Election(Election),
     Watchdog(Watchdog),
     AskLeader(fetch::LeaderFetcher),
+    SelfScanTimer(IntervalFunc<Context>),
 });
 
 
@@ -33,13 +38,14 @@ pub struct Context {
     pub frontend_dir: PathBuf,
     pub log_dir: PathBuf,
     pub sandbox: Sandbox,
+    pub meter: Arc<Mutex<Meter>>,
 }
 
 pub fn main(addr: &SocketAddr, id: Id, hostname: String, name: String,
     state: SharedState, frontend_dir: PathBuf,
     sandbox: &Sandbox, log_dir: PathBuf,
     debug_force_leader: bool,
-    alarms: Receiver<SyncSender<Alarm>>)
+    alarms: Receiver<SyncSender<Alarm>>, meter: Arc<Mutex<Meter>>)
     -> Result<(), io::Error>
 {
     let mut cfg = rotor::Config::new();
@@ -63,6 +69,7 @@ pub fn main(addr: &SocketAddr, id: Id, hostname: String, name: String,
         log_dir: log_dir,
         cantal: schedule.clone(),
         sandbox: sandbox.clone(),
+        meter: meter,
     });
     let listener = TcpListener::bind(&addr).expect("Can't bind address");
     loop_inst.add_machine_with(|scope| {
@@ -73,6 +80,14 @@ pub fn main(addr: &SocketAddr, id: Id, hostname: String, name: String,
         Election::new(id, hostname, name, addr, debug_force_leader,
                       state, schedule, scope).wrap(Fsm::Election)
     }).expect("Can't add a state machine");
+
+    loop_inst.add_machine_with(|scope| {
+        interval_func(scope,
+            Duration::new(1, 0), move |scope| {
+                scope.meter.lock().unwrap().scan()
+                .map_err(|e| error!("Self-scan error: {}", e)).ok();
+            }).wrap(Fsm::SelfScanTimer)
+    }).unwrap();
 
     debug!("Starting alarms");
     while let Ok(snd) = alarms.recv() {

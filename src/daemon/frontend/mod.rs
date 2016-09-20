@@ -8,6 +8,7 @@ use std::ascii::AsciiExt;
 use std::collections::{HashMap, HashSet};
 
 use gron::json_to_gron;
+use self_meter;
 use rotor::{Scope, Time};
 use rotor_http::server::{Server, Response, RecvMode, Head};
 use rustc_serialize::Encodable;
@@ -356,6 +357,8 @@ fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
                 errors: &'a HashMap<&'static str, String>,
                 failed_roles: &'a HashSet<String>,
                 debug_force_leader: bool,
+                self_report: Option<self_meter::Report>,
+                threads_report: HashMap<String, self_meter::ThreadReport>,
             }
             let peers = scope.state.peers();
             let election = scope.state.election();
@@ -369,6 +372,13 @@ fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
                 |id| peers.as_ref().and_then(|x| x.1.get(id)));
             let errors = scope.state.errors();
             let failed_roles = scope.state.failed_roles();
+            let (me, thr) = {
+                let meter = scope.meter.lock().unwrap();
+                (meter.report(),
+                 meter.thread_report()
+                    .map(|x| x.map(|(k, v)| (k.to_string(), v)).collect())
+                    .unwrap_or(HashMap::new()))
+            };
             respond(res, format, &Status {
                 version: concat!("v", env!("CARGO_PKG_VERSION")),
                 id: scope.state.id(),
@@ -388,6 +398,8 @@ fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
                 errors: &*errors,
                 failed_roles: &*failed_roles,
                 debug_force_leader: scope.state.debug_force_leader(),
+                self_report: me,
+                threads_report: thr,
             })
         }
         Peers => {
