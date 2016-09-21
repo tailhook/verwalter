@@ -1,4 +1,6 @@
 use std::net::SocketAddr;
+use std::time::{SystemTime, Duration};
+use std::sync::Mutex;
 use std::collections::HashMap;
 
 use time::{Timespec, get_time};
@@ -17,6 +19,18 @@ use super::state::ElectionState;
 use super::{Election, Info};
 use shared::{Peer, Id};
 
+/// This structure allows to make log less chatty
+///
+/// We write on INFO log-level once and hour, and use debug loglevel otherwise
+enum LogTracker {
+    Nothing,
+    Pong(SystemTime, Id),
+    PingAll(SystemTime),
+}
+
+lazy_static! {
+    static ref LOG_TRACKER: Mutex<LogTracker> = Mutex::new(LogTracker::Nothing);
+}
 
 impl Election {
     pub fn new(id: Id, hostname: String, name: String, addr: &SocketAddr,
@@ -68,11 +82,24 @@ fn execute_action(action: Action, info: &Info, epoch: Epoch,
     socket: &UdpSocket, state: &SharedState, last_sent_hash: &mut String)
 {
     use super::action::Action::*;
+    let now = SystemTime::now();
+    let log_time = now - Duration::new(3600, 0);
     match action {
         PingAll => {
             let opt_schedule = state.owned_schedule();
-            info!("[{}] Confirming leadership by sending shedule {:?}",
-                epoch, opt_schedule.as_ref().map(|x| &x.hash));
+            match *LOG_TRACKER.lock().unwrap() {
+                LogTracker::PingAll(ref mut tm) if *tm > log_time => {
+                    debug!(
+                        "[{}] Confirming leadership by sending shedule {:?}",
+                        epoch, opt_schedule.as_ref().map(|x| &x.hash));
+                }
+                ref mut node => {
+                    *node = LogTracker::PingAll(now);
+                    info!(
+                        "[{}] Confirming leadership by sending shedule {:?}",
+                        epoch, opt_schedule.as_ref().map(|x| &x.hash));
+                }
+            };
             let msg = encode::ping(&info.id, epoch, &opt_schedule);
             send_all(&msg, info, socket);
             *last_sent_hash = opt_schedule.as_ref().map(|x| &x.hash[..])
@@ -97,7 +124,17 @@ fn execute_action(action: Action, info: &Info, epoch: Epoch,
             }
         }
         Pong(id) => {
-            info!("[{}] Pong to a leader {}", epoch, id);
+            match *LOG_TRACKER.lock().unwrap() {
+                LogTracker::Pong(ref mut tm, ref tr_id)
+                if *tm > log_time && *tr_id == id
+                => {
+                    debug!("[{}] Pong to a leader {}", epoch, id);
+                }
+                ref mut node => {
+                    *node = LogTracker::Pong(now, id.clone());
+                    info!("[{}] Pong to a leader {}", epoch, id);
+                }
+            }
             let msg = encode::pong(&info.id, epoch, &state.schedule());
             let dest = info.all_hosts.get(&id).and_then(|x| x.addr);
             if let Some(ref addr) = dest {
