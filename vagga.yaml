@@ -44,7 +44,7 @@ commands:
       verw: !Command
         container: xenial
         environ:
-          RUST_LOG: debug
+          RUST_LOG: info
         run:
         - ./target/debug/verwalter
         - --config-dir=/work/example-configs/pyapp
