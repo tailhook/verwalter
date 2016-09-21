@@ -7,6 +7,7 @@ import pending_actions from '../stores/actions'
 import {refresher, json} from '../middleware/request'
 import {execute} from '../util/action'
 import {is_leader} from '../util/status'
+import {total_processes} from '../util/schedule'
 import {show_leaders} from '../util/leaders.khufu'
 import {logs} from './logs.khufu'
 
@@ -34,7 +35,7 @@ view main(role, role_name, {schedule, system_status}):
               name
             <td>
               value
-  <h2> "Processes"
+  <h2> `Processes [${total_processes(schedule, role_name)}]`
   <table.table.table-hover>
     <thead>
       <tr>
