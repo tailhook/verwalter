@@ -10,14 +10,21 @@ import {main as version} from '../roles/version.khufu'
 import {main as migration} from '../roles/migration.khufu'
 
 style:
-  .rerender
-    position: absolute
-    bottom: 8px
-    left: 8px
   .frontend-kind
     float: right
     font-size: 40%
     font-family: monospace
+  .nav
+    display: flex
+    flex-direction: column
+  .bottom-button
+    flex-grow: 1
+    display: flex
+    flex-direction: column
+    justify-content: flex-end
+    padding-bottom: 8px
+  .canvas
+    display: flex
 
 view _leftmenu(schedule):
   <ul.nav.nav-pills.nav-stacked.col-lg-2>
@@ -31,13 +38,14 @@ view _leftmenu(schedule):
             if role and role.badge:
               <span.badge>
                 role.badge
-  <button.btn.btn-danger.rerender>
-    store @preloader = preloader
-    link {click} action('force_render_all') -> @preloader
-    "Rerender all roles"
+    <li.bottom-button>
+      <button.btn.btn-danger.rerender>
+        store @preloader = preloader
+        link {click} action('force_render_all') -> @preloader
+        "Rerender all roles"
 
 view main(status):
-  <div>
+  <div.canvas>
     store @schedule = json_store | refresher | json('/v1/schedule')
     _leftmenu(@schedule and @schedule.data)
 

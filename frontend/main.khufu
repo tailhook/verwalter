@@ -24,9 +24,15 @@ style:
     color: red
     font-weight: bold
   .meter
-    float: right
+    position: absolute
+    right: 8px
+    top: 64px
     font: xx-small
+  .meter.expanded
+    right: 8px
     min-width: 200px
+    background-color: white
+    z-index: 1
   .meter-btn
     margin-left: 8px
 
@@ -99,8 +105,8 @@ view main(version):
     store @status = json_store | refresher | fast_refresh_json('/v1/status')
     _navbar(@status, version)
     <div class="container-fluid">
-      <div.meter.text-muted>
-        store @expand = bool | init(false)
+      store @expand = bool | init(false)
+      <div.meter.text-muted.expanded?(@expand)>
         if @status:
           self_meter.small(@status.self_report, @status.threads_report)
           <button.btn.btn-default.btn-xs.meter-btn>
