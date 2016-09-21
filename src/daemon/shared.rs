@@ -270,6 +270,8 @@ impl SharedState {
                 if let Some(ref x) = val.data.find("query_metrics") {
                     guard.cantal.as_ref().unwrap()
                         .set_remote_query_json(x, Duration::new(5, 0));
+                } else {
+                    guard.cantal.as_ref().unwrap().clear_remote_query();
                 }
                 let sched = Arc::new(val);
                 guard.schedule = Arc::new(Leading(Stable(sched.clone())));
@@ -318,7 +320,6 @@ impl SharedState {
                     guard.schedule = Arc::new(
                         Leading(Prefetching(SteadyTime::now(),
                                             Mutex::new(initial))));
-                    guard.cantal.as_ref().unwrap().clear_remote_query();
                     fetch_schedule(&mut guard);
                 }
                 Leading(Prefetching(_, ref pref)) => {
@@ -372,6 +373,7 @@ impl SharedState {
 
         }
         if !elect.is_leader {
+            guard.cantal.as_ref().unwrap().clear_remote_query();
             let errors = Arc::make_mut(&mut guard.errors);
             errors.remove("reload_configs");
             errors.remove("scheduler_load");
