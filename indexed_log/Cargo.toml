@@ -4,7 +4,7 @@ description = """
     Logging with json'y indexes
 """
 keywords = ["logs", "json"]
-version = "0.5.6"
+version = "0.5.7"
 homepage = "http://github.com/tailhook/verwalter/tree/master/indexed_log"
 #readme = "README.rst"
 #documentation = "http://verwalter.readthedocs.org"
