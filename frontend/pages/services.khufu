@@ -1,9 +1,10 @@
 import {refresher, json} from '../middleware/request'
 import {format_uptime, format_diff, till_now_ms, from_ms} from '../util/time'
-import {entries} from '../util/object'
+import {entries, keys} from '../util/object'
 import json_store from '../stores/json'
 import {value, set, init} from '../stores/simple'
 import {url_query} from '../util/routing'
+import {service_names} from '../util/services.js'
 
 
 style:
@@ -64,9 +65,9 @@ view main():
       <button.btn.btn-default.active?(@by == 'host')>
         link {click} set('host') -> @by
         "By Host"
-      <button.btn.btn-default.active?(@by == 'service')>
-        link {click} set('service') -> @by
-        "By Service"
+      <button.btn.btn-default.active?(@by == 'role')>
+        link {click} set('role') -> @by
+        "By Role"
     <div.nodes>
       store @schedule = json_store | refresher | json('/v1/schedule')
       if @schedule:
@@ -95,8 +96,33 @@ view main():
                               `x${ daemon.instances }`
                     <span.faded>
                       "}"
-        elif @by == 'service':
-          "By service"
+        elif @by == 'role':
+          for role_name of keys(@schedule.data.roles):
+            <div.node>
+              <h3>
+                role_name
+              <div.roles>
+                for [node_name, node] of entries(@schedule.data.nodes) key node_name:
+                  let role = node.roles[role_name]
+                  if role:
+                    <span.role>
+                      <span.role-name>
+                        node_name
+                      <span.faded>
+                        "{"
+                      <span.services>
+                        for [d_name, daemon] of entries(role.daemons or {}) key d_name:
+                          if daemon.instances == 0:
+                          elif daemon.instances == 1:
+                            <span.service>
+                              d_name
+                          else:
+                            <span.service>
+                              d_name
+                              <span.multiplier>
+                                `x${ daemon.instances }`
+                      <span.faded>
+                        "}"
 
       else:
         "Loading..."

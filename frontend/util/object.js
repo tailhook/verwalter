@@ -2,6 +2,10 @@ export function entries(x) {
     return Object.keys(x).map(k => [k, x[k]])
 }
 
+export function keys(x) {
+    return Object.keys(x)
+}
+
 export function repr(x) {
     return JSON.stringify(x)
 }
