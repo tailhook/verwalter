@@ -103,7 +103,7 @@ view _navbar(status, frontend_version, @expand):
 view main(version):
   <div>
     store @status = json_store | refresher | fast_refresh_json('/v1/status')
-    _navbar(@status, version)
+    _navbar(@status or {}, version)
     <div class="container-fluid">
       if @router.path[0] == 'roles' or @router.path[0] == 'role':
         roles(@status)

@@ -2,6 +2,8 @@ import {refresher, json} from '../middleware/request'
 import {format_uptime, format_diff, till_now_ms, from_ms} from '../util/time'
 import {entries} from '../util/object'
 import json_store from '../stores/json'
+import {value, set, init} from '../stores/simple'
+import {url_query} from '../util/routing'
 
 
 style:
@@ -56,33 +58,45 @@ style:
 
 
 view main():
-  <div.nodes>
-    store @schedule = json_store | refresher | json('/v1/schedule')
-    if @schedule:
-      for [node_name, info] of entries(@schedule.data.nodes) key node_name:
-        <div.node>
-          <h3>
-            node_name
-          <div.roles>
-            for [role_name, role] of entries(info.roles or {}) key role_name:
-              <span.role>
-                <span.role-name>
-                  role_name
-                <span.faded>
-                  "{"
-                <span.services>
-                  for [d_name, daemon] of entries(role.daemons or {}) key d_name:
-                    if daemon.instances == 0:
-                    elif daemon.instances == 1:
-                      <span.service>
-                        d_name
-                    else:
-                      <span.service>
-                        d_name
-                        <span.multiplier>
-                          `x${ daemon.instances }`
-                <span.faded>
-                  "}"
+  <div>
+    store @by = value | url_query('by') | init('host')
+    <div.btn-group>
+      <button.btn.btn-default.active?(@by == 'host')>
+        link {click} set('host') -> @by
+        "By Host"
+      <button.btn.btn-default.active?(@by == 'service')>
+        link {click} set('service') -> @by
+        "By Service"
+    <div.nodes>
+      store @schedule = json_store | refresher | json('/v1/schedule')
+      if @schedule:
+        if @by == 'host':
+          for [node_name, info] of entries(@schedule.data.nodes) key node_name:
+            <div.node>
+              <h3>
+                node_name
+              <div.roles>
+                for [role_name, role] of entries(info.roles or {}) key role_name:
+                  <span.role>
+                    <span.role-name>
+                      role_name
+                    <span.faded>
+                      "{"
+                    <span.services>
+                      for [d_name, daemon] of entries(role.daemons or {}) key d_name:
+                        if daemon.instances == 0:
+                        elif daemon.instances == 1:
+                          <span.service>
+                            d_name
+                        else:
+                          <span.service>
+                            d_name
+                            <span.multiplier>
+                              `x${ daemon.instances }`
+                    <span.faded>
+                      "}"
+        elif @by == 'service':
+          "By service"
 
-    else:
-      "Loading..."
+      else:
+        "Loading..."

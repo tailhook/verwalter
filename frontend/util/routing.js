@@ -2,6 +2,9 @@ import {createStore, applyMiddleware} from 'redux'
 import {CANCEL} from 'khufu-runtime'
 
 
+let QUERIES = {}
+
+
 function serialize(chunks, query) {
     let q = ''
     for(let k in query) {
@@ -44,14 +47,14 @@ export function path(state={path:[], query:{}}, action) {
         case 'update':
             return {path: action.path, query: state.query}
         case 'set_query':
-            return {path: action.path, query: {
+            return {path: state.path, query: {
                 [action.key]: action.value,
                 ...state.query}}
         case 'silently_clear_query':
         case 'set_query_default':
             let newq = {...state.query}
             delete newq[action.key]
-            return {path: action.path, query: newq}
+            return {path: state.path, query: newq}
         case 'reset':
             return action.value
     }
@@ -73,9 +76,27 @@ export function go(delta_or_event, event) {
 }
 
 var routing_middleware = ({getState}) => next => {
-    next({type: 'reset', value: deserialize(location.pathname)})
+    let urlstate = deserialize(location.toString());
+    next({type: 'reset', value: urlstate})
+    for(var k in urlstate) {
+        if(k in QUERIES) {
+            QUERIES[k]({type: 'raw_set', value: urlstate.query[k]})
+        }
+    }
     window.addEventListener('popstate', function(e) {
-        next({type: 'reset', value: deserialize(location.pathname)})
+        let urlstate = deserialize(location.toString());
+        let oldq = getState().query;
+        next({type: 'reset', value: urlstate})
+        for(var k in urlstate.query) {
+            if(k in QUERIES) {
+                QUERIES[k]({type: 'raw_set', value: urlstate.query[k]})
+            }
+        }
+        for(var k in oldq) {
+            if(!(k in urlstate.query) && k in QUERIES) {
+                QUERIES[k]({type: 'raw_clear', value: urlstate.query[k]})
+            }
+        }
     })
     return action => {
         let state = getState()
@@ -86,33 +107,38 @@ var routing_middleware = ({getState}) => next => {
                 break;
             case 'set_query':
                 history.pushState({}, '',
-                    serialize(action.path, {
+                    serialize(state.path, {
                         [action.key]: action.value,
                         ...state.query}))
                 break;
             case 'silently_clear_query': {
                 let newq = {...state.query}
                 delete newq[action.key]
-                history.replaceState({}, '', serialize(action.path, newq))
+                history.replaceState({}, '', serialize(state.path, newq))
                 break;
             }
             case 'set_query_default': {
                 let newq = {...state.query}
                 delete newq[action.key]
-                history.pushState({}, '', serialize(action.path, newq))
+                history.pushState({}, '', serialize(state.path, newq))
                 break;
             }
         }
-        next(action)
+        return next(action)
     }
 }
 
-export var url_query = key => store => next => {
-    let defvalue = null;
-    return action => {
+export var url_query = key => ({getState}) => next => {
+    let def_value = getState()
+    next({type: 'set', value: router.getState().query[key]})
+    let handler = action => {
         switch(action.type) {
+            case 'raw_set':
+                return next({type: 'set', value: action.value})
+            case 'raw_clear':
+                return next({type: 'set', value: def_value})
             case 'set':
-                if(action.value == defvalue) {
+                if(action.value == def_value) {
                     router.dispatch({
                         type: 'set_query_default',
                         key: key,
@@ -129,6 +155,9 @@ export var url_query = key => store => next => {
                 def_value = action.value;
                 break;
             case CANCEL:
+                if(QUERIES[key] == handler) {
+                    delete QUERIES[key]
+                }
                 router.dispatch({
                     type: 'silently_clear_query',
                     key: key,
@@ -137,6 +166,11 @@ export var url_query = key => store => next => {
         }
         return next(action)
     }
+    if(QUERIES[key]) {
+        console.log("Old store is still hanging for", key)
+    }
+    QUERIES[key] = handler
+    return handler
 }
 
 export var router = createStore(path, applyMiddleware(routing_middleware))
