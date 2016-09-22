@@ -40,7 +40,7 @@ view _navbar(status, frontend_version):
   <nav.navbar.navbar-default>
     <div.container-fluid>
       <div.navbar-header>
-        <a.navbar-brand.red href="/">
+        <a.navbar-brand.red?(status.debug_force_leader) href="/">
           "Verwalter"
           if status.debug_force_leader:
             <div.subtext.red>
