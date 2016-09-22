@@ -27,7 +27,8 @@ function deserialize(uri) {
     if(m) {
         uri = m[1]
     }
-    let [path, query] = uri.split('?');
+    let [page, fragment] = uri.split('#');
+    let [path, query] = page.split('?');
     let chunks = path.split('/')
     if(chunks[0] == '') {
         chunks.shift()
