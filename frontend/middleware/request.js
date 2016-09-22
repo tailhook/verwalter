@@ -106,8 +106,8 @@ export var refresher = store => next => {
             case CANCEL:
                 stop()
             default:
-                next(action)
         }
+        return next(action)
     }
 }
 

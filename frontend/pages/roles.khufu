@@ -30,7 +30,7 @@ view _leftmenu(schedule):
   <ul.nav.nav-pills.nav-stacked.col-lg-2>
     if schedule and schedule.roles:
       for [name, role] of entries(schedule.roles) key name:
-        <li.active?(@router[1] == name) role="presentation">
+        <li.active?(@router.path[1] == name) role="presentation">
           <a href=`/role/${name}`>
             link {click} go(event) -> @router
             name
@@ -54,9 +54,9 @@ view main(status):
         <div.panel.panel-default>
           <div.panel-body>
             "Loading..."
-      elif @router[1]:
+      elif @router.path[1]:
         let schedule = @schedule.data
-        let role_name = @router[1]
+        let role_name = @router.path[1]
         let role = schedule.roles[role_name]
         let role_state = schedule.state and schedule.state[role_name]
         let frontend = (role and role.frontend and role.frontend.kind or

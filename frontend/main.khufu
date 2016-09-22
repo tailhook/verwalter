@@ -40,27 +40,27 @@ view _navbar(status, frontend_version, @expand):
               status and status.version or "???"
       <div.collapse.navbar-collapse>
         <ul.nav.navbar-nav>
-          <li.active?(@router[0] == 'roles')>
+          <li.active?(@router.path[0] == 'roles')>
             <a href="/roles">
               link {click} go(event) -> @router
               "Roles"
               if status:
                 ` [${status.roles}]`
-          <li.active?(@router[0] == 'peers')>
+          <li.active?(@router.path[0] == 'peers')>
             <a href="/peers">
               link {click} go(event) -> @router
               "Servers"
               if status:
                 ` [${status.peers}]`
-          <li.active?(@router[0] == 'services')>
+          <li.active?(@router.path[0] == 'services')>
             <a href="/services">
               link {click} go(event) -> @router
               "Services"
-          <li.active?(@router[0] == 'api_links')>
+          <li.active?(@router.path[0] == 'api_links')>
             <a href="/api_links">
               link {click} go(event) -> @router
               "API Links"
-          <li.active?(@router[0] == 'logs')>
+          <li.active?(@router.path[0] == 'logs')>
             <a href="/logs">
               link {click} go(event) -> @router
               "Logs"
@@ -105,13 +105,13 @@ view main(version):
     store @status = json_store | refresher | fast_refresh_json('/v1/status')
     _navbar(@status, version)
     <div class="container-fluid">
-      if @router[0] == 'roles' or @router[0] == 'role':
+      if @router.path[0] == 'roles' or @router.path[0] == 'role':
         roles(@status)
-      elif @router[0] == 'api_links':
+      elif @router.path[0] == 'api_links':
         api_links(@status)
-      elif @router[0] == 'peers':
+      elif @router.path[0] == 'peers':
         peers(@status)
-      elif @router[0] == 'services':
+      elif @router.path[0] == 'services':
         services(@status)
-      elif @router[0] == 'logs':
+      elif @router.path[0] == 'logs':
         logs(@status)
