@@ -56,18 +56,24 @@ style:
   h3
     margin-top: 0px
     font-size: 200%
+  .padleft
+    padding-left: 6px
 
 
 view main():
   <div>
     store @by = value | url_query('by') | init('host')
-    <div.btn-group>
+    store @empty = value | url_query('empty') | init('show')
+    <div.btn-group.padleft>
       <button.btn.btn-default.active?(@by == 'host')>
         link {click} set('host') -> @by
         "By Host"
       <button.btn.btn-default.active?(@by == 'role')>
         link {click} set('role') -> @by
         "By Role"
+      <button.btn.btn-default.active?(@empty == 'hide')>
+        link {click} set(@empty == 'show' ? 'hide' : 'show') -> @empty
+        "Hide Empty"
     <div.nodes>
       store @schedule = json_store | refresher | json('/v1/schedule')
       if @schedule:
@@ -78,40 +84,15 @@ view main():
                 node_name
               <div.roles>
                 for [role_name, role] of entries(info.roles or {}) key role_name:
-                  <span.role>
-                    <span.role-name>
-                      role_name
-                    <span.faded>
-                      "{"
-                    <span.services>
-                      for [d_name, daemon] of entries(role.daemons or {}) key d_name:
-                        if daemon.instances == 0:
-                        elif daemon.instances == 1:
-                          <span.service>
-                            d_name
-                        else:
-                          <span.service>
-                            d_name
-                            <span.multiplier>
-                              `x${ daemon.instances }`
-                    <span.faded>
-                      "}"
-        elif @by == 'role':
-          for role_name of keys(@schedule.data.roles):
-            <div.node>
-              <h3>
-                role_name
-              <div.roles>
-                for [node_name, node] of entries(@schedule.data.nodes) key node_name:
-                  let role = node.roles[role_name]
-                  if role:
+                  let daemons = entries(role.daemons or {})
+                  if daemons.length > 0 or @empty == 'show':
                     <span.role>
                       <span.role-name>
-                        node_name
+                        role_name
                       <span.faded>
                         "{"
                       <span.services>
-                        for [d_name, daemon] of entries(role.daemons or {}) key d_name:
+                        for [d_name, daemon] of daemons key d_name:
                           if daemon.instances == 0:
                           elif daemon.instances == 1:
                             <span.service>
@@ -123,6 +104,35 @@ view main():
                                 `x${ daemon.instances }`
                       <span.faded>
                         "}"
+        elif @by == 'role':
+          for role_name of keys(@schedule.data.roles):
+            <div.node>
+              <h3>
+                role_name
+              <div.roles>
+                for [node_name, node] of entries(@schedule.data.nodes) key node_name:
+                  let role = node.roles[role_name]
+                  if role:
+                    let daemons = entries(role.daemons or {})
+                    if daemons.length > 0 or @empty == 'show':
+                      <span.role>
+                        <span.role-name>
+                          node_name
+                        <span.faded>
+                          "{"
+                        <span.services>
+                          for [d_name, daemon] of entries(role.daemons or {}) key d_name:
+                            if daemon.instances == 0:
+                            elif daemon.instances == 1:
+                              <span.service>
+                                d_name
+                            else:
+                              <span.service>
+                                d_name
+                                <span.multiplier>
+                                  `x${ daemon.instances }`
+                        <span.faded>
+                          "}"
 
       else:
         "Loading..."
