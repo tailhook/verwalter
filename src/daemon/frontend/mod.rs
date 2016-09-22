@@ -6,6 +6,7 @@ use std::fs::{File, metadata};
 use std::time::{Duration};
 use std::ascii::AsciiExt;
 use std::collections::{HashMap, HashSet};
+use std::os::unix::ffi::OsStrExt;
 
 use gron::json_to_gron;
 use self_meter;
@@ -101,6 +102,10 @@ fn read_file<P:AsRef<Path>>(path: P, res: &mut Response)
     try!(file.read_to_end(&mut buf));
     res.status(200, "OK");
     res.add_length(buf.len() as u64).unwrap();
+    if path.extension().and_then(|x| x.to_str()) == Some("js") {
+        res.add_header("Content-Type", b"text/javascript; charset=utf-8")
+            .unwrap();
+    }
     // TODO(tailhook) guess mime type
     res.done_headers().unwrap();
     res.write_body(&buf);
