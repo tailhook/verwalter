@@ -4,9 +4,10 @@ import {entries} from '../util/object'
 
 
 style:
-  .row
+  .meter-row
     display: flex
     min-width: 36ex
+    margin-left: 8px
   .key
     min-width: 20ex
   .value
@@ -23,35 +24,35 @@ view small(report, threads_report):
 view big(report, threads_report):
   let percent = already_percent_formatter()
   let mem = bytes_formatter()
-  <div.row>
+  <div.meter-row>
     <span.key> "Since (interval)"
     <span.value> `${format_diff(till_now_ms(from_ms(report.timestamp_ms)))}
                   (${format_diff(report.duration_ms)})`
-  <div.row>
+  <div.meter-row>
     <span.key> "System CPU"
     <span.value> `${percent(report.global_cpu_usage)}`
-  <div.row>
+  <div.meter-row>
     <span.key> "CPU"
     <span.value> `${percent(report.process_cpu_usage)}`
-  <div.row>
+  <div.meter-row>
     <span.key> "CPU (w. children)"
     <span.value> `${percent(report.gross_cpu_usage)}`
-  <div.row>
+  <div.meter-row>
     <span.key> "RSS (Peak)"
     <span.value> `${mem(report.memory_rss)} / ${mem(report.memory_rss_peak)}`
-  <div.row>
+  <div.meter-row>
     <span.key> "Virtual (Peak)"
     <span.value> `${mem(report.memory_virtual)}
                   / ${mem(report.memory_virtual_peak)}`
-  <div.row>
+  <div.meter-row>
     <span.key> "Swap (Peak)"
     <span.value> `${mem(report.memory_swap)} / ${mem(report.memory_swap_peak)}`
-  <div.row>
+  <div.meter-row>
     <span.key> "Disk R/W b/s"
     <span.value> `${mem(report.disk_read)} / ${mem(report.disk_write)}`
   <div>
     for [name, data] of entries(threads_report) key name:
-      <div.row>
+      <div.meter-row>
         <span.key> `Thr. ${name}`
         <span.value> `${percent(data.cpu_usage)} / ${percent(data.user_cpu)}`
 

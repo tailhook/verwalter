@@ -23,20 +23,8 @@ style:
   .red
     color: red
     font-weight: bold
-  .meter
-    position: absolute
-    right: 8px
-    top: 64px
-    font: xx-small
-  .meter.expanded
-    right: 8px
-    min-width: 200px
-    background-color: white
-    z-index: 1
-  .meter-btn
-    margin-left: 8px
 
-view _navbar(status, frontend_version):
+view _navbar(status, frontend_version, @expand):
   <nav.navbar.navbar-default>
     <div.container-fluid>
       <div.navbar-header>
@@ -77,6 +65,18 @@ view _navbar(status, frontend_version):
               link {click} go(event) -> @router
               "Logs"
         <ul.nav.navbar-nav.navbar-right>
+          store @expand = bool | init(false)
+          <li.dropdown.open?(@expand)>
+            <a.dropdown-toggle href="#" role="button"
+                aria-haspopup="true" aria-expanded="false">
+              link {click} toggle(@expand) -> @expand
+
+              self_meter.small(status.self_report, status.threads_report)
+              <span.caret>
+            if @expand and status.self_report:
+               <div.dropdown-menu>
+                self_meter.big(status.self_report, status.threads_report)
+
           if status and status.errors:
             <li.text-danger
               title=format_error_hint(status)>
@@ -105,19 +105,6 @@ view main(version):
     store @status = json_store | refresher | fast_refresh_json('/v1/status')
     _navbar(@status, version)
     <div class="container-fluid">
-      store @expand = bool | init(false)
-      <div.meter.text-muted.expanded?(@expand)>
-        if @status:
-          self_meter.small(@status.self_report, @status.threads_report)
-          <button.btn.btn-default.btn-xs.meter-btn>
-            link {click} toggle(@expand) -> @expand
-            if @expand:
-              "▲"
-            else:
-              "▼"
-        if @expand and @status:
-          self_meter.big(@status.self_report, @status.threads_report)
-
       if @router[0] == 'roles' or @router[0] == 'role':
         roles(@status)
       elif @router[0] == 'api_links':
