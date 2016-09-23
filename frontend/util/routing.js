@@ -48,9 +48,10 @@ export function path(state={path:[], query:{}}, action) {
         case 'update':
             return {path: action.path, query: state.query}
         case 'set_query':
+        case 'replace_query':
             return {path: state.path, query: {
-                [action.key]: action.value,
-                ...state.query}}
+                ...state.query,
+                [action.key]: action.value}}
         case 'silently_clear_query':
         case 'set_query_default':
             let newq = {...state.query}
@@ -109,8 +110,14 @@ var routing_middleware = ({getState}) => next => {
             case 'set_query':
                 history.pushState({}, '',
                     serialize(state.path, {
-                        [action.key]: action.value,
-                        ...state.query}))
+                        ...state.query,
+                        [action.key]: action.value}))
+                break;
+            case 'replace_query':
+                history.replaceState({}, '',
+                    serialize(state.path, {
+                        ...state.query,
+                        [action.key]: action.value}))
                 break;
             case 'silently_clear_query': {
                 let newq = {...state.query}
@@ -129,7 +136,7 @@ var routing_middleware = ({getState}) => next => {
     }
 }
 
-export var url_query = key => ({getState}) => next => {
+export var _query = (key, replace) => ({getState}) => next => {
     let def_value = getState()
     next({type: 'set', value: router.getState().query[key]})
     let handler = action => {
@@ -145,11 +152,20 @@ export var url_query = key => ({getState}) => next => {
                         key: key,
                     })
                 } else {
-                    router.dispatch({
-                        type: 'set_query',
-                        key: key,
-                        value: action.value,
-                    })
+                    let oldv = router.getState().query[key]
+                    if(!replace || oldv == '' || oldv == def_value) {
+                        router.dispatch({
+                            type: 'set_query',
+                            key: key,
+                            value: action.value,
+                        })
+                    } else {
+                        router.dispatch({
+                            type: 'replace_query',
+                            key: key,
+                            value: action.value,
+                        })
+                    }
                 }
                 break;
             case 'init':
@@ -173,5 +189,8 @@ export var url_query = key => ({getState}) => next => {
     QUERIES[key] = handler
     return handler
 }
+
+export var url_query = key => _query(key, false)
+export var smart_query = key => _query(key, true)
 
 export var router = createStore(path, applyMiddleware(routing_middleware))
