@@ -23,26 +23,13 @@ module.exports = {
             exclude: /node_modules/,
         }],
     },
-    babel: {
-        "plugins": [
-            "transform-strict-mode",
-            "transform-object-rest-spread",
-            "transform-es2015-block-scoping",
-            "transform-es2015-parameters",
-            "transform-es2015-destructuring",
-            "transform-es2015-arrow-functions",
-            "transform-es2015-block-scoped-functions",
-        ],
-    },
     resolve: {
-        modules: ["/usr/local/lib/node_modules", "/usr/lib/node_modules"],
+        modules: ["/usr/lib/node_modules",
+                  "/usr/lib/node_modules/webpack-dev-server/node_modules"],
     },
     resolveLoader: {
         mainFields: ["webpackLoader", "main", "browser"],
-        modules: [
-            "/work/node_modules",
-            "/usr/local/lib/node_modules",
-            "/usr/lib/node_modules"],
+        modules: ["/usr/lib/node_modules"],
     },
     devServer: {
         contentBase: '..',
@@ -66,10 +53,25 @@ module.exports = {
             index: 'public/index.html',
         },
     },
-    khufu: {
-        static_attrs: !DEV,
-    },
     plugins: [
+        new webpack.LoaderOptionsPlugin({
+            options: {
+                khufu: {
+                    static_attrs: !DEV,
+                },
+                babel: {
+                    "plugins": [
+                        "transform-strict-mode",
+                        "transform-object-rest-spread",
+                        "transform-es2015-block-scoping",
+                        "transform-es2015-parameters",
+                        "transform-es2015-destructuring",
+                        "transform-es2015-arrow-functions",
+                        "transform-es2015-block-scoped-functions",
+                    ],
+                },
+            }
+        }),
         new webpack.NoErrorsPlugin(),
         new webpack.DefinePlugin({
             VERSION: JSON.stringify("v0.5.7"),

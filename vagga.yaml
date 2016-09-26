@@ -70,7 +70,6 @@ commands:
         run:
         - webpack-dev-server
         - --hot
-        - --progress
 
   doc: !Command
     description: Build docs
@@ -83,9 +82,8 @@ commands:
     container: js
     work-dir: frontend
     run:
-    - webpack-dev-server
+    - webpack
     - --hot
-    - --progress
     - --colors
 
   trio: !Supervise

@@ -79,7 +79,7 @@ view main():
           link {click} set(@empty == 'show' ? 'hide' : 'show') -> @empty
           "Hide Empty"
       <input.form-control placeholder=`Filter ${@by}` value=@filter>
-        link {change,blur,keyup,keydown} set(this.value) -> @filter
+        link {input} set(this.value) -> @filter
       if @filter:
         <div.input-group-btn>
           <button.btn.btn-default>

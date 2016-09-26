@@ -34,9 +34,7 @@ view main():
             else:
               <th>
                 <input type="text" placeholder="Role" value=@role_filter>
-                  link {
-                    change, blur, keydown, keyup
-                    } set(this.value) -> @role_filter
+                  link {input} set(this.value) -> @role_filter
               <th>
                 "Action "
                 <button>

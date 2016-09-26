@@ -4,14 +4,14 @@
   "keywords": ["verwalter", "containers", "orchestration"],
   "main": "index.js",
   "dependencies": {
-    "khufu-runtime": "0.4.2",
+    "khufu-runtime": "0.4.5",
     "redux": "3.1.3",
     "incremental-dom": "0.3.0",
     "redux-logger": "2.4.0",
     "babel-es6-polyfill": "1.0.1"
   },
   "devDependencies": {
-    "webpack": "2.1.0-beta.7",
+    "webpack": "2.1.0-beta.25",
     "babel-loader": "6.2",
     "babel-plugin-transform-object-rest-spread": "6.3.13",
     "babel-plugin-transform-strict-mode": "6.3.13",
@@ -20,28 +20,12 @@
     "babel-plugin-transform-es2015-destructuring": "6.3.13",
     "babel-plugin-transform-es2015-arrow-functions": "6.3.13",
     "babel-plugin-transform-es2015-block-scoped-functions": "6.3.13",
-    "babel-core": "6.3.26",
-    "khufu": "0.4.2"
+    "babel-core": "6.14",
+    "khufu": "0.4.5"
   },
   "optionalDependencies": {
     "webpack-dev-server": "// For hot reload, with dependencies",
     "webpack-dev-server": "2.1.0-beta.0",
-    "sockjs-client": "*",
-    "strip-ansi": "*",
-    "debug": "*",
-    "inherits": "*",
-    "json3": "*",
-    "url-parse": "*",
-    "ansi-regex": "*",
-    "requires-port": "*",
-    "querystringify": "*",
-    "ms": "*",
-    "babel-polyfill": "// Temporary dependencies",
-    "babel-cli": "6.3.17",
-    "babel-register": "6.3.13",
-    "babel-types": "6.13.0",
-    "babel-traverse": "6.13.0",
-    "babel-polyfill": "6.3.14",
     "jison": "0.4.15",
     "postcss": "5.0.14"
   },
