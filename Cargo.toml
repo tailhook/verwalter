@@ -38,7 +38,7 @@ sha1 = "0.1.1"
 inotify = "0.2.3"
 itertools = "0.4.17"
 gron = "0.1.0"
-self-meter = { git="http://github.com/tailhook/self-meter", rev="f06ce97" }
+self-meter = "0.1.0"
 
 [dependencies.indexed_log]
 path = "./indexed_log"
