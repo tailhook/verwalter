@@ -6,7 +6,6 @@ use std::fs::{File, metadata};
 use std::time::{Duration};
 use std::ascii::AsciiExt;
 use std::collections::{HashMap, HashSet};
-use std::os::unix::ffi::OsStrExt;
 
 use gron::json_to_gron;
 use self_meter;

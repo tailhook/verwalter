@@ -13,7 +13,6 @@ use std::mem::replace;
 use std::io::{Write, Seek};
 use std::io::ErrorKind::NotFound;
 use std::fs::{OpenOptions, File, read_link};
-use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::{FromRawFd, AsRawFd};
 use std::io::SeekFrom;
 use std::fmt::Arguments;
