@@ -9,6 +9,10 @@ local function merge_schedules(list)
         if info ~= nil then
             result.state[role_name] = info.state
             result.roles[role_name] = info.role
+            result.roles[role_name].shortinfo = {
+                {'num', 'Memory (GiB)', 2 },
+                {'num', 'CPU cores', 3 },
+            }
             if info.metrics ~= nil then
                 for key, value in pairs(info.metrics) do
                     result.query_metrics.rules[role_name .. '.' .. key] = value
@@ -19,6 +23,10 @@ local function merge_schedules(list)
                 if mnode == nil then
                     mnode = {
                         roles={},
+                        shortinfo={
+                            {'gauge', 'Memory (GiB)', 9, 10 },
+                            {'gauge', 'CPU cores', 2, 7 },
+                        },
                     }
                     result.nodes[node_name] = mnode
                 end

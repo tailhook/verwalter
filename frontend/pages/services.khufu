@@ -4,7 +4,8 @@ import {entries, keys} from '../util/object'
 import json_store from '../stores/json'
 import {value, set, init} from '../stores/simple'
 import {url_query, smart_query} from '../util/routing'
-import {service_names} from '../util/services.js'
+import {service_names} from '../util/services'
+import {repr} from '../util/object'
 
 
 style:
@@ -60,7 +61,55 @@ style:
     padding-left: 6px
   .panel
     max-width: 60ex
+  .gauge-row, .num-row, .bad-row
+    display: flex
+  .si-key
+    min-width: 15ex
+  .si-value, .si-total
+    text-align: right
+    min-width: 4ex
+    margin-right: 4px
+  .gauge
+    position: absolute
+    width: 200px
+    height: 16px
+    background-color: #CCC
+    margin-left: 8px
+    border-radius: 2px
+  .gauge-internal
+    background-color: #2ca25f
+    height: 16px
+    border-bottom-left-radius: 2px
+    border-top-left-radius: 2px
+  .max
+    background-color: red
+    border-radius: 2px  /// all corners
 
+view render_shortinfo(values):
+  if values:
+    <div.shortinfo>
+      for item of values:
+        if item[0] == 'gauge':
+          <div.gauge-row>
+            <span.si-key>
+              item[1]
+            <span.si-value>
+              item[2]
+            <span.si-separator> "/"
+            <span.si-total>
+              item[3]
+            <div.gauge>
+              <div.gauge-internal.max?(item[2] >= item[3])
+                style={'width': (item[2]/item[3])*100 + '%'}>
+        elif item[0] == 'num':
+          <div.num-row>
+            <span.si-key>
+              item[1]
+            <span.si-value>
+              item[2]
+        else:
+          <pre.bad-row>
+            repr(item)
 
 view main():
   <div>
@@ -116,8 +165,9 @@ view main():
                                   `x${ daemon.instances }`
                         <span.faded>
                           "}"
+                render_shortinfo(info.shortinfo)
         elif @by == 'role':
-          for role_name of keys(@schedule.data.roles):
+          for [role_name, role] of entries(@schedule.data.roles) key role_name:
             if not @filter or role_name.indexOf(@filter) >= 0:
               <div.node>
                 <h3>
@@ -146,6 +196,6 @@ view main():
                                     `x${ daemon.instances }`
                           <span.faded>
                             "}"
-
+                render_shortinfo(role.shortinfo)
       else:
         "Loading..."
