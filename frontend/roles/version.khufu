@@ -7,6 +7,9 @@ import {is_leader} from '../util/status'
 import {total_processes} from '../util/schedule'
 import {show_leaders} from '../util/leaders.khufu'
 import {logs} from './logs.khufu'
+import {value, set, init} from '../stores/simple'
+import {url_query, smart_query} from '../util/routing'
+import {filter_versions} from '../util/version'
 
 
 style:
@@ -15,6 +18,8 @@ style:
     animation-duration: .5s
     animation-iteration-count: infinite
     animation-timing-function: linear
+  .panel
+    max-width: 40ex
 
 
 view main(role, role_name, {role_state, schedule, system_status}):
@@ -60,18 +65,33 @@ view main(role, role_name, {role_state, schedule, system_status}):
               <td>
                 props.instances
   logs(role_name)
-
   if is_leader(system_status):
     <div>
       store @actions = pending_actions | refresher
         | json('/v1/pending_actions')
       <h2> "Available Versions"
+      store @trunc = value | url_query('trunc') | init('')
+      store @filter = value | smart_query('versions') | init('')
+      <div.input-group.panel>
+        <div.input-group-btn>
+          <button.btn.btn-default.active?(@trunc == 'no')>
+            link {click} set(@trunc == 'no' ? '' : 'no') -> @trunc
+            "Show All"
+        <input.form-control placeholder=`Filter Versions` value=@filter>
+          link {input} set(this.value) -> @filter
+        if @filter:
+          <div.input-group-btn>
+            <button.btn.btn-default>
+              link {click} set('') -> @filter
+              <span.glyphicon.glyphicon-remove>
       <table.table.table-hover>
         <thead>
           <tr>
             <th> "Version"
         <tbody>
-          for version of reversed(role.versions).slice(0, 20) or []:
+          let all = filter_versions(role.versions or [], @filter)
+          let shown = @trunc == 'no' and all or all.slice(0, 20)
+          for version of shown:
             <tr>
               <td>
                 "Switch to "
