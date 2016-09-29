@@ -48,7 +48,7 @@ local function versioned_app(props)
     local state = props.parents[0] -- this should be more intelligent
     local actions = props.actions
     local peers = props.peers
-    local all_versions = {'v1.0', 'v1.1', 'v2.0', 'v2.2', 'v3.1'}
+    local all_versions = {'v3.1', 'v2.2', 'v2.0', 'v1.1', 'v1.0'}
     if state == nil then
         state = {version='v2.0', running=true}
     end
@@ -90,7 +90,7 @@ local function rich_migration_app(props)
     local state = props.parents[0] -- this should be more intelligent
     local actions = props.actions
     local peers = props.peers
-    local all_versions = {'v1.0', 'v1.1', 'v2.0', 'v2.2', 'v3.1'}
+    local all_versions = {'v3.1', 'v2.2', 'v2.0', 'v1.1', 'v1.0'}
     if state == nil then
         state = {version='v2.0', running=true}
     end
