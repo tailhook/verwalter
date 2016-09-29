@@ -73,7 +73,7 @@ module.exports = {
         }),
         new webpack.NoErrorsPlugin(),
         new webpack.DefinePlugin({
-            VERSION: JSON.stringify("v0.6.0"),
+            VERSION: JSON.stringify("v0.6.1"),
             "process.env.NODE_ENV": JSON.stringify(process.env['NODE_ENV']),
             DEBUG: DEV,
         }),
