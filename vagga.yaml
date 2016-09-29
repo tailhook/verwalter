@@ -197,7 +197,8 @@ containers:
       file: "frontend/package.json"
       optional: true
     environ:
-      NODE_PATH: /usr/lib/node_modules
+      NODE_PATH: "/usr/lib/node_modules:\
+                  /usr/lib/node_modules/webpack-dev-server/node_modules"
 
   xenial:
     setup:

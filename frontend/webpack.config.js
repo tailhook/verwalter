@@ -24,12 +24,11 @@ module.exports = {
         }],
     },
     resolve: {
-        modules: ["/usr/lib/node_modules",
-                  "/usr/lib/node_modules/webpack-dev-server/node_modules"],
+        modules: process.env.NODE_PATH.split(':').filter(x => x),
     },
     resolveLoader: {
         mainFields: ["webpackLoader", "main", "browser"],
-        modules: ["/usr/lib/node_modules"],
+        modules: process.env.NODE_PATH.split(':').filter(x => x),
     },
     devServer: {
         contentBase: '..',
