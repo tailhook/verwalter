@@ -314,6 +314,9 @@ impl SharedState {
                         guard.peers.as_ref()
                         .map(|x| &x.1).unwrap_or(&empty_map)
                         .keys().cloned());
+                    guard.last_known_schedule.as_ref().map(|s| {
+                        initial.add_schedule(s.clone())
+                    });
                     peer_schedule.map(|(id, stamp)| {
                         initial.peer_report(id, stamp)
                     });
@@ -491,7 +494,7 @@ impl SharedState {
             }
             Leading(Prefetching(_, ref mutex)) => {
                 let mut lock = mutex.lock().expect("prefetch lock");
-                lock.add_schedule(schedule);
+                lock.add_schedule(Arc::new(schedule));
                 if lock.done() {
                     self.2.run_scheduler.notify_all();
                 }

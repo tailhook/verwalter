@@ -87,13 +87,11 @@ impl PrefetchInfo {
         }
         return updated;
     }
-
     /// Adds schedule to the working set
-    pub fn add_schedule(&mut self, schedule: Schedule) {
+    pub fn add_schedule(&mut self, schedule: Arc<Schedule>) {
         if !self.all_schedules.contains_key(&schedule.hash) {
             self.fetching.remove(&schedule.hash);
-            self.all_schedules.insert(schedule.hash.clone(),
-                Arc::new(schedule));
+            self.all_schedules.insert(schedule.hash.clone(), schedule);
         }
     }
 
