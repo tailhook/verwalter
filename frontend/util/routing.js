@@ -46,7 +46,7 @@ function deserialize(uri) {
 export function path(state={path:[], query:{}}, action) {
     switch(action.type) {
         case 'update':
-            return {path: action.path, query: state.query}
+            return {path: action.path, query: action.query || state.query}
         case 'set_query':
         case 'replace_query':
             return {path: state.path, query: {
@@ -63,30 +63,21 @@ export function path(state={path:[], query:{}}, action) {
     return state
 }
 
-export function go(delta_or_event, event) {
-    let path, query;
-    if(delta_or_event instanceof Event) {
-        event = delta_or_event
-        path = deserialize(event.currentTarget.href).path
-    } else {
-        path = delta_or_event
-    }
+export function go(event) {
+    let val = deserialize(event.currentTarget.href)
     if(event) {
         event.preventDefault()
     }
-    return {type: 'update', path: path}
+    return {type: 'update', path: val.path, query: val.query}
 }
 
 var routing_middleware = ({getState}) => next => {
     let urlstate = deserialize(location.toString());
-    next({type: 'reset', value: urlstate})
-    for(var k in urlstate) {
-        if(k in QUERIES) {
-            QUERIES[k]({type: 'raw_set', value: urlstate.query[k]})
-        }
-    }
+    update(urlstate)
     window.addEventListener('popstate', function(e) {
-        let urlstate = deserialize(location.toString());
+        update(deserialize(location.toString()));
+    })
+    function update(urlstate) {
         let oldq = getState().query;
         next({type: 'reset', value: urlstate})
         for(var k in urlstate.query) {
@@ -99,13 +90,14 @@ var routing_middleware = ({getState}) => next => {
                 QUERIES[k]({type: 'raw_clear', value: urlstate.query[k]})
             }
         }
-    })
+    }
     return action => {
         let state = getState()
         switch(action.type) {
             case 'update':
                 history.pushState({}, '',
                     serialize(action.path, action.query || state.query))
+                update({path: action.path, query: action.query})
                 break;
             case 'set_query':
                 history.pushState({}, '',
