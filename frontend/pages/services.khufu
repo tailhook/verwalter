@@ -1,11 +1,11 @@
+import {@router, go} from '../util/routing'
 import {refresher, json} from '../middleware/request'
 import {format_uptime, format_diff, till_now_ms, from_ms} from '../util/time'
-import {entries, keys} from '../util/object'
+import {entries, keys, repr} from '../util/object'
 import json_store from '../stores/json'
 import {value, set, init} from '../stores/simple'
 import {url_query, smart_query} from '../util/routing'
-import {service_names} from '../util/services'
-import {repr} from '../util/object'
+import {role_nodes} from '../util/services'
 import {number_formatter} from '../util/format'
 import {names_filter} from '../util/filters'
 
@@ -59,6 +59,8 @@ style:
   h3
     margin-top: 0px
     font-size: 200%
+    display: flex
+    justify-content: space-between
   .padleft
     padding-left: 6px
   .panel
@@ -96,6 +98,9 @@ style:
     font-weight: bold
     z-index: 1
     -webkit-text-stroke: 1px white
+  .ref
+    font-size: 50%
+    cursor: pointer
 
 view render_shortinfo(values):
   if values:
@@ -189,32 +194,35 @@ view main():
           for [role_name, role] of entries(@schedule.data.roles) key role_name:
             if names_filter(@filter, role_name):
               <div.node>
+                let nodes = role_nodes(@schedule, role_name)
+                let node_names = keys(nodes).join(',')
                 <h3>
-                  role_name
+                  <span.title> role_name
+                  <a.ref href=`/services?by=host&filter=${node_names}`>
+                    link {click} go(event) -> @router
+                    "#"
                 <div.roles>
-                  for [node_name, node] of entries(@schedule.data.nodes) key node_name:
-                    let role = node.roles[role_name]
-                    if role:
-                      let daemons = entries(role.daemons or {})
-                      if daemons.length > 0 or @empty == 'show':
-                        <span.role>
-                          <span.role-name>
-                            node_name
-                          <span.faded>
-                            "{"
-                          <span.services>
-                            for [d_name, daemon] of entries(role.daemons or {}) key d_name:
-                              if daemon.instances == 0:
-                              elif daemon.instances == 1:
-                                <span.service>
-                                  d_name
-                              else:
-                                <span.service>
-                                  d_name
-                                  <span.multiplier>
-                                    `x${ daemon.instances }`
-                          <span.faded>
-                            "}"
+                  for [node_name, role] of entries(nodes) key node_name:
+                    let daemons = entries(role.daemons or {})
+                    if daemons.length > 0 or @empty == 'show':
+                      <span.role>
+                        <span.role-name>
+                          node_name
+                        <span.faded>
+                          "{"
+                        <span.services>
+                          for [d_name, daemon] of entries(role.daemons or {}) key d_name:
+                            if daemon.instances == 0:
+                            elif daemon.instances == 1:
+                              <span.service>
+                                d_name
+                            else:
+                              <span.service>
+                                d_name
+                                <span.multiplier>
+                                  `x${ daemon.instances }`
+                        <span.faded>
+                          "}"
                 render_shortinfo(role.shortinfo)
       else:
         "Loading..."
