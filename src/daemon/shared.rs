@@ -313,10 +313,8 @@ impl SharedState {
                     let mut initial = PrefetchInfo::new(
                         guard.peers.as_ref()
                         .map(|x| &x.1).unwrap_or(&empty_map)
-                        .keys().cloned());
-                    guard.last_known_schedule.as_ref().map(|s| {
-                        initial.add_schedule(s.clone())
-                    });
+                        .keys().cloned(),
+                        guard.last_known_schedule.clone());
                     peer_schedule.map(|(id, stamp)| {
                         initial.peer_report(id, stamp)
                     });

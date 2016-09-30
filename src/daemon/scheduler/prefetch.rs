@@ -49,16 +49,23 @@ pub struct PrefetchInfo {
 }
 
 impl PrefetchInfo {
-    pub fn new<I: Iterator<Item=Id>>(peers: I)
+    pub fn new<I>(peers: I, my_schedule: Option<Arc<Schedule>>)
         -> PrefetchInfo
+        where I: Iterator<Item=Id>
     {
-        PrefetchInfo {
+        let mut info = PrefetchInfo {
             fetching: HashMap::new(),
             peers_left: peers.collect(),
             peers_reported: HashSet::new(),
             leader_stamps: HashMap::new(),
             all_schedules: HashMap::new(),
-        }
+        };
+        my_schedule.map(|schedule| {
+            info.leader_stamps.insert(schedule.origin.clone(),
+                (schedule.timestamp, schedule.hash.clone()));
+            info.all_schedules.insert(schedule.hash.clone(), schedule);
+        });
+        return info
     }
     /// Called when we receive report from peer
     ///
