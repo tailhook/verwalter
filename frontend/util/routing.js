@@ -37,7 +37,7 @@ function deserialize(uri) {
     if(query) {
         for(let pair of query.split('&')) {
             let [key, value] = pair.split('=')
-            q[key] = value || ''
+            q[decodeURIComponent(key)] = decodeURIComponent(value || '')
         }
     }
     return {path: chunks, query: q}
