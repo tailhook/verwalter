@@ -6,6 +6,7 @@ import {value, set, init} from '../stores/simple'
 import {url_query, smart_query} from '../util/routing'
 import {service_names} from '../util/services'
 import {repr} from '../util/object'
+import {number_formatter} from '../util/format'
 
 
 style:
@@ -69,12 +70,13 @@ style:
     text-align: right
     min-width: 4ex
     margin-right: 4px
-  .gauge
+  .gauge, .gauge-too-much
     width: 200px
     height: 16px
-    background-color: #CCC
     margin-left: 8px
     border-radius: 2px
+  .gauge
+    background-color: #CCC
   .gauge-internal
     background-color: #2ca25f
     height: 16px
@@ -83,6 +85,16 @@ style:
   .max
     background-color: red
     border-radius: 2px  /// all corners
+  .gauge-too-much
+    display: flex
+    background-color: red
+    align-items: center
+    justify-content: center
+  .value-too-much
+    color: #B00
+    font-weight: bold
+    z-index: 1
+    -webkit-text-stroke: 1px white
 
 view render_shortinfo(values):
   if values:
@@ -97,9 +109,16 @@ view render_shortinfo(values):
             <span.si-separator> "/"
             <span.si-total>
               item[3]
-            <div.gauge>
-              <div.gauge-internal.max?(item[2] >= item[3])
-                style={'width': (item[2]/item[3])*100 + '%'}>
+            if item[2] <= item[3]:
+              <div.gauge>
+                  <div.gauge-internal.max?(item[2] >= item[3])
+                    style={'width': (item[2]/item[3])*100 + '%'}>
+            else:
+              <div.gauge-too-much>
+                <div.value-too-much style={
+                    fontSize: (item[2]/item[3] * 100) + '%',
+                }>
+                  `${ number_formatter(1)(item[2]/item[3]) }×`
         elif item[0] == 'num':
           <div.num-row>
             <span.si-key>
