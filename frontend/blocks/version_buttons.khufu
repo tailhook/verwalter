@@ -1,0 +1,77 @@
+import {entries} from '../util/object'
+import {execute} from '../util/action'
+import pending_actions from '../stores/actions'
+import {refresher, json} from '../middleware/request'
+import {value, set, init} from '../stores/simple'
+import {url_query, smart_query} from '../util/routing'
+import {filter_versions} from '../util/version'
+
+
+style:
+  .rotate
+    animation-name: rotateThis
+    animation-duration: .5s
+    animation-iteration-count: infinite
+    animation-timing-function: linear
+  .versions
+    display: flex
+    flex-wrap: wrap
+  .version-block
+    display: flex
+    align-items: center
+    margin: 16px
+    border: solid 2px silver
+    border-radius: 7px
+  .version-id
+    font-size: 150%
+    padding: 4px 2px 4px 12px
+  .version-btn
+    margin: 4px
+  .panel
+    max-width: 40ex
+
+
+view main(@actions, role, role_name):
+  <div>
+    <h2> "Available Versions"
+    store @trunc = value | url_query('trunc') | init('')
+    store @filter = value | smart_query('versions') | init('')
+
+    <div.input-group.panel>
+      <div.input-group-btn>
+        <button.btn.btn-default.active?(@trunc == 'no')>
+          link {click} set(@trunc == 'no' ? '' : 'no') -> @trunc
+          "Show All"
+      <input.form-control placeholder=`Filter Versions` value=@filter>
+        link {input} set(this.value) -> @filter
+      if @filter:
+        <div.input-group-btn>
+          <button.btn.btn-default>
+            link {click} set('') -> @filter
+            <span.glyphicon.glyphicon-remove>
+
+    <div.versions>
+      let all = filter_versions(role.versions or [], @filter)
+      let shown = @trunc == 'no' and all or all.slice(0, 20)
+      let buttons = role.frontend.version_buttons or [
+        {'id': 'quick_switch',
+         'kind': 'danger',
+         'title': 'Switch To',
+         }]
+      for ver of shown:
+        <div.version-block>
+          <div.version-id>
+            ver
+          for button of buttons key button.id:
+            let kind = button.kind ? button.kind : 'default'
+            <button.btn.version-btn class=`btn-${ kind }`>
+              link {click} execute(
+                  {"button": {action: button.id,
+                              version: ver, "role": role_name}}
+                ) -> @actions
+              button.title.replace('{version}', ver)
+              for [id, act] of entries(@actions) key id:
+                let abut = act.button
+                if abut.version == ver and abut.action == button.id:
+                  " "
+                  <span.glyphicon.glyphicon-refresh.rotate>

@@ -10,6 +10,7 @@ import {logs} from './logs.khufu'
 import {value, set, init} from '../stores/simple'
 import {url_query, smart_query} from '../util/routing'
 import {filter_versions} from '../util/version'
+import {main as versions} from '../blocks/version_buttons.khufu'
 
 
 style:
@@ -69,41 +70,9 @@ view main(role, role_name, {role_state, schedule, system_status}):
     <div>
       store @actions = pending_actions | refresher
         | json('/v1/pending_actions')
-      <h2> "Available Versions"
-      store @trunc = value | url_query('trunc') | init('')
-      store @filter = value | smart_query('versions') | init('')
-      <div.input-group.panel>
-        <div.input-group-btn>
-          <button.btn.btn-default.active?(@trunc == 'no')>
-            link {click} set(@trunc == 'no' ? '' : 'no') -> @trunc
-            "Show All"
-        <input.form-control placeholder=`Filter Versions` value=@filter>
-          link {input} set(this.value) -> @filter
-        if @filter:
-          <div.input-group-btn>
-            <button.btn.btn-default>
-              link {click} set('') -> @filter
-              <span.glyphicon.glyphicon-remove>
-      <table.table.table-hover>
-        <thead>
-          <tr>
-            <th> "Version"
-        <tbody>
-          let all = filter_versions(role.versions or [], @filter)
-          let shown = @trunc == 'no' and all or all.slice(0, 20)
-          for version of shown:
-            <tr>
-              <td>
-                "Switch to "
-                <button.btn.btn-default>
-                  link {click} execute(
-                    {"button": {"version": version, "role": role_name}}
-                  ) -> @actions
-                  version
-                  for [id, act] of entries(@actions) key id:
-                    if act.button.version == version:
-                      " "
-                      <span.glyphicon.glyphicon-refresh.rotate>
+
+      versions(-> @actions, role, role_name)
+
       if role.frontend.allow_stop:
         <h2>
           if role_state.running:

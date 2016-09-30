@@ -6,6 +6,7 @@ import {execute} from '../util/action'
 import {is_leader} from '../util/status'
 import {total_processes} from '../util/schedule'
 import {show_leaders} from '../util/leaders.khufu'
+import {main as versions} from '../blocks/version_buttons.khufu'
 import {logs} from './logs.khufu'
 import {from_ms, till_now_ms, format_diff, format_time} from '../util/time.js'
 
@@ -58,21 +59,6 @@ style:
   .line-value
     min-width: 72px
     margin-left: 4px
-
-  // version list
-  .versions
-    display: flex
-    flex-wrap: wrap
-  .version-block
-    display: flex
-    align-items: center
-    margin: 16px
-    border: solid 2px silver
-    border-radius: 7px
-  .version-id
-    font-size: 150%
-    padding: 4px 2px 4px 12px
-
 
 
 view migration({status_title, original, target, progress, buttons,
@@ -187,31 +173,9 @@ view main(role, role_name, {role_state, schedule, system_status}):
       <div>
         store @actions = pending_actions | refresher
           | json('/v1/pending_actions')
-        <h2> "Available Versions"
-        <div.versions>
-          for ver of role.versions:
-            <div.version-block>
-              <div.version-id>
-                ver
-              for button of role.frontend.version_buttons key button.id:
-                let kind = button.kind ? button.kind : 'default'
-                <button.btn class=`btn-${ kind }`>
-                  link {click} execute(
-                      {"button": {action: button.id,
-                                  version: ver, "role": role_name}}
-                    ) -> @actions
-                  button.title.replace('{version}', ver)
 
+        versions(-> @actions, role, role_name)
 
-                  // <button.btn.btn-default>
-                  //   link {click} execute(
-                  //     {"button": {"version": version, "role": role_name}}
-                  //   ) -> @actions
-                  //   version
-                  //   for [id, act] of entries(@actions) key id:
-                  //     if act.button.version == version:
-                  //       " "
-                  //       <span.glyphicon.glyphicon-refresh.rotate>
         if role.frontend.allow_stop:
           <h2>
             if role_state.running:
