@@ -45,7 +45,7 @@ local function app_num_workers(props)
 end
 
 local function versioned_app(props)
-    local state = props.parents[0] -- this should be more intelligent
+    local state = props.parents[1] -- this should be more intelligent
     local actions = props.actions
     local peers = props.peers
     local all_versions = {'v3.1', 'v2.2', 'v2.0', 'v1.1', 'v1.0'}
