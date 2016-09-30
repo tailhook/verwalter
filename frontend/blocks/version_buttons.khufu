@@ -22,6 +22,10 @@ style:
     margin: 16px
     border: solid 2px silver
     border-radius: 7px
+    transition: height 2s
+    height: 46px
+  .version-block.confirm
+    height: 120px
   .version-id
     font-size: 150%
     padding: 4px 2px 4px 12px
@@ -29,6 +33,8 @@ style:
     margin: 4px
   .panel
     max-width: 40ex
+  .well.confirm
+    margin: 8px
 
 
 view main(@actions, role, role_name):
@@ -51,27 +57,56 @@ view main(@actions, role, role_name):
             <span.glyphicon.glyphicon-remove>
 
     <div.versions>
+      store @confirm = value
       let all = filter_versions(role.versions or [], @filter)
       let shown = @trunc == 'no' and all or all.slice(0, 20)
       let buttons = role.frontend.version_buttons or [
-        {'id': 'quick_switch',
-         'kind': 'danger',
-         'title': 'Switch To',
+        {id: 'quick_switch',
+         kind: 'danger',
+         title: 'Switch To',
+         confirm: 'Do you really want to switch to version {version}?',
          }]
       for ver of shown:
-        <div.version-block>
+        <div.version-block.confirm?(@confirm and ver == @confirm.ver)>
           <div.version-id>
             ver
           for button of buttons key button.id:
             let kind = button.kind ? button.kind : 'default'
-            <button.btn.version-btn class=`btn-${ kind }`>
-              link {click} execute(
-                  {"button": {action: button.id,
-                              version: ver, "role": role_name}}
-                ) -> @actions
-              button.title.replace('{version}', ver)
-              for [id, act] of entries(@actions) key id:
-                let abut = act.button
-                if abut.version == ver and abut.action == button.id:
-                  " "
-                  <span.glyphicon.glyphicon-refresh.rotate>
+            if button.confirm:
+              if (@confirm and button.id == @confirm.id and
+                  ver == @confirm.ver):
+                <div.confirm.well>
+                  <div.confirm-title>
+                    button.confirm.replace('{version}', ver)
+                  <button.btn.version-btn.btn-danger>
+                    link {click} set(null) -> @confirm
+                    link {click} execute(
+                        {"button": {action: button.id,
+                                    version: ver, "role": role_name}}
+                      ) -> @actions
+                    "Yes"
+                  <button.btn.version-btn.btn-success>
+                    link {click} set(null) -> @confirm
+                    "No"
+              else:
+                <button.btn.version-btn class=`btn-${ kind }`>
+                  link {click} set({id: button.id, ver: ver}) -> @confirm
+                  button.title.replace('{version}', ver)
+                  for [id, act] of entries(@actions) key id:
+                    let abut = act.button
+                    if abut.version == ver and abut.action == button.id:
+                      " "
+                      <span.glyphicon.glyphicon-refresh.rotate>
+            else:
+              <button.btn.version-btn class=`btn-${ kind }`>
+                link {click} set(null) -> @confirm
+                link {click} execute(
+                    {"button": {action: button.id,
+                                version: ver, "role": role_name}}
+                  ) -> @actions
+                button.title.replace('{version}', ver)
+                for [id, act] of entries(@actions) key id:
+                  let abut = act.button
+                  if abut.version == ver and abut.action == button.id:
+                    " "
+                    <span.glyphicon.glyphicon-refresh.rotate>
