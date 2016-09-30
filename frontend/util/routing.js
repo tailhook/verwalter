@@ -65,6 +65,9 @@ export function path(state={path:[], query:{}}, action) {
 
 export function go(event) {
     let val = deserialize(event.currentTarget.href)
+    if(event.ctrlKey) {
+        return
+    }
     if(event) {
         event.preventDefault()
     }
