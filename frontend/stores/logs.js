@@ -118,6 +118,9 @@ export function view_from(mark) {
     if(mark.variant == 'Global') {
         url = "/v1/log/global/log." + mark.fields[0] + ".txt";
         off = mark.fields[1];
+    } else if(mark.variant == 'Changes') {
+        url = "/v1/log/changes/log." + mark.fields[0] + ".txt";
+        off = mark.fields[1];
     } else if(mark.variant == 'Role') {
         url = "/v1/log/role/" + mark.fields[0] +
                 "/log." + mark.fields[1] + ".txt";

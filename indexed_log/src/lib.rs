@@ -8,7 +8,7 @@ extern crate gron;
 mod fs_util;
 
 use std::io;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 use std::mem::replace;
 use std::io::{Write, Seek};
 use std::io::ErrorKind::NotFound;
@@ -38,10 +38,20 @@ quick_error! {
             display("can't open global log or index: {}", err)
             description("error open global log")
         }
+        OpenChanges(err: io::Error) {
+            cause(err)
+            display("can't open changes lo: {}", err)
+            description("error open changes log")
+        }
         WriteGlobal(err: io::Error) {
             cause(err)
             display("can't write global log: {}", err)
             description("error writing global log")
+        }
+        WriteChanges(err: io::Error) {
+            cause(err)
+            display("can't write changes log: {}", err)
+            description("error writing changes log")
         }
         WriteIndex(err: io::Error) {
             cause(err)
@@ -90,6 +100,12 @@ pub struct Role<'a: 'b, 'b> {
     full_role: bool,
 }
 
+pub struct Changes<'a: 'b, 'b> {
+    deployment: &'b mut Deployment<'a>,
+    log: File,
+    prefix: String,
+}
+
 pub struct Action<'a: 'b, 'b: 'c, 'c> {
     role: &'c mut  Role<'a, 'b>,
     action: &'c str,
@@ -101,6 +117,7 @@ type IndexEntry<'a> = (/*date*/&'a str, /*deployment_id*/&'a str,
 #[derive(RustcEncodable)]
 enum Pointer<'a> {
     Global(&'a str, u64),
+    Changes(&'a str, u64),
     Role(&'a str, &'a str, u64),
     External(&'a str, u64),
 }
@@ -108,6 +125,7 @@ enum Pointer<'a> {
 #[derive(RustcEncodable, Debug)]
 enum Marker<'a> {
     DeploymentStart,
+    DeploymentChanges,
     RoleStart,
     ActionStart(&'a str),
     ActionFinish(&'a str),
@@ -233,6 +251,24 @@ impl<'a> Deployment<'a> {
         }
         time
     }
+    fn changes_index_entry(&mut self, ptr: Pointer, marker: &Marker)
+        -> String
+    {
+        let time = now_utc().rfc3339().to_string();
+        {
+            let entry: IndexEntry = (&time, &self.id, ptr, marker);
+            let buf = format!("{}\n", as_json(&entry));
+            // We rely on POSIX semantics of atomic writes, but even if that
+            // doesn't work, it's better to continue writing entry instead of
+            // having error. For now we are only writer anyway, so atomic
+            // writing is only useful to not to confuse readers and to be
+            // crash-safe.
+            if let Err(e) = self.index_file.write_all(buf.as_bytes()) {
+                self.errors.push(Error::WriteIndex(e));
+            }
+        }
+        time
+    }
     fn global_entry(&mut self, marker: Marker) {
         let date = self.global_index_entry(&marker);
         let row = format!("{date} {id} ------------ {marker:?} ----------- \n",
@@ -327,6 +363,47 @@ impl<'a> Deployment<'a> {
             role.entry(Marker::RoleStart);
         }
         Ok(role)
+    }
+    pub fn changes<'x>(&'x mut self, schedule: &str)
+        -> Result<Changes<'a, 'x>, Error>
+    {
+        let segment;
+        let log_file;
+
+        if self.index.stdout {
+            segment = "dry-run".to_string();
+            log_file = open_stdout();;
+        } else {
+            let role_dir = self.index.log_dir.join(".changes");
+            match ensure_dir(&role_dir)
+                .and_then(|()| check_log(&role_dir, true))
+                .map_err(|e| Error::OpenChanges(e))
+            {
+                Ok((seg, log)) => {
+                    segment = seg;
+                    log_file = log;
+                }
+                Err(e) => {
+                    self.errors.push(e);
+                    segment = "stdout".to_string();
+                    log_file = open_null();
+                }
+            }
+        }
+        let mut log_file = log_file;
+        let pos = if self.index.stdout { 0 } else {
+            try!(log_file.seek(SeekFrom::End(0)).map_err(Error::OpenChanges))
+        };
+        self.changes_index_entry(Pointer::Changes(&segment, pos),
+            &Marker::DeploymentChanges);
+
+        let time = now_utc();
+        let changes = Changes {
+            deployment: self,
+            log: log_file,
+            prefix: format!("{}: {}: ", time.rfc3339(), schedule),
+        };
+        Ok(changes)
     }
     pub fn done(mut self) -> Vec<Error> {
         self.done = true;
@@ -441,6 +518,14 @@ impl<'a, 'b, 'c> Action<'a, 'b, 'c> {
 impl<'a, 'b, 'c> Drop for Action<'a, 'b, 'c> {
     fn drop(&mut self) {
         self.role.entry(Marker::ActionFinish(self.action));
+    }
+}
+
+impl <'a, 'b> Changes<'a, 'b> {
+    pub fn add_line<D: Display>(&mut self, value: D) {
+        if let Err(e) = write!(&mut self.log, "{}{}\n", self.prefix, value) {
+            self.deployment.errors.push(Error::WriteChanges(e))
+        }
     }
 }
 

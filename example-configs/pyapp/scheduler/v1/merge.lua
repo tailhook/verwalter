@@ -4,6 +4,11 @@ local function merge_schedules(list)
         roles={},
         nodes={},
         query_metrics={rules={}},
+        changes={
+            'app1: successfully started',
+            'app2: successfully started',
+            'app3: successfully started',
+        },
     }
     for role_name, info in pairs(list) do
         if info ~= nil then

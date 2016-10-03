@@ -47,6 +47,7 @@ pub enum Range {
 pub enum LogRoute {
     Index(String, Range),
     Global(String, Range),
+    Changes(String, Range),
     Role(String, Range),
     External(String, Range),
 }
@@ -124,6 +125,10 @@ fn serve_log(route: &LogRoute, ctx: &Context, res: &mut Response)
         }
         Global(ref tail, rng) => {
             let path = ctx.log_dir.join(".global").join(tail);
+            (path, rng)
+        }
+        Changes(ref tail, rng) => {
+            let path = ctx.log_dir.join(".changes").join(tail);
             (path, rng)
         }
         Role(ref tail, rng) => {
@@ -258,6 +263,7 @@ fn parse_log_route(path: &str, head: &Head) -> Option<LogRoute> {
         match (path_component(path), typ) {
             (("index", tail), "bytes") => Some(Index(tail.into(), rng)),
             (("global", tail), "bytes") => Some(Global(tail.into(), rng)),
+            (("changes", tail), "bytes") => Some(Changes(tail.into(), rng)),
             (("role", tail), "bytes") => Some(Role(tail.into(), rng)),
             (("external", tail), "bytes") => Some(External(tail.into(), rng)),
             _ => None,

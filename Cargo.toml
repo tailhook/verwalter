@@ -10,6 +10,8 @@ homepage = "http://github.com/tailhook/verwalter"
 documentation = "http://verwalter.readthedocs.org"
 authors = ["Paul Colomiets <paul@colomiets.name>"]
 
+[workspace]
+
 [dependencies]
 rotor = "0.6.3"
 rotor-http = "0.7.0"

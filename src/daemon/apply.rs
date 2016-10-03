@@ -97,20 +97,36 @@ fn decode_render_error(s: ExitStatus) -> Cow<'static, str> {
     }.into()
 }
 
-fn apply_schedule(hash: &String, scheduler_result: &Json, settings: &Settings,
+fn apply_schedule(hash: &String, is_new: bool,
+    scheduler_result: &Json, settings: &Settings,
     debug_info: Arc<(Json, String)>, state: &SharedState)
 {
     let id: String = thread_rng().gen_ascii_chars().take(24).collect();
     let mut index = Index::new(&settings.log_dir, settings.dry_run);
     let mut dlog = index.deployment(&id, true);
     dlog.string("schedule-hash", &hash);
-    if debug_info.0 != Json::Null {
-        dlog.gron("scheduler_input", &debug_info.0);
+    if is_new {
+        if debug_info.0 != Json::Null {
+            dlog.gron("scheduler_input", &debug_info.0);
+        }
+        if debug_info.1 != "" {
+            dlog.text("scheduler-debug", &debug_info.1);
+        }
+        dlog.gron("scheduler_result", scheduler_result);
+
+        dlog.changes(&hash[..8]).map(|mut changes| {
+            scheduler_result.as_object()
+                .and_then(|x| x.get("changes"))
+                .and_then(|y| y.as_array())
+                .map(|lst| {
+                    for line in lst {
+                        line.as_string().map(|val| {
+                            changes.add_line(val);
+                        });
+                    }
+                });
+        }).map_err(|e| error!("Can't create changes log: {}", e)).ok();
     }
-    if debug_info.1 != "" {
-        dlog.text("scheduler-debug", &debug_info.1);
-    }
-    dlog.gron("scheduler_result", scheduler_result);
 
     let empty = BTreeMap::new();
     let roles = scheduler_result.as_object()
@@ -225,7 +241,7 @@ pub fn run(state: SharedState, settings: Settings, mut alarm: Alarm) -> ! {
         let _alarm = alarm.after(Duration::from_secs(180));
         write_file(&settings.schedule_file, &*schedule)
             .map_err(|e| error!("Writing schedule failed: {:?}", e)).ok();
-        apply_schedule(&schedule.hash, &schedule.data, &settings,
+        apply_schedule(&schedule.hash, true, &schedule.data, &settings,
             state.scheduler_debug_info(), &state);
         prev_schedule = schedule.hash.clone();
     }
@@ -234,7 +250,8 @@ pub fn run(state: SharedState, settings: Settings, mut alarm: Alarm) -> ! {
         let _alarm = alarm.after(Duration::from_secs(180));
         write_file(&settings.schedule_file, &*schedule)
             .map_err(|e| error!("Writing schedule failed: {:?}", e)).ok();
-        apply_schedule(&schedule.hash, &schedule.data, &settings,
+        apply_schedule(&schedule.hash, prev_schedule != schedule.hash,
+            &schedule.data, &settings,
             state.scheduler_debug_info(), &state);
         prev_schedule = schedule.hash.clone();
     }
