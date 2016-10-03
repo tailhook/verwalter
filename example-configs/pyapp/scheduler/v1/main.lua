@@ -16,7 +16,11 @@ local function app_num_workers(props)
     func.map(
         function(a)
             local data = a.button.data
-            nums[data.process] = nums[data.process] + data.incr
+            if a.button.daemon then -- per process button
+                nums[a.button.daemon] = nums[a.button.daemon] + data.incr
+            else -- global button
+                nums[data.process] = nums[data.process] + data.incr
+            end
         end,
         actions)
     return {
@@ -37,6 +41,14 @@ local function app_num_workers(props)
                 {title="Decr workers",
                  id="decr_workers",
                  data={process='worker', incr=-1}},
+            },
+            daemon_actions={
+                {title="+",
+                 id="incr",
+                 data={incr=1}},
+                {title="-",
+                 id="decr",
+                 data={incr=-1}},
             },
         },
         nodes=func.map_pairs(function (_) return {
