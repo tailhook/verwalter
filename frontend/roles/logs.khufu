@@ -2,6 +2,7 @@ import {refresher} from '../middleware/request'
 import {repr} from '../util/object'
 import {enumerate} from '../util/iter'
 import {role_messages, fetch_indexes} from '../stores/logs'
+import {value, bool, set, init, toggle} from '../stores/simple'
 
 
 style:
@@ -13,29 +14,39 @@ style:
 
 
 view logs(role_name):
-  <h2> "Logs"
-  <table.table.table-hover>
-    store @index = role_messages(role_name) | refresher | fetch_indexes
-    <thead>
-      <tr>
-        <th> "Time"
-        <th.id> "Id"
-        <th> "Log"
-    <tbody>
-      if @index.deploys:
-        for [dep_id, dep] of @index.deploys.entries() key dep_id:
+  <div>
+    store @logs = bool | init(false)
+    <h2>
+      "Logs "
+      <button.btn.btn-default.btn-xs>
+        link {click} toggle(@logs) -> @logs
+        if @logs:
+          <span.glyphicons.glyphicon-minus>
+        else:
+          <span.glyphicons.glyphicon-plus>
+    if @logs:
+      <table.table.table-hover>
+        store @index = role_messages(role_name) | refresher | fetch_indexes
+        <thead>
           <tr>
-            <td>
-              (dep.start or dep.finish)[0]
-            <td.id>
-              dep_id
-            <td>
-              if dep.start and dep.finish:
-                let bytes = dep.finish[2].fields[2] - dep.start[2].fields[2]
-                <a href="#">
-                  `render(${ bytes }b)`
-              for [i, pair] of enumerate(dep.externals.entries()) key pair[0]:
-                let [fname, mark] = pair
-                let pos = mark[2].fields[1]
-                <a href="#" title=`${ fname } at ${ pos }`>
-                  ` [${ i+1 }]`
+            <th> "Time"
+            <th.id> "Id"
+            <th> "Log"
+        <tbody>
+          if @index.deploys:
+            for [dep_id, dep] of @index.deploys.entries() key dep_id:
+              <tr>
+                <td>
+                  (dep.start or dep.finish)[0]
+                <td.id>
+                  dep_id
+                <td>
+                  if dep.start and dep.finish:
+                    let bytes = dep.finish[2].fields[2] - dep.start[2].fields[2]
+                    <a href="#">
+                      `render(${ bytes }b)`
+                  for [i, pair] of enumerate(dep.externals.entries()) key pair[0]:
+                    let [fname, mark] = pair
+                    let pos = mark[2].fields[1]
+                    <a href="#" title=`${ fname } at ${ pos }`>
+                      ` [${ i+1 }]`

@@ -1,0 +1,79 @@
+import {entries} from '../util/object'
+import {execute} from '../util/action'
+import {value, set, init} from '../stores/simple'
+
+
+style:
+  .rotate
+    animation-name: rotateThis
+    animation-duration: .5s
+    animation-iteration-count: infinite
+    animation-timing-function: linear
+  .buttons
+    display: flex
+    flex-wrap: wrap
+  .button-block
+    display: flex
+    align-items: center
+    transition: height 2s
+    height: 46px
+  .button-block.confirm
+    height: 120px
+  .button-id
+    font-size: 150%
+    padding: 4px 2px 4px 12px
+  .button-btn
+    margin: 4px
+  .panel
+    max-width: 40ex
+  .well.confirm
+    margin: 8px
+
+
+view main(@actions, role, role_name):
+  if role.global_actions:
+    <h2> "Actions"
+    <div.buttons>
+      store @confirm = value
+      for button of role.global_actions key button.id:
+        <div.button-block.confirm?(@confirm and button.id == @confirm.id)>
+          let kind = button.kind ? button.kind : 'default'
+          if button.confirm:
+            if @confirm and button.id == @confirm.id:
+              <div.confirm.well>
+                <div.confirm-title>
+                  button.confirm
+                <button.btn.button-btn.btn-danger>
+                  link {click} set(null) -> @confirm
+                  link {click} execute(
+                      {"button": {action: button.id,
+                                  data: button.data,
+                                  role: role_name}}
+                    ) -> @actions
+                  "Yes"
+                <button.btn.button-btn.btn-success>
+                  link {click} set(null) -> @confirm
+                  "No"
+            else:
+              <button.btn.button-btn class=`btn-${ kind }`>
+                link {click} set({id: button.id}) -> @confirm
+                button.title
+                for [id, act] of entries(@actions) key id:
+                  let abut = act.button
+                  if abut.action == button.id:
+                    " "
+                    <span.glyphicon.glyphicon-refresh.rotate>
+          else:
+            <button.btn.button-btn class=`btn-${ kind }`>
+              link {click} set(null) -> @confirm
+              link {click} execute(
+                  {button: {action: button.id,
+                            data: button.data,
+                            role: role_name}}
+                ) -> @actions
+              button.title
+              for [id, act] of entries(@actions) key id:
+                let abut = act.button
+                if abut.action == button.id:
+                  " "
+                  <span.glyphicon.glyphicon-refresh.rotate>

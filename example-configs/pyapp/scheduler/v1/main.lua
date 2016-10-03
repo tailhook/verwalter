@@ -7,7 +7,7 @@ local preprocess = require "preprocess"
 
 local function app_num_workers(props)
     local name = props.role
-    local nums = props.parents[0] -- this should be more intelligent
+    local nums = props.parents[1] -- this should be more intelligent
     local actions = props.actions
     local peers = props.peers
     if nums == nil then
@@ -15,7 +15,8 @@ local function app_num_workers(props)
     end
     func.map(
         function(a)
-            nums[a.button.process] = nums[a.button.process] + a.button.incr
+            local data = a.button.data
+            nums[data.process] = nums[data.process] + data.incr
         end,
         actions)
     return {
@@ -23,15 +24,19 @@ local function app_num_workers(props)
         role={
             frontend={kind='example'},
             template="pyapp/v1",
-            buttons={
+            global_actions={
                 {title="Incr celery",
-                 action={process='celery', incr=1, role=name}},
+                 id="incr_celery",
+                 data={process='celery', incr=1}},
                 {title="Decr celery",
-                 action={process='celery', incr=-1, role=name}},
+                 id="decr_celery",
+                 data={process='celery', incr=-1}},
                 {title="Incr workers",
-                 action={process='worker', incr=1, role=name}},
+                 id="incr_workers",
+                 data={process='worker', incr=1}},
                 {title="Decr workers",
-                 action={process='worker', incr=-1, role=name}},
+                 id="decr_workers",
+                 data={process='worker', incr=-1}},
             },
         },
         nodes=func.map_pairs(function (_) return {
@@ -87,7 +92,7 @@ local function versioned_app(props)
 end
 
 local function rich_migration_app(props)
-    local state = props.parents[0] -- this should be more intelligent
+    local state = props.parents[1] -- this should be more intelligent
     local actions = props.actions
     local peers = props.peers
     local all_versions = {'v3.1', 'v2.2', 'v2.0', 'v1.1', 'v1.0'}

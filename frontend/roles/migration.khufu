@@ -9,6 +9,7 @@ import {show_leaders} from '../util/leaders.khufu'
 import {main as versions} from '../blocks/version_buttons.khufu'
 import {logs} from './logs.khufu'
 import {from_ms, till_now_ms, format_diff, format_time} from '../util/time.js'
+import {main as global_actions} from '../blocks/global_actions.khufu'
 
 
 style:
@@ -91,7 +92,8 @@ view migration({status_title, original, target, progress, buttons,
           link {click} execute(
             {"button": {migration_action: button.id, "role": role_name,
                         original_version: original,
-                        target_version: target}}
+                        target_version: target,
+                        data: button.data}}
           ) -> @actions
           if button.icon:
             <span.glyphicon class=`glyphicon-${ button.icon }`>
@@ -170,36 +172,10 @@ view main(role, role_name, {role_state, schedule, system_status}):
     logs(role_name)
 
     if is_leader(system_status):
-      <div>
-        store @actions = pending_actions | refresher
-          | json('/v1/pending_actions')
+      versions(-> @actions, role, role_name)
+      global_actions(-> @actions, role, role_name)
 
-        versions(-> @actions, role, role_name)
-
-        if role.frontend.allow_stop:
-          <h2>
-            if role_state.running:
-              "Running "
-              <button.btn.btn-default>
-                link {click} execute(
-                  {"button": {"stop": true, "role": role_name}}
-                ) -> @actions
-                "Stop"
-                for [id, act] of entries(@actions) key id:
-                  if act.button.stop:
-                    " "
-                    <span.glyphicon.glyphicon-refresh.rotate>
-            else:
-              "Stopped "
-              <button.btn.btn-default>
-                link {click} execute(
-                  {"button": {"start": true, "role": role_name}}
-                ) -> @actions
-                "Start"
-                for [id, act] of entries(@actions) key id:
-                  if act.button.start:
-                    " "
-                    <span.glyphicon.glyphicon-refresh.rotate>
     else:
-      show_leaders("Actions are Only Available on Leader", `/role/${role_name}`,
+      show_leaders("Actions are Only Available on Leader",
+        `/role/${role_name}`,
         system_status)

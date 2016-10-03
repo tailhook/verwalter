@@ -82,6 +82,7 @@ view main(@actions, role, role_name):
                     link {click} set(null) -> @confirm
                     link {click} execute(
                         {"button": {action: button.id,
+                                    data: button.data,
                                     version: ver, "role": role_name}}
                       ) -> @actions
                     "Yes"
@@ -102,6 +103,7 @@ view main(@actions, role, role_name):
                 link {click} set(null) -> @confirm
                 link {click} execute(
                     {"button": {action: button.id,
+                                data: button.data,
                                 version: ver, "role": role_name}}
                   ) -> @actions
                 button.title.replace('{version}', ver)

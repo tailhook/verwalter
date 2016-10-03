@@ -11,6 +11,7 @@ import {value, set, init} from '../stores/simple'
 import {url_query, smart_query} from '../util/routing'
 import {filter_versions} from '../util/version'
 import {main as versions} from '../blocks/version_buttons.khufu'
+import {main as global_actions} from '../blocks/global_actions.khufu'
 
 
 style:
@@ -73,30 +74,8 @@ view main(role, role_name, {role_state, schedule, system_status}):
 
       versions(-> @actions, role, role_name)
 
-      if role.frontend.allow_stop:
-        <h2>
-          if role_state.running:
-            "Running "
-            <button.btn.btn-default>
-              link {click} execute(
-                {"button": {"stop": true, "role": role_name}}
-              ) -> @actions
-              "Stop"
-              for [id, act] of entries(@actions) key id:
-                if act.button.stop:
-                  " "
-                  <span.glyphicon.glyphicon-refresh.rotate>
-          else:
-            "Stopped "
-            <button.btn.btn-default>
-              link {click} execute(
-                {"button": {"start": true, "role": role_name}}
-              ) -> @actions
-              "Start"
-              for [id, act] of entries(@actions) key id:
-                if act.button.start:
-                  " "
-                  <span.glyphicon.glyphicon-refresh.rotate>
+      global_actions(-> @actions, role, role_name)
+
   else:
     show_leaders("Actions are Only Available on Leader", `/role/${role_name}`,
       system_status)

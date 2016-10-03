@@ -10,6 +10,7 @@ import {is_leader} from '../util/status'
 import {total_processes} from '../util/schedule'
 import {show_leaders} from '../util/leaders.khufu'
 import {logs} from './logs.khufu'
+import {main as global_actions} from '../blocks/global_actions.khufu'
 
 
 style:
@@ -56,29 +57,11 @@ view main(role, role_name, {schedule, system_status}):
                 props.instances
   logs(role_name)
   if is_leader(system_status):
-    <h2> "Available Actions"
-    <table.table.table-hover>
-      <thead>
-        <tr>
-          <th> "Action"
-          <th> "Description"
-      <tbody>
-        store @actions = pending_actions | refresher
-          | json('/v1/pending_actions')
-        for button of role.buttons or [] key repr(button.action):
-          <tr>
-            <td>
-              <button.btn.btn-default>
-                link {click} execute(
-                  {"button": button.action}
-                ) -> @actions
-                button.title or button.id
-                for [id, act] of entries(@actions) key id:
-                  if act.button.process == button.action.process:
-                    " "
-                    <span.glyphicon.glyphicon-refresh.rotate>
-            <td>
-              button.description or '(no description)'
+    <div>
+      store @actions = pending_actions | refresher
+        | json('/v1/pending_actions')
+
+      global_actions(-> @actions, role, role_name)
   else:
     show_leaders("Actions are Only Available on Leader", `/role/${role_name}`,
       system_status)
