@@ -5,12 +5,10 @@ description = """
 """
 readme = "README.rst"
 keywords = ["cluster", "linux", "resource", "configuration", "management"]
-version = "0.6.1"
+version = "0.7.0"
 homepage = "http://github.com/tailhook/verwalter"
 documentation = "http://verwalter.readthedocs.org"
 authors = ["Paul Colomiets <paul@colomiets.name>"]
-
-[workspace]
 
 [dependencies]
 rotor = "0.6.3"
