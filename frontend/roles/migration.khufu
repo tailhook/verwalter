@@ -4,12 +4,12 @@ import pending_actions from '../stores/actions'
 import {refresher, json} from '../middleware/request'
 import {execute} from '../util/action'
 import {is_leader} from '../util/status'
-import {total_processes} from '../util/schedule'
 import {show_leaders} from '../util/leaders.khufu'
 import {main as versions} from '../blocks/version_buttons.khufu'
 import {logs} from './logs.khufu'
 import {from_ms, till_now_ms, format_diff, format_time} from '../util/time.js'
 import {main as global_actions} from '../blocks/global_actions.khufu'
+import {main as processes} from '../blocks/processes.khufu'
 
 
 style:
@@ -147,28 +147,8 @@ view main(role, role_name, {role_state, schedule, system_status}):
     if role.frontend.bottom_text:
       <div.bottom-text>
         role.frontend.bottom_text
-    <h2> `Processes [${total_processes(schedule, role_name)}]`
-    <table.table.table-hover>
-      <thead>
-        <tr>
-          <th> "Host"
-          <th> "Process"
-          <th> "Image"
-          <th> "Num"
-      for [host, node] of entries(schedule.nodes) key host:
-        let hrole = node.roles[role_name]
-        <tbody>
-          if hrole:
-            for [kind, props] of entries(hrole.daemons) key kind:
-              <tr>
-                <td>
-                  host
-                <td>
-                  kind
-                <td>
-                  props.image
-                <td>
-                  props.instances
+
+    processes(-> @actions, schedule, role, role_name, is_leader(system_status))
     logs(role_name)
 
     if is_leader(system_status):

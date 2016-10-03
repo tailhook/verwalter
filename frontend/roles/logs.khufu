@@ -15,16 +15,16 @@ style:
 
 view logs(role_name):
   <div>
-    store @logs = bool | init(false)
+    store @show = bool | init(false)
     <h2>
       "Logs "
       <button.btn.btn-default.btn-xs>
-        link {click} toggle(@logs) -> @logs
-        if @logs:
+        link {click} toggle(@show) -> @show
+        if @show:
           <span.glyphicons.glyphicon-minus>
         else:
           <span.glyphicons.glyphicon-plus>
-    if @logs:
+    if @show:
       <table.table.table-hover>
         store @index = role_messages(role_name) | refresher | fetch_indexes
         <thead>

@@ -1,0 +1,39 @@
+import {entries} from '../util/object'
+import {total_processes} from '../util/schedule'
+import {value, bool, set, init, toggle} from '../stores/simple'
+
+
+view main(@actions, schedule, role, role_name, is_leader):
+  let [proc, rows] = total_processes(schedule, role_name)
+  <div>
+    store @show = bool | init(rows <= 12)
+    <h2>
+      `Processes [${proc}] `
+      <button.btn.btn-default.btn-xs>
+        link {click} toggle(@show) -> @show
+        if @show:
+          <span.glyphicons.glyphicon-minus>
+        else:
+          <span.glyphicons.glyphicon-plus>
+    if @show:
+      <table.table.table-hover>
+        <thead>
+          <tr>
+            <th> "Host"
+            <th> "Process"
+            <th> "Image"
+            <th> "Num"
+        for [host, node] of entries(schedule.nodes) key host:
+          let hrole = node.roles[role_name]
+          <tbody>
+            if hrole:
+              for [kind, props] of entries(hrole.daemons) key kind:
+                <tr>
+                  <td>
+                    host
+                  <td>
+                    kind
+                  <td>
+                    props.image
+                  <td>
+                    props.instances

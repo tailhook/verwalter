@@ -11,6 +11,7 @@ import {total_processes} from '../util/schedule'
 import {show_leaders} from '../util/leaders.khufu'
 import {logs} from './logs.khufu'
 import {main as global_actions} from '../blocks/global_actions.khufu'
+import {main as processes} from '../blocks/processes.khufu'
 
 
 style:
@@ -22,46 +23,29 @@ style:
 
 
 view main(role, role_name, {schedule, system_status}):
-  if role.info:
-    <h2> "Status Info"
-    <table.table.table-hover>
-      <thead>
-        <tr>
-          <th> "Property"
-          <th> "Value"
-      <tbody>
-        for [name, value] of entries(role.info) key name:
+  <div>
+    store @actions = pending_actions | refresher
+      | json('/v1/pending_actions')
+
+    if role.info:
+      <h2> "Status Info"
+      <table.table.table-hover>
+        <thead>
           <tr>
-            <td>
-              name
-            <td>
-              value
-  <h2> `Processes [${total_processes(schedule, role_name)}]`
-  <table.table.table-hover>
-    <thead>
-      <tr>
-        <th> "Host"
-        <th> "Kind"
-        <th> "Num"
-    for [host, node] of entries(schedule.nodes) key host:
-      let hrole = node.roles[role_name]
-      <tbody>
-        if hrole:
-          for [kind, props] of entries(hrole.daemons) key kind:
+            <th> "Property"
+            <th> "Value"
+        <tbody>
+          for [name, value] of entries(role.info) key name:
             <tr>
               <td>
-                host
+                name
               <td>
-                kind
-              <td>
-                props.instances
-  logs(role_name)
-  if is_leader(system_status):
-    <div>
-      store @actions = pending_actions | refresher
-        | json('/v1/pending_actions')
+                value
 
+    processes(-> @actions, schedule, role, role_name, is_leader(system_status))
+    logs(role_name)
+    if is_leader(system_status):
       global_actions(-> @actions, role, role_name)
-  else:
-    show_leaders("Actions are Only Available on Leader", `/role/${role_name}`,
-      system_status)
+    else:
+      show_leaders("Actions are Only Available on Leader", `/role/${role_name}`,
+        system_status)

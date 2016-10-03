@@ -12,6 +12,7 @@ import {url_query, smart_query} from '../util/routing'
 import {filter_versions} from '../util/version'
 import {main as versions} from '../blocks/version_buttons.khufu'
 import {main as global_actions} from '../blocks/global_actions.khufu'
+import {main as processes} from '../blocks/processes.khufu'
 
 
 style:
@@ -25,57 +26,38 @@ style:
 
 
 view main(role, role_name, {role_state, schedule, system_status}):
-  <h2> "Status Info"
-  <table.table.table-hover>
-    <thead>
-      <tr>
-        <th> "Property"
-        <th> "Value"
-    <tbody>
-      <tr>
-        <td> "Version"
-        <td>
-          role_state.version
-    if role.info:
+  <div>
+    store @actions = pending_actions | refresher
+      | json('/v1/pending_actions')
+
+    <h2> "Status Info"
+    <table.table.table-hover>
+      <thead>
+        <tr>
+          <th> "Property"
+          <th> "Value"
       <tbody>
-        for [name, value] of entries(role.info) key name:
-          <tr>
-            <td>
-              name
-            <td>
-              value
-  <h2> `Processes [${total_processes(schedule, role_name)}]`
-  <table.table.table-hover>
-    <thead>
-      <tr>
-        <th> "Host"
-        <th> "Process"
-        <th> "Image"
-        <th> "Num"
-    for [host, node] of entries(schedule.nodes) key host:
-      let hrole = node.roles[role_name]
-      <tbody>
-        if hrole:
-          for [kind, props] of entries(hrole.daemons) key kind:
+        <tr>
+          <td> "Version"
+          <td>
+            role_state.version
+      if role.info:
+        <tbody>
+          for [name, value] of entries(role.info) key name:
             <tr>
               <td>
-                host
+                name
               <td>
-                kind
-              <td>
-                props.image
-              <td>
-                props.instances
-  logs(role_name)
-  if is_leader(system_status):
-    <div>
-      store @actions = pending_actions | refresher
-        | json('/v1/pending_actions')
+                value
 
-      versions(-> @actions, role, role_name)
+    processes(-> @actions, schedule, role, role_name, is_leader(system_status))
+    logs(role_name)
 
-      global_actions(-> @actions, role, role_name)
-
-  else:
-    show_leaders("Actions are Only Available on Leader", `/role/${role_name}`,
-      system_status)
+    if is_leader(system_status):
+      <div>
+        versions(-> @actions, role, role_name)
+        global_actions(-> @actions, role, role_name)
+    else:
+      show_leaders("Actions are Only Available on Leader",
+        `/role/${role_name}`,
+        system_status)
