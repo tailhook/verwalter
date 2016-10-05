@@ -253,7 +253,11 @@ impl SharedState {
         // but we should compare smartly. I.e. peers are always changed (i.e.
         // ping timestamps and similar things). We should check for meaningful
         // changes.
-        self.2.run_scheduler.notify_all();
+        //
+        // **UPDATE** don't rerun scheduler on updated peers, scheduler will
+        // notice it on next normal wakeup of ~5 seconds
+        //
+        // self.2.run_scheduler.notify_all();
     }
     pub fn set_schedule_debug_info(&self, json: Json, debug: String)
     {
