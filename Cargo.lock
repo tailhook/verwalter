@@ -27,7 +27,7 @@ dependencies = [
  "rotor-tools 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "scan_dir 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "self-meter 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "self-meter 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "sha1 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempfile 1.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -125,7 +125,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "indexed_log"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "gron 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -320,6 +320,14 @@ version = "0.1.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "num_cpus"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "probor"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -460,10 +468,11 @@ dependencies = [
 
 [[package]]
 name = "self-meter"
-version = "0.1.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "num_cpus 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "quick-error 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -602,6 +611,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum num-iter 0.1.32 (registry+https://github.com/rust-lang/crates.io-index)" = "287a1c9969a847055e1122ec0ea7a5c5d6f72aad97934e131c83d5c08ab4e45c"
 "checksum num-rational 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)" = "54ff603b8334a72fbb27fe66948aac0abaaa40231b3cecd189e76162f6f38aaf"
 "checksum num-traits 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)" = "8359ea48994f253fa958b5b90b013728b06f54872e5a58bce39540fcdd0f2527"
+"checksum num_cpus 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "8890e6084723d57d0df8d2720b0d60c6ee67d6c93e7169630e4371e88765dcad"
 "checksum probor 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "0e2788deadfdb7e8e1a3605330ca3cdeeab71979b5e05cc74d3ac3e83c8f19ce"
 "checksum quick-error 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)" = "5fb6ccf8db7bbcb9c2eae558db5ab4f3da1c2a87e4e597ed394726bc8ea6ca1d"
 "checksum quick-error 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7ac990ab4e038dd8481a5e3fd00641067fcfc674ad663f3222752ed5284e05d4"
@@ -618,7 +628,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum rotor-tools 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)" = "0d055e9f7e951f55ff1fe3545690e56ee5db7b279904b70ca52d2470b81b2a02"
 "checksum rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)" = "6159e4e6e559c81bd706afe9c8fd68f547d3e851ce12e76b1de7914bab61691b"
 "checksum scan_dir 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "1ccb8e3d26f2775b128b053d1827feb90ed954ef97e3cb88c822f42e946c9155"
-"checksum self-meter 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "99b4e5f01c503f3305ef78a2eb3f19cee392b860ea10a3a96a684d8da4ae28b3"
+"checksum self-meter 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "7ea2e392077f4be099b4d920ebff26f62137f9ddd1b869a9ea24898451e0546e"
 "checksum sha1 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "a307a40d5834140e4213a6952483b84e9ad53bdcab918b7335a6e305e505a53c"
 "checksum slab 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "d807fd58c4181bbabed77cb3b891ba9748241a552bcc5be698faaebefc54f46e"
 "checksum tempfile 1.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "ea9234ab6f388c147f9a44dfd331f2c5ad956387acbb9fa03e99abc5a28e5eaa"
