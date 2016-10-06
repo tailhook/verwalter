@@ -4,11 +4,13 @@ use std::sync::Mutex;
 use std::collections::HashMap;
 
 use time::{Timespec, get_time};
+use libcantal::{Counter, Integer};
 use rotor::{Machine, EventSet, Scope, Response, PollOpt};
 use rotor::mio::udp::UdpSocket;
 use rotor::void::{unreachable, Void};
 use rotor_cantal::{Schedule as Cantal};
 
+use time_util::ToMsec;
 use net::Context;
 use shared::{SharedState};
 use super::{machine, encode};
@@ -18,6 +20,19 @@ use super::machine::Epoch;
 use super::state::ElectionState;
 use super::{Election, Info};
 use shared::{Peer, Id};
+
+
+lazy_static! {
+    pub static ref BROADCASTS_SENT: Counter = Counter::new();
+    pub static ref BROADCASTS_ERRORED: Counter = Counter::new();
+    pub static ref PONGS_SENT: Counter = Counter::new();
+    pub static ref PONGS_ERRORED: Counter = Counter::new();
+    pub static ref LAST_PING_ALL: Integer = Integer::new();
+    pub static ref LAST_VOTE: Integer = Integer::new();
+    pub static ref LAST_CONFIRM_VOTE: Integer = Integer::new();
+    pub static ref LAST_PONG: Integer = Integer::new();
+}
+
 
 /// This structure allows to make log less chatty
 ///
@@ -70,8 +85,11 @@ fn send_all(msg: &[u8], info: &Info, socket: &UdpSocket) {
         if let Some(ref addr) = peer.addr {
             debug!("Sending Ping to {} ({})", addr, id);
             socket.send_to(&msg, addr)
-            .map_err(|e| info!("Error sending message to {}: {}",
-                addr, e)).ok();
+            .map(|_| BROADCASTS_SENT.incr(1))
+            .map_err(|e| {
+                BROADCASTS_ERRORED.incr(1);
+                info!("Error sending message to {}: {}", addr, e);
+            }).ok();
         } else {
             debug!("Can't send to {:?}, no address", id);
         }
@@ -102,6 +120,7 @@ fn execute_action(action: Action, info: &Info, epoch: Epoch,
             };
             let msg = encode::ping(&info.id, epoch, &opt_schedule);
             send_all(&msg, info, socket);
+            LAST_PING_ALL.set(now.to_msec() as i64);
             *last_sent_hash = opt_schedule.as_ref().map(|x| &x.hash[..])
                 .unwrap_or("").to_string();
         }
@@ -109,6 +128,7 @@ fn execute_action(action: Action, info: &Info, epoch: Epoch,
             info!("[{}] Vote for {}", epoch, id);
             let msg = encode::vote(&info.id, epoch, &id, &state.schedule());
             send_all(&msg, info, socket);
+            LAST_VOTE.set(now.to_msec() as i64);
         }
         ConfirmVote(id) => {
             info!("[{}] Confirm vote {}", epoch, id);
@@ -119,6 +139,7 @@ fn execute_action(action: Action, info: &Info, epoch: Epoch,
                 socket.send_to(&msg, addr)
                 .map_err(|e| info!("Error sending message to {}: {}",
                     addr, e)).ok();
+                LAST_CONFIRM_VOTE.set(now.to_msec() as i64);
             } else {
                 debug!("Error confirming vote to {:?}, no address", id);
             }
@@ -140,8 +161,12 @@ fn execute_action(action: Action, info: &Info, epoch: Epoch,
             if let Some(ref addr) = dest {
                 debug!("Sending pong to {} ({:?})", addr, id);
                 socket.send_to(&msg, addr)
-                .map_err(|e| info!("Error sending message to {}: {}",
-                    addr, e)).ok();
+                .map(|_| PONGS_SENT.incr(1))
+                .map_err(|e| {
+                    PONGS_ERRORED.incr(1);
+                    info!("Error sending message to {}: {}", addr, e);
+                }).ok();
+                LAST_PONG.set(now.to_msec() as i64);
             } else {
                 debug!("Error sending pong to {:?}, no address", id);
             }

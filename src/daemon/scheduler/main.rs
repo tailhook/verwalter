@@ -1,11 +1,10 @@
 use std::path::{PathBuf, Path};
-use std::time::Duration;
+use std::time::{Duration, SystemTime, Instant};
 use std::thread::sleep;
 use std::process::exit;
 use std::collections::{HashMap, BTreeMap};
 
 
-use time::get_time;
 use inotify::INotify;
 use inotify::ffi::{IN_MODIFY, IN_ATTRIB, IN_CLOSE_WRITE, IN_MOVED_FROM};
 use inotify::ffi::{IN_MOVED_TO, IN_CREATE, IN_DELETE, IN_DELETE_SELF};
@@ -13,6 +12,7 @@ use inotify::ffi::{IN_MOVE_SELF};
 use scan_dir::ScanDir;
 use lua::GcOption;
 use rotor_cantal::{Dataset, Key, Value, Chunk};
+use libcantal::{Counter, Integer};
 
 use config;
 use time_util::ToMsec;
@@ -22,6 +22,13 @@ use shared::{Id, SharedState};
 use scheduler::Schedule;
 use scheduler::state::num_roles;
 use rustc_serialize::json::{Json, ToJson};
+
+
+lazy_static! {
+    pub static ref SCHEDULING_TIME: Integer = Integer::new();
+    pub static ref SCHEDULER_DONE: Counter = Counter::new();
+    pub static ref SCHEDULER_ERRORED: Counter = Counter::new();
+}
 
 
 pub struct Settings {
@@ -238,11 +245,12 @@ pub fn main(state: SharedState, settings: Settings, mut alarm: Alarm) -> !
             let peers = state.peers().expect("peers are ready for scheduler");
             // TODO(tailhook) check if peers are outdated
 
-            let timestamp = get_time();
+            let timestamp = SystemTime::now();
+            let instant = Instant::now();
             let _alarm = alarm.after(Duration::from_secs(1));
 
             let input = Json::Object(vec![
-                ("now".to_string(), get_time().to_msec().to_json()),
+                ("now".to_string(), timestamp.to_msec().to_json()),
                 ("current_host".to_string(), scheduler.hostname.to_json()),
                 ("current_id".to_string(), scheduler.id.to_string().to_json()),
                 ("parents".to_string(), Json::Array(
@@ -272,16 +280,19 @@ pub fn main(state: SharedState, settings: Settings, mut alarm: Alarm) -> !
 
 
             let (result, dbg) = scheduler.execute(&input);
+            SCHEDULING_TIME.set((Instant::now() - instant).to_msec() as i64);
 
             let json = match result {
                 Ok(json) => {
                     state.clear_error("scheduler");
+                    SCHEDULER_DONE.incr(1);
                     json
                 }
                 Err(e) => {
                     error!("Scheduling failed: {}", e);
                     state.set_error("scheduler", format!("{}", e));
                     state.set_schedule_debug_info(input, dbg);
+                    SCHEDULER_ERRORED.incr(1);
                     sleep(Duration::from_secs(1));
                     continue;
                 }

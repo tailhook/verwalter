@@ -16,6 +16,7 @@ extern crate cbor;
 extern crate regex;
 extern crate sha1;
 extern crate inotify;
+extern crate libcantal;
 extern crate itertools;
 extern crate self_meter;
 #[macro_use] extern crate lazy_static;

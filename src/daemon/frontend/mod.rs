@@ -369,6 +369,7 @@ fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
                 debug_force_leader: bool,
                 self_report: Option<self_meter::Report>,
                 threads_report: HashMap<String, self_meter::ThreadReport>,
+                metrics: HashMap<&'static str, Json>,
             }
             let peers = scope.state.peers();
             let election = scope.state.election();
@@ -410,6 +411,8 @@ fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
                 debug_force_leader: scope.state.debug_force_leader(),
                 self_report: me,
                 threads_report: thr,
+                metrics: vec![
+                ].into_iter().collect(),
             })
         }
         Peers => {

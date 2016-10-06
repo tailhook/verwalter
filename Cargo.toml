@@ -39,6 +39,7 @@ inotify = "0.2.3"
 itertools = "0.4.17"
 gron = "0.1.0"
 self-meter = "0.3.0"
+libcantal = { git="git://github.com/tailhook/cantal-rs", rev="bbe360a" }
 
 [dependencies.indexed_log]
 path = "./indexed_log"
