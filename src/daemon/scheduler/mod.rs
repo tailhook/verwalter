@@ -4,7 +4,7 @@ use lua::{State as Lua, ThreadStatus, Type, Library};
 use lua::ffi::{lua_upvalueindex};
 use shared::Id;
 
-mod main;
+pub mod main;  // pub for making counters visible
 mod lua_json;
 mod state;
 mod prefetch;

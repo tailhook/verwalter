@@ -10,6 +10,7 @@ import {value, toggle, init, bool} from './stores/simple'
 import {set_port} from './util/port'
 import {format_error_hint, format_error_badge} from './util/format_err'
 import * as self_meter from './blocks/self_meter.khufu'
+import * as metrics from './blocks/metrics.khufu'
 
 
 style:
@@ -65,17 +66,30 @@ view _navbar(status, frontend_version, @expand):
               link {click} go(event) -> @router
               "Logs"
         <ul.nav.navbar-nav.navbar-right>
-          store @expand = bool | init(false)
-          <li.dropdown.open?(@expand)>
+          store @self_meter = bool | init(false)
+
+          <li.dropdown.open?(@self_meter)>
             <a.dropdown-toggle href="#" role="button"
                 aria-haspopup="true" aria-expanded="false">
-              link {click} toggle(@expand) -> @expand
+              link {click} toggle(@self_meter) -> @self_meter
 
               self_meter.small(status.self_report, status.threads_report)
               <span.caret>
-            if @expand and status.self_report:
+            if @self_meter and status.self_report:
                <div.dropdown-menu>
                 self_meter.big(status.self_report, status.threads_report)
+
+          store @metrics = bool | init(false)
+
+          <li.dropdown.open?(@metrics)>
+            <a.dropdown-toggle href="#" role="button"
+                aria-haspopup="true" aria-expanded="false">
+              link {click} toggle(@metrics) -> @metrics
+              "M"
+              <span.caret>
+            if @metrics and status.metrics:
+               <div.dropdown-menu>
+                metrics.expanded(status.metrics)
 
           if status and status.errors:
             <li.text-danger

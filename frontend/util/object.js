@@ -2,6 +2,12 @@ export function entries(x) {
     return Object.keys(x).map(k => [k, x[k]])
 }
 
+export function entries_sorted(x) {
+    let keys = Object.keys(x)
+    keys.sort()
+    return keys.map(k => [k, x[k]])
+}
+
 export function keys(x) {
     return Object.keys(x)
 }

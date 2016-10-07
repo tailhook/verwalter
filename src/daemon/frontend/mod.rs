@@ -18,6 +18,10 @@ use net::Context;
 use elect::Epoch;
 use shared::{PushActionError, Id};
 
+mod to_json;
+
+use self::to_json::ToJson;
+
 const MAX_LOG_RESPONSE: u64 = 1048576;
 
 #[derive(Clone, Debug)]
@@ -339,6 +343,71 @@ fn respond_text<T: AsRef<[u8]>>(res: &mut Response, data: T)
     Ok(())
 }
 
+fn get_metrics() -> HashMap<&'static str, Json>
+{
+    use scheduler::main as S;
+    use elect::machine as M;
+    use elect::network as N;
+    vec![
+        ("scheduling_time", S::SCHEDULING_TIME.js()),
+        ("scheduler_succeeded", S::SCHEDULER_SUCCEEDED.js()),
+        ("scheduler_failed", S::SCHEDULER_FAILED.js()),
+
+        ("start_election_no", M::START_ELECTION_NO.js()),
+        ("start_election_tm", M::START_ELECTION_TM.js()),
+        ("ping_all_no", M::PING_ALL_NO.js()),
+        ("ping_all_tm", M::PING_ALL_TM.js()),
+        ("outdated_no", M::OUTDATED_NO.js()),
+        ("outdated_tm", M::OUTDATED_TM.js()),
+        ("ping_no", M::PING_NO.js()),
+        ("ping_tm", M::PING_TM.js()),
+        ("pong_no", M::PONG_NO.js()),
+        ("pong_tm", M::PONG_TM.js()),
+        ("vote_confirm_no", M::VOTE_CONFIRM_NO.js()),
+        ("vote_confirm_tm", M::VOTE_CONFIRM_TM.js()),
+        ("became_leader_no", M::BECAME_LEADER_NO.js()),
+        ("became_leader_tm", M::BECAME_LEADER_TM.js()),
+        ("vote_for_me_no", M::VOTE_FOR_ME_NO.js()),
+        ("vote_for_me_tm", M::VOTE_FOR_ME_TM.js()),
+        ("vote_other_no", M::VOTE_OTHER_NO.js()),
+        ("vote_other_tm", M::VOTE_OTHER_TM.js()),
+        ("late_vote_no", M::LATE_VOTE_NO.js()),
+        ("late_vote_tm", M::LATE_VOTE_TM.js()),
+        ("newer_ping_no", M::NEWER_PING_NO.js()),
+        ("newer_ping_tm", M::NEWER_PING_TM.js()),
+        ("new_vote_no", M::NEW_VOTE_NO.js()),
+        ("new_vote_tm", M::NEW_VOTE_TM.js()),
+        ("bad_hosts_no", M::BAD_HOSTS_NO.js()),
+        ("bad_hosts_tm", M::BAD_HOSTS_TM.js()),
+        ("self_elect_no", M::SELF_ELECT_NO.js()),
+        ("self_elect_tm", M::SELF_ELECT_TM.js()),
+
+        ("elect_start_no", M::ELECT_START_NO.js()),
+        ("elect_start_tm", M::ELECT_START_TM.js()),
+        ("elect_timeo_no", M::ELECT_TIMEO_NO.js()),
+        ("elect_timeo_tm", M::ELECT_TIMEO_TM.js()),
+        ("elect_voted_no", M::ELECT_VOTED_NO.js()),
+        ("elect_voted_tm", M::ELECT_VOTED_TM.js()),
+        ("elect_unresponsive_no", M::ELECT_UNRESPONSIVE_NO.js()),
+        ("elect_unresponsive_tm", M::ELECT_UNRESPONSIVE_TM.js()),
+        ("elect_conflict_no", M::ELECT_CONFLICT_NO.js()),
+        ("elect_conflict_tm", M::ELECT_CONFLICT_TM.js()),
+        ("elect_unsolicit_pong_no", M::ELECT_UNSOLICIT_PONG_NO.js()),
+        ("elect_unsolicit_pong_tm", M::ELECT_UNSOLICIT_PONG_TM.js()),
+        ("elect_newer_pong_no", M::ELECT_NEWER_PONG_NO.js()),
+        ("elect_newer_pong_tm", M::ELECT_NEWER_PONG_TM.js()),
+
+        ("broadcasts_sent", N::BROADCASTS_SENT.js()),
+        ("broadcasts_errored", N::BROADCASTS_ERRORED.js()),
+        ("pongs_sent", N::PONGS_SENT.js()),
+        ("pongs_errored", N::PONGS_ERRORED.js()),
+        ("last_ping_all", N::LAST_PING_ALL.js()),
+        ("last_vote", N::LAST_VOTE.js()),
+        ("last_confirm_vote", N::LAST_CONFIRM_VOTE.js()),
+        ("last_pong", N::LAST_PONG.js()),
+    ].into_iter().collect()
+}
+
 fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
     data: &[u8], format: Format, res: &mut Response)
     -> Result<(), io::Error>
@@ -411,8 +480,7 @@ fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
                 debug_force_leader: scope.state.debug_force_leader(),
                 self_report: me,
                 threads_report: thr,
-                metrics: vec![
-                ].into_iter().collect(),
+                metrics: get_metrics(),
             })
         }
         Peers => {

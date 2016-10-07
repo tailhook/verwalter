@@ -10,11 +10,11 @@ pub use self::state::ElectionState;
 pub use self::machine::Epoch;
 use shared::{Id, Peer, SharedState};
 
-mod machine;
+pub mod machine;  // pub for making counters visible
 mod action;
 mod settings;
 mod info;
-mod network;
+pub mod network;  // pub for making counters visible
 mod encode;
 mod state;
 #[cfg(test)] mod test_node;

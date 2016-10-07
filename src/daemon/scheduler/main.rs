@@ -26,8 +26,8 @@ use rustc_serialize::json::{Json, ToJson};
 
 lazy_static! {
     pub static ref SCHEDULING_TIME: Integer = Integer::new();
-    pub static ref SCHEDULER_DONE: Counter = Counter::new();
-    pub static ref SCHEDULER_ERRORED: Counter = Counter::new();
+    pub static ref SCHEDULER_SUCCEEDED: Counter = Counter::new();
+    pub static ref SCHEDULER_FAILED: Counter = Counter::new();
 }
 
 
@@ -285,14 +285,14 @@ pub fn main(state: SharedState, settings: Settings, mut alarm: Alarm) -> !
             let json = match result {
                 Ok(json) => {
                     state.clear_error("scheduler");
-                    SCHEDULER_DONE.incr(1);
+                    SCHEDULER_SUCCEEDED.incr(1);
                     json
                 }
                 Err(e) => {
                     error!("Scheduling failed: {}", e);
                     state.set_error("scheduler", format!("{}", e));
                     state.set_schedule_debug_info(input, dbg);
-                    SCHEDULER_ERRORED.incr(1);
+                    SCHEDULER_FAILED.incr(1);
                     sleep(Duration::from_secs(1));
                     continue;
                 }
