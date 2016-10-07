@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
 use std::net;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 use std::collections::HashMap;
 
 use rotor::Time;
@@ -38,7 +38,7 @@ impl Environ {
     pub fn info<'x>(&'x self) -> Info<'x> {
         Info {
             id: &self.id,
-            hosts_timestamp: Some(self.now),  // TODO(tailhook)
+            hosts_timestamp: Some(SystemTime::now()),  // TODO(tailhook)
             all_hosts: &self.all_hosts,
             debug_force_leader: false,
         }

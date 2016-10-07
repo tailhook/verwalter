@@ -135,7 +135,7 @@ fn test_follower_timeout() {
     assert!(matches!(node, Machine::Follower { .. }));
     assert!(matches!(act.action, Some(Action::Pong(..))));
 
-    env.sleep(3000);  // Large timeout, should start new election
+    env.sleep(4000);  // Large timeout, should start new election
     let (node, act) = node.time_passed(&env.info(), env.now());
     assert!(matches!(node, Machine::Electing { .. }));
     assert!(act.action == Some(Action::Vote(id.clone())));
