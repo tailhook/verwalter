@@ -89,7 +89,7 @@ view _navbar(status, frontend_version, @expand):
               <span.caret>
             if @metrics and status.metrics:
                <div.dropdown-menu>
-                metrics.expanded(status.metrics)
+                metrics.expanded(status)
 
           if status and status.errors:
             <li.text-danger

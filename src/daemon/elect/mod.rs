@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
+use std::time::SystemTime;
 use std::collections::{HashMap};
 
-use rotor::Time;
 use rotor::mio::udp::UdpSocket;
 use rotor_cantal::Schedule as Cantal;
 
@@ -66,7 +66,7 @@ pub struct Info<'a> {
     /// Unique identificator of the node, should be read from /etc/machine-id
     id: &'a Id,
     /// This is used to find out whether hosts are actually valid
-    hosts_timestamp: Option<Time>,
+    hosts_timestamp: Option<SystemTime>,
     /// State machine of the leader election
     all_hosts: &'a HashMap<Id, Peer>,
     /// Forces this node to be a leader, this is only for debugging purposes

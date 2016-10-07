@@ -17,6 +17,7 @@ use rustc_serialize::json::{as_json, as_pretty_json, Json};
 use net::Context;
 use elect::Epoch;
 use shared::{PushActionError, Id};
+use time_util::ToMsec;
 
 mod to_json;
 
@@ -427,6 +428,7 @@ fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
                 version: &'static str,
                 id: &'a Id,
                 peers: usize,
+                peers_timestamp: Option<u64>,
                 leader: Option<LeaderInfo<'a>>,
                 scheduler_state: &'static str,
                 roles: usize,
@@ -463,6 +465,7 @@ fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
                 version: concat!("v", env!("CARGO_PKG_VERSION")),
                 id: scope.state.id(),
                 peers: peers.as_ref().map(|x| x.1.len()).unwrap_or(0),
+                peers_timestamp: peers.as_ref().map(|x| x.0.to_msec()),
                 leader: leader.map(|peer| LeaderInfo {
                     id: leader_id.unwrap(),
                     name: &peer.name,

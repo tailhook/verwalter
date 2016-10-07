@@ -4,12 +4,12 @@ use std::net::SocketAddr;
 use std::sync::{Arc, Mutex, Condvar, MutexGuard};
 use std::sync::atomic::Ordering::SeqCst;
 use std::sync::atomic::AtomicBool;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 use std::collections::{HashMap, BTreeMap, HashSet};
 use std::collections::btree_map::Entry::{Occupied, Vacant};
 
 use time::{SteadyTime, Timespec, Duration as Dur, get_time};
-use rotor::{Time, Notifier};
+use rotor::Notifier;
 use cbor::{Encoder, EncodeResult, Decoder, DecodeResult};
 use rotor_cantal::{Schedule as Cantal, RemoteQuery};
 use rustc_serialize::hex::{FromHex, ToHex, FromHexError};
@@ -119,7 +119,7 @@ impl ToJson for Peer {
 
 #[derive(Debug)]
 struct State {
-    peers: Option<Arc<(Time, HashMap<Id, Peer>)>>,
+    peers: Option<Arc<(SystemTime, HashMap<Id, Peer>)>>,
     last_known_schedule: Option<Arc<Schedule>>,
     // TODO(tailhook) rename schedule -> scheduleR
     schedule: Arc<scheduler::State>,
@@ -190,7 +190,7 @@ impl SharedState {
         // -- TODO(tailhook) move this flag out of mutex
         self.lock().debug_force_leader
     }
-    pub fn peers(&self) -> Option<Arc<(Time, HashMap<Id, Peer>)>> {
+    pub fn peers(&self) -> Option<Arc<(SystemTime, HashMap<Id, Peer>)>> {
         self.lock().peers.clone()
     }
     /// Returns last known schedule
@@ -238,7 +238,7 @@ impl SharedState {
         self.lock().cantal.as_ref().unwrap().get_remote_query()
     }
     // Setters
-    pub fn set_peers(&self, time: Time, peers: HashMap<Id, Peer>) {
+    pub fn set_peers(&self, time: SystemTime, peers: HashMap<Id, Peer>) {
         let mut guard = self.lock();
         guard.peers = Some(Arc::new((time, peers)));
 

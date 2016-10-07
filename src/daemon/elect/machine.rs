@@ -125,7 +125,7 @@ impl Machine {
         }
 
         // We can't do much useful work if our peers info is outdated
-        if !info.hosts_are_fresh(now) {
+        if !info.hosts_are_fresh() {
             // TODO(tailhook) We have to give up our leadership though
             report(&BAD_HOSTS_NO, &BAD_HOSTS_TM);
             return pass(self)

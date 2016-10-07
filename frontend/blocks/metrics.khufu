@@ -19,10 +19,22 @@ style:
     align-self: flex-end
 
 
-view expanded(metrics):
+view expanded(status):
   let percent = already_percent_formatter()
   let mem = bytes_formatter()
-  for [metric, value] of entries(metrics) key metric:
+  <div.meter-row>
+    <span.key> "Peers timestamp"
+    <span.value>
+      if status.peers_timestamp:
+        format_diff(till_now_ms(from_ms(status.peers_timestamp)))
+  <div.meter-row>
+    <span.key> "Last stable"
+    <span.value>
+      format_diff(till_now_ms(from_ms(status.last_stable_timestamp)))
+  <div.meter-row>
+    <span.key> "Election epoch"
+    <span.value> status.election_epoch
+  for [metric, value] of entries(status.metrics) key metric:
     <div.meter-row>
       <span.key> metric
       if ends_with(metric, '_tm') or starts_with(metric, 'last_'):
@@ -30,7 +42,7 @@ view expanded(metrics):
           <span.value.text-muted>
             "∅"
         else:
-          <span.value title=value>
+          <span.value>
             format_diff(till_now_ms(from_ms(value)))
       else:
         <span.value>

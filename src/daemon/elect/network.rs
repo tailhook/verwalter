@@ -1,5 +1,5 @@
 use std::net::SocketAddr;
-use std::time::{SystemTime, Duration};
+use std::time::{SystemTime, Duration, UNIX_EPOCH};
 use std::sync::Mutex;
 use std::collections::HashMap;
 
@@ -262,7 +262,7 @@ impl Machine for Election {
         Response::ok(Election { machine: me, ..self})
         .deadline(wakeup)
     }
-    fn wakeup(self, _scope: &mut Scope<Context>)
+    fn wakeup(self, scope: &mut Scope<Context>)
         -> Response<Self, Self::Seed>
     {
         let oldp = self.state.peers();
@@ -310,9 +310,14 @@ impl Machine for Election {
             let dline = self.machine.current_deadline();
             return Response::ok(self).deadline(dline);
         };
-        self.state.set_peers(recv, new_hosts);
+        self.state.set_peers(to_system_time(scope.estimate_timespec(recv)),
+                             new_hosts);
 
         let dline = self.machine.current_deadline();
         Response::ok(self).deadline(dline)
     }
+}
+
+fn to_system_time(time: Timespec) -> SystemTime {
+    UNIX_EPOCH + Duration::new(time.sec as u64, time.nsec as u32)
 }
