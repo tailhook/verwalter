@@ -2,6 +2,7 @@ import {format_uptime, format_diff, till_now_ms, from_ms} from '../util/time'
 import {already_percent_formatter, bytes_formatter} from '../util/format'
 import {entries_sorted as entries} from '../util/object'
 import {ends_with} from '../util/str'
+import {starts_with} from '../util/str'
 
 
 style:
@@ -24,13 +25,13 @@ view expanded(metrics):
   for [metric, value] of entries(metrics) key metric:
     <div.meter-row>
       <span.key> metric
-      if ends_with(metric, '_tm') or metric == 'last_ping_all':
+      if ends_with(metric, '_tm') or starts_with(metric, 'last_'):
         if value == 0:
           <span.value.text-muted>
             "∅"
         else:
-          <span.value>
-            format_uptime(till_now_ms(from_ms(value)))
+          <span.value title=value>
+            format_diff(till_now_ms(from_ms(value)))
       else:
         <span.value>
           value
