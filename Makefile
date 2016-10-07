@@ -3,6 +3,8 @@ DESTDIR ?=
 
 all: bin js
 
+release: bin-release js-release
+
 bin:
 	cargo build
 
@@ -12,6 +14,10 @@ bin-release:
 
 js:
 	cd frontend; webpack
+
+js-release:
+	# can't do --optimize-minimize because we use ES6 syntax, we use babili
+	cd frontend; NODE_ENV=production webpack
 
 install:
 	install -D -m 755 target/release/verwalter $(DESTDIR)$(PREFIX)/bin/verwalter
@@ -32,7 +38,7 @@ ubuntu-packages: codename:=$(shell lsb_release --codename --short)
 ubuntu-packages:
 	rm -rf pkg
 	rm -rf target/release
-	bulk with-version "$(version)" cargo build
+	bulk with-version "$(version)" cargo build --release
 	make install DESTDIR=/work/pkg
 	bulk pack --package-version="$(version)+$(codename)1"
 

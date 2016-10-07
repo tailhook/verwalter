@@ -21,6 +21,8 @@
     "babel-plugin-transform-es2015-arrow-functions": "6.3.13",
     "babel-plugin-transform-es2015-block-scoped-functions": "6.3.13",
     "babel-core": "6.16",
+    "babili": "0.0.4",
+    "babili-webpack-plugin": "0.0.5",
     "khufu": "0.4.5"
   },
   "optionalDependencies": {

@@ -8,6 +8,14 @@ commands:
     work-dir: frontend
     run: [webpack]
 
+  make-js-release: !Command
+    description: Make default javascripts
+    container:  js
+    work-dir: frontend
+    environ:
+      NODE_ENV: production
+    run: [webpack]
+
   make: !Command
     description: Build binaries and frontend
     container: xenial
@@ -83,8 +91,6 @@ commands:
     work-dir: frontend
     run:
     - webpack
-    - --hot
-    - --colors
 
   trio: !Supervise
     description: Runs three verwalter/cantals so you can test leader election
@@ -161,7 +167,7 @@ commands:
   packages: !Command
     container: xenial
     description: Build packages and repostories (mostly for CI)
-    prerequisites: [make-js,
+    prerequisites: [make-js-release,
                     _package-trusty, _package-precise, _package-xenial,
                     _package-verwalter_render]
     accepts_arguments: true

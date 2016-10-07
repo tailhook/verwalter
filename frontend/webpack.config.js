@@ -1,4 +1,5 @@
 var webpack = require('webpack')
+var BabiliPlugin = require('babili-webpack-plugin')
 var DEV = process.env['NODE_ENV'] != 'production';
 module.exports = {
     context: __dirname,
@@ -77,6 +78,8 @@ module.exports = {
             "process.env.NODE_ENV": JSON.stringify(process.env['NODE_ENV']),
             DEBUG: DEV,
         }),
-    ],
+    ].concat(DEV ? [] : [
+        new BabiliPlugin({}),
+    ]),
 }
 
