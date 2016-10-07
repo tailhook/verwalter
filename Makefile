@@ -45,10 +45,10 @@ ubuntu-packages:
 ubuntu-verwalter_render-package: version:=$(shell git describe --dirty)
 ubuntu-verwalter_render-package:
 	-rm -rf pkg
-	-rm -rf target/x86_64-unknown-linux-musl/release/verwalter_render
+	-rm -rf target/x86_64-unknown-linux-musl/debug/verwalter_render
 	bulk with-version "$(version)" \
 		cargo build --target=x86_64-unknown-linux-musl --bin=verwalter_render
-	install -D ./target/x86_64-unknown-linux-musl/release/verwalter_render \
+	install -D ./target/x86_64-unknown-linux-musl/debug/verwalter_render \
 		pkg/usr/bin/verwalter_render
 	bulk pack --config=bulk-render.yaml --package-version="$(version)"
 
