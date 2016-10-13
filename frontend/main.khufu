@@ -69,15 +69,16 @@ view _navbar(status, frontend_version, @expand):
           store @self_meter = bool | init(false)
 
           <li.dropdown.open?(@self_meter)>
-            <a.dropdown-toggle href="#" role="button"
-                aria-haspopup="true" aria-expanded="false">
-              link {click} toggle(@self_meter) -> @self_meter
+            if status.self_report:
+              <a.dropdown-toggle href="#" role="button"
+                  aria-haspopup="true" aria-expanded="false">
+                link {click} toggle(@self_meter) -> @self_meter
 
-              self_meter.small(status.self_report, status.threads_report)
-              <span.caret>
-            if @self_meter and status.self_report:
-               <div.dropdown-menu>
-                self_meter.big(status.self_report, status.threads_report)
+                self_meter.small(status.self_report, status.threads_report)
+                <span.caret>
+              if @self_meter:
+                 <div.dropdown-menu>
+                  self_meter.big(status.self_report, status.threads_report)
 
           store @metrics = bool | init(false)
 
