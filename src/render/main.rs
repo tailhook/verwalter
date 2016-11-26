@@ -7,6 +7,7 @@ extern crate argparse;
 extern crate tempfile;
 extern crate yaml_rust;
 extern crate handlebars;
+extern crate liquid;
 extern crate rustc_serialize;
 #[macro_use] extern crate quick_error;
 #[macro_use] extern crate lazy_static;

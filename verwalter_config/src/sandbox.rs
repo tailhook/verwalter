@@ -1,14 +1,10 @@
 use std::path::{Path, PathBuf};
-use std::default::Default;
 use std::collections::HashMap;
 
 use scan_dir::{ScanDir, Error as ScanDirError};
 use quire::validate::{Structure, Mapping, Scalar};
-use quire::sky::{parse_config};
+use quire::{parse_config, Options, ErrorList};
 use quick_error::ResultExt;
-
-
-pub type QuireError = String;  // TODO(tailhook) hopefully quire fixes this
 
 #[derive(RustcDecodable, Clone)]
 pub struct Sandbox {
@@ -18,10 +14,10 @@ pub struct Sandbox {
 quick_error! {
     #[derive(Debug)]
     pub enum Error {
-        Yaml(path: PathBuf, err: QuireError) {
+        Yaml(path: PathBuf, err: ErrorList) {
             display("parsing yaml {:?}: {}", path, err)
             description("error parsing yaml")
-            context(p: AsRef<Path>, e: QuireError)
+            context(p: AsRef<Path>, e: ErrorList)
                 -> (p.as_ref().to_path_buf(), e)
         }
         ScanDir(err: Vec<ScanDirError>) {
@@ -47,8 +43,8 @@ impl Sandbox {
             log_dirs: HashMap::new(),
         }
     }
-    pub fn parse<P: AsRef<Path>>(p: P) -> Result<Sandbox, QuireError> {
-        parse_config(p.as_ref(), &Sandbox::validator(), Default::default())
+    pub fn parse<P: AsRef<Path>>(p: P) -> Result<Sandbox, ErrorList> {
+        parse_config(p.as_ref(), &Sandbox::validator(), &Options::default())
     }
     pub fn parse_all<P: AsRef<Path>>(dir: P) -> Result<Sandbox, Error> {
         ScanDir::files().walk(dir, |iter| {

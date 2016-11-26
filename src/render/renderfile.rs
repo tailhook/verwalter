@@ -1,11 +1,14 @@
 use std::io::{self, Read};
 use std::fs::File;
 use std::path::{Path, PathBuf};
+use std::collections::HashMap;
 
+use liquid;
 use scan_dir;
 use quire::validate as V;
-use quire::sky::parse_config;
+use quire::{parse_config, Options, ErrorList};
 use handlebars::{Handlebars, TemplateError as HandlebarsError};
+use quick_error::ResultExt;
 
 use apply;
 use render::Renderer;
@@ -15,16 +18,29 @@ quick_error! {
     #[derive(Debug)]
     pub enum TemplateError {
         TemplateRead(err: io::Error, path: PathBuf) {
+            context(path: AsRef<Path>, err: io::Error)
+                -> (err, path.as_ref().to_path_buf())
             cause(err)
             display("error reading {:?}: {}", path, err)
             description("error reading template file")
         }
-        TemplateParse(err: HandlebarsError, path: PathBuf) {
+        HandlebarsParse(err: HandlebarsError, path: PathBuf) {
+            context(path: AsRef<Path>, err: HandlebarsError)
+                -> (err, path.as_ref().to_path_buf())
             cause(err)
             display("error reading {:?}: {}", path, err)
-            description("error reading template file")
+            description("error reading handlebars file")
         }
-        Config(err: String, path: PathBuf) {
+        LiquidParse(err: liquid::Error, path: PathBuf) {
+            context(path: AsRef<Path>, err: liquid::Error)
+                -> (err, path.as_ref().to_path_buf())
+            cause(err)
+            display("error reading {:?}: {}", path, err)
+            description("error reading liquid file")
+        }
+        Config(err: ErrorList, path: PathBuf) {
+            context(path: AsRef<Path>, err: ErrorList)
+                -> (err, path.as_ref().to_path_buf())
             display("error reading {:?}: {}", path, err)
             description("error reading config from template dir")
         }
@@ -57,9 +73,9 @@ fn read_renderer(path: &Path, base: &Path)
 {
     let path_rel = path.strip_prefix(base).unwrap();
     let template_base = path_rel.parent().unwrap();
-    let orig: Renderer = try!(parse_config(&path,
-        &config_validator(), Default::default())
-        .map_err(|e| TemplateError::Config(e, path.to_path_buf())));
+    let orig: Renderer = parse_config(path,
+        &config_validator(), &Options::default())
+        .context(path)?;
     Ok((path_rel.to_string_lossy().to_string(), Renderer {
             // Normalize path to be relative to base path
             // rather than relative to current subdir
@@ -70,25 +86,34 @@ fn read_renderer(path: &Path, base: &Path)
     }))
 }
 
-pub fn read_renderers(path: &Path, hbars: &mut Handlebars)
+pub fn read_renderers(path: &Path,
+    hbars: &mut Handlebars, liquid: &mut HashMap<String, liquid::Template>)
     -> Result<Vec<(String, Renderer)>, TemplateError>
 {
-    use self::TemplateError::{TemplateRead, TemplateParse};
     let mut renderers = Vec::new();
     try!(scan_dir::ScanDir::files().walk(path, |iter| {
         for (entry, fname) in iter {
-            if fname.ends_with(".hbs") || fname.ends_with(".handlebars")
-            {
+            if fname.ends_with(".hbs") || fname.ends_with(".handlebars") {
                 let epath = entry.path();
                 let mut buf = String::with_capacity(4096);
                 let tname = epath
                     .strip_prefix(path).unwrap()
                     .to_string_lossy();
-                try!(File::open(&epath)
-                    .and_then(|mut f| f.read_to_string(&mut buf))
-                    .map_err(|e| TemplateRead(e, path.to_path_buf())));
-                try!(hbars.register_template_string(&tname, buf)
-                    .map_err(|e| TemplateParse(e, path.to_path_buf())));
+                let mut f = File::open(&epath).context(&epath)?;
+                f.read_to_string(&mut buf).context(&epath)?;
+                hbars.register_template_string(&tname, buf).context(&epath)?;
+            } else if fname.ends_with(".liquid") {
+                let epath = entry.path();
+                let mut buf = String::with_capacity(4096);
+                let mut f = File::open(&epath).context(&epath)?;
+                f.read_to_string(&mut buf).context(&epath)?;
+                let template = liquid::parse(&buf,
+                    liquid::LiquidOptions::default())
+                    .context(&epath)?;
+                let tname = epath
+                    .strip_prefix(path).unwrap()
+                    .to_string_lossy();
+                liquid.insert(tname.into_owned(), template);
             } else if fname.ends_with(".render.yaml") ||
                       fname.ends_with(".render.yml")
             {
