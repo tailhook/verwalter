@@ -36,7 +36,7 @@ versions:
 
 - files:
   - Cargo.lock
-  block-start: ^name\s*=\s*"verwalter_config"
+  block-start: ^name\s*=\s*"(?:indexed_log|verwalter_config)"
   regex: ^version\s*=\s*"(\S+)"
   block-end: ^\[.*\]
   multiple-blocks: true
