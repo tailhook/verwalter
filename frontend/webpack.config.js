@@ -16,11 +16,11 @@ module.exports = {
     module: {
         loaders: [{
             test: /\.khufu$/,
-            loaders: ['babel', 'khufu'],
+            loaders: ['babel-loader', 'khufu'],
             exclude: /node_modules/,
         }, {
             test: /\.js$/,
-            loaders: ['babel'],
+            loaders: ['babel-loader'],
             exclude: /node_modules/,
         }],
     },
@@ -72,7 +72,7 @@ module.exports = {
                 },
             }
         }),
-        new webpack.NoErrorsPlugin(),
+        new webpack.NoEmitOnErrorsPlugin(),
         new webpack.DefinePlugin({
             VERSION: JSON.stringify("v0.7.5"),
             "process.env.NODE_ENV": JSON.stringify(process.env['NODE_ENV']),

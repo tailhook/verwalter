@@ -198,13 +198,12 @@ containers:
 
   js:
     setup:
-    - !Alpine v3.4
+    - !Alpine v3.5
     - !NpmDependencies
       file: "frontend/package.json"
       optional: true
     environ:
-      NODE_PATH: "/usr/lib/node_modules:\
-                  /usr/lib/node_modules/webpack-dev-server/node_modules"
+      NODE_PATH: "/usr/lib/node_modules"
 
   xenial:
     setup:
