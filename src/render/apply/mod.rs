@@ -9,7 +9,6 @@ use rustc_serialize::{Decodable, Decoder};
 use rustc_serialize::json::{Json, ToJson};
 use indexed_log as log;
 
-use render::Error as RenderError;
 use config::Sandbox;
 use apply::expand::Variables;
 
@@ -29,9 +28,6 @@ const COMMANDS: &'static [&'static str] = &[
     "Copy",
     "PeekLog",
 ];
-
-pub type ApplyTask = HashMap<String,
-    Result<Vec<(String, Command, Source)>, RenderError>>;
 
 pub struct Task<'a: 'b, 'b: 'c, 'c: 'd, 'd> {
     pub runner: &'d str,
