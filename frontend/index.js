@@ -1,3 +1,5 @@
+import 'whatwg-fetch'
+
 import {createStore, applyMiddleware} from 'redux'
 import khufu from 'khufu-runtime'
 
