@@ -42,6 +42,12 @@ self-meter = "0.3.0"
 quick-error = "1.1.0"
 libcantal = { git="git://github.com/tailhook/cantal-rs", rev="bbe360a" }
 
+tokio-core = "0.1.6"
+futures = "0.1.11"
+tk-cantal = "0.1.0"
+tk-easyloop = "0.1.1"
+tk-listen = "0.1.0"
+
 [dependencies.indexed_log]
 path = "./indexed_log"
 
