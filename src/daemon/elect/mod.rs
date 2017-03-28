@@ -2,8 +2,10 @@ use std::net::SocketAddr;
 use std::time::SystemTime;
 use std::collections::{HashMap};
 
+/*
 use rotor::mio::udp::UdpSocket;
 use rotor_cantal::Schedule as Cantal;
+*/
 
 pub use self::settings::peers_refresh;
 pub use self::state::ElectionState;
@@ -30,8 +32,8 @@ pub struct Election {
     state: SharedState,
     last_schedule_sent: String,
     machine: machine::Machine,
-    cantal: Cantal,
-    socket: UdpSocket,
+    //cantal: Cantal,
+    //socket: UdpSocket,
     debug_force_leader: bool,
 }
 

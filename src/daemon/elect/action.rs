@@ -1,4 +1,4 @@
-use rotor::Time;
+use std::time::Instant;
 
 use shared::Id;
 
@@ -13,18 +13,18 @@ pub enum Action {
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct ActionList {
-    pub next_wakeup: Time,
+    pub next_wakeup: Instant,
     pub action: Option<Action>,
 }
 
 impl Action {
-    pub fn and_wait(self, time: Time) -> ActionList {
+    pub fn and_wait(self, time: Instant) -> ActionList {
         ActionList {
             next_wakeup: time,
             action: Some(self),
         }
     }
-    pub fn wait(time: Time) -> ActionList {
+    pub fn wait(time: Instant) -> ActionList {
         ActionList {
             next_wakeup: time,
             action: None,

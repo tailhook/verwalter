@@ -3,7 +3,7 @@ use std::cmp::{Ord, Ordering};
 use std::cmp::Ordering::{Less as Older, Equal as Current, Greater as Newer};
 use std::time::{Duration, SystemTime};
 
-use rotor::Time;
+//use rotor::Time;
 use libcantal::{Counter, Integer};
 
 use time_util::ToMsec;
@@ -64,11 +64,11 @@ lazy_static! {
 
 #[derive(Clone, Debug)]
 pub enum Machine {
-    Starting { leader_deadline: Time },
-    Electing { epoch: Epoch, votes_for_me: HashSet<Id>, deadline: Time },
-    Voted { epoch: Epoch, peer: Id, election_deadline: Time },
-    Leader { epoch: Epoch, next_ping_time: Time },
-    Follower { leader: Id, epoch: Epoch, leader_deadline: Time },
+    Starting { leader_deadline: SystemTime },
+    Electing { epoch: Epoch, votes_for_me: HashSet<Id>, deadline: SystemTime },
+    Voted { epoch: Epoch, peer: Id, election_deadline: SystemTime },
+    Leader { epoch: Epoch, next_ping_time: SystemTime },
+    Follower { leader: Id, epoch: Epoch, leader_deadline: SystemTime },
 }
 
 fn report(cnt: &Counter, time: &Integer) {
@@ -77,7 +77,7 @@ fn report(cnt: &Counter, time: &Integer) {
 }
 
 impl Machine {
-    pub fn new(now: Time) -> Machine {
+    pub fn new(now: SystemTime) -> Machine {
         Machine::Starting {
             leader_deadline: now + start_timeout(),
         }
@@ -101,7 +101,7 @@ impl Machine {
         let my_epoch = self.current_epoch();
         epoch.cmp(&my_epoch)
     }
-    pub fn current_deadline(&self) -> Time {
+    pub fn current_deadline(&self) -> SystemTime {
         use self::Machine::*;
         match *self {
             Starting { leader_deadline } => leader_deadline,
@@ -112,7 +112,7 @@ impl Machine {
         }
     }
 
-    pub fn time_passed(self, info: &Info, now: Time)
+    pub fn time_passed(self, info: &Info, now: SystemTime)
         -> (Machine, ActionList)
     {
         use self::Machine::*;
@@ -184,7 +184,7 @@ impl Machine {
         };
         return (machine, action)
     }
-    pub fn message(self, info: &Info, msg: (Id, Epoch, Message), now: Time)
+    pub fn message(self, info: &Info, msg: (Id, Epoch, Message), now: SystemTime)
         -> (Machine, ActionList)
     {
         use self::Machine::*;
@@ -280,7 +280,7 @@ impl Machine {
     }
 }
 
-fn follow(leader: Id, epoch: Epoch, now: Time)
+fn follow(leader: Id, epoch: Epoch, now: SystemTime)
     -> (Machine, ActionList)
 {
     let dline = now + election_ivl();
@@ -303,13 +303,13 @@ fn minimum_votes(total_peers: usize) -> usize {
     }
 }
 
-fn become_leader(epoch: Epoch, now: Time) -> (Machine, ActionList) {
+fn become_leader(epoch: Epoch, now: SystemTime) -> (Machine, ActionList) {
     let next_ping = now + Duration::from_millis(HEARTBEAT_INTERVAL);
     (Machine::Leader { epoch: epoch, next_ping_time: next_ping },
      Action::PingAll.and_wait(next_ping))
 }
 
-fn start_election(epoch: Epoch, now: Time, first_vote: &Id)
+fn start_election(epoch: Epoch, now: SystemTime, first_vote: &Id)
     -> (Machine, ActionList)
 {
     report(&START_ELECTION_NO, &START_ELECTION_TM);

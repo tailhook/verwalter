@@ -59,45 +59,6 @@ pub enum PushActionError {
     NotALeader,
 }
 
-impl Id {
-    pub fn new<S:AsRef<[u8]>>(id: S) -> Id {
-        Id(id.as_ref().to_owned().into_boxed_slice())
-    }
-    pub fn encode_cbor<W: Write>(&self, enc: &mut Encoder<W>) -> EncodeResult {
-        enc.bytes(&self.0[..])
-    }
-    pub fn decode<R: Read>(dec: &mut Decoder<R>) -> DecodeResult<Id> {
-        dec.bytes().map(|x| x.into_boxed_slice()).map(Id)
-    }
-    pub fn to_hex(&self) -> String {
-        return self.0[..].to_hex();
-    }
-}
-
-impl Encodable for Id {
-    fn encode<S: RustcEncoder>(&self, s: &mut S) -> Result<(), S::Error> {
-        self.to_hex().encode(s)
-    }
-}
-
-impl FromStr for Id {
-    type Err = FromHexError;
-    fn from_str(s: &str) -> Result<Id, Self::Err> {
-        s.from_hex().map(|x| x.into_boxed_slice()).map(Id)
-    }
-}
-
-impl ::std::fmt::Display for Id {
-    fn fmt(&self, fmt: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        write!(fmt, "{}", self.0.to_hex())
-    }
-}
-
-impl ::std::fmt::Debug for Id {
-    fn fmt(&self, fmt: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        write!(fmt, "Id({})", self.0.to_hex())
-    }
-}
 
 #[derive(Clone, Debug)]
 pub struct Peer {

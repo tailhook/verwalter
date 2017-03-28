@@ -5,8 +5,9 @@ use std::process::exit;
 
 use time;
 use time::{Timespec, get_time};
-use rotor::{Machine, EventSet, Scope, Response, Notifier, GenericScope};
-use rotor::void::{unreachable, Void};
+use void::Void;
+//use rotor::{Machine, EventSet, Scope, Response, Notifier, GenericScope};
+//use rotor::void::{unreachable, Void};
 
 use net::Context;
 

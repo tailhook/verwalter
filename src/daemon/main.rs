@@ -20,10 +20,6 @@ extern crate libcantal;
 extern crate itertools;
 extern crate self_meter;
 #[macro_use] extern crate lazy_static;
-#[macro_use] extern crate rotor;
-extern crate rotor_http;
-extern crate rotor_tools;
-extern crate rotor_cantal;
 #[macro_use] extern crate log;
 #[macro_use] extern crate matches;
 #[macro_use] extern crate quick_error;
@@ -42,21 +38,25 @@ use std::thread;
 
 use time::now_utc;
 
-use shared::{Id, SharedState};
+//use shared::{Id, SharedState};
 use config::Sandbox;
+use id::Id;
 
+mod id;
+mod info;
+//mod shared;
+/*
 mod fs_util;
 mod scheduler;
 mod elect;
-mod frontend;
+//mod frontend;
 mod net;
-mod info;
-mod shared;
 mod time_util;
-mod watchdog;
-mod fetch;
+//mod watchdog;
+//mod fetch;
 mod hash;
 mod apply;
+*/
 
 use argparse::{ArgumentParser, Parse, ParseOption, StoreOption, StoreTrue};
 use argparse::{Print};
@@ -201,6 +201,7 @@ fn main() {
     };
 
     init_logging(&id, options.log_id);
+/*
     let meter = Arc::new(Mutex::new(
         self_meter::Meter::new(Duration::new(1, 0))
         .expect("meter created")));
@@ -286,4 +287,5 @@ fn main() {
         alarm_rx, meter)
         .expect("Error running main loop");
     unreachable!();
+    */
 }

@@ -5,10 +5,12 @@ use std::collections::HashMap;
 
 use time::{Timespec, get_time};
 use libcantal::{Counter, Integer};
+/*
 use rotor::{Machine, EventSet, Scope, Response, PollOpt};
 use rotor::mio::udp::UdpSocket;
 use rotor::void::{unreachable, Void};
 use rotor_cantal::{Schedule as Cantal};
+*/
 
 use time_util::ToMsec;
 use net::Context;

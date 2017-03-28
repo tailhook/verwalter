@@ -5,12 +5,6 @@ use std::time::Duration;
 use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{Receiver, SyncSender};
 
-use rotor;
-use rotor_http::server;
-use rotor::mio::tcp::{TcpListener};
-use rotor_cantal::{Schedule, connect_localhost, Fsm as CantalFsm};
-use rotor_tools::loop_ext::{LoopExt, LoopInstanceExt};
-use rotor_tools::timer::{IntervalFunc, interval_func};
 use self_meter::Meter;
 
 use config::Sandbox;
@@ -19,9 +13,10 @@ use frontend::Public;
 use elect::{Election, peers_refresh};
 use shared::Id;
 use watchdog::{self, Watchdog, Alarm};
-use fetch;
+//use fetch;
 
 
+/*
 rotor_compose!(pub enum Fsm/Seed<Context> {
     Frontend(server::Fsm<Public, TcpListener>),
     Cantal(CantalFsm<Context>),
@@ -30,11 +25,12 @@ rotor_compose!(pub enum Fsm/Seed<Context> {
     AskLeader(fetch::LeaderFetcher),
     SelfScanTimer(IntervalFunc<Context>),
 });
+*/
 
 
 pub struct Context {
     pub state: SharedState,
-    pub cantal: Schedule,
+    //pub cantal: Schedule,
     pub frontend_dir: PathBuf,
     pub log_dir: PathBuf,
     pub sandbox: Sandbox,
@@ -48,6 +44,8 @@ pub fn main(addr: &SocketAddr, id: Id, hostname: String, name: String,
     alarms: Receiver<SyncSender<Alarm>>, meter: Arc<Mutex<Meter>>)
     -> Result<(), io::Error>
 {
+    unimplemented!();
+    /*
     let mut cfg = rotor::Config::new();
     cfg.mio().timer_tick_ms(20);
     let mut creator = rotor::Loop::new(&cfg)
@@ -99,4 +97,5 @@ pub fn main(addr: &SocketAddr, id: Id, hostname: String, name: String,
     debug!("All alarms received");
 
     loop_inst.run()
+    */
 }

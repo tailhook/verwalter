@@ -5,7 +5,7 @@ use std::fs::File;
 use nix::unistd::gethostname;
 use rustc_serialize::hex::FromHex;
 
-use shared::Id;
+use id::Id;
 
 
 pub fn machine_id() -> io::Result<Id> {

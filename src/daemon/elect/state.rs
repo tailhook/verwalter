@@ -1,4 +1,4 @@
-use rotor::{GenericScope};
+// use rotor::{GenericScope};
 
 use shared::Id;
 use elect::Epoch;

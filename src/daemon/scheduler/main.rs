@@ -11,13 +11,13 @@ use inotify::ffi::{IN_MOVED_TO, IN_CREATE, IN_DELETE, IN_DELETE_SELF};
 use inotify::ffi::{IN_MOVE_SELF};
 use scan_dir::ScanDir;
 use lua::GcOption;
-use rotor_cantal::{Dataset, Key, Value, Chunk};
+//use rotor_cantal::{Dataset, Key, Value, Chunk};
 use libcantal::{Counter, Integer};
 
 use config;
 use time_util::ToMsec;
 use hash::hash;
-use watchdog::{Alarm, ExitOnReturn};
+//use watchdog::{Alarm, ExitOnReturn};
 use shared::{Id, SharedState};
 use scheduler::Schedule;
 use scheduler::state::num_roles;
@@ -61,6 +61,7 @@ fn watch_dir(notify: &mut INotify, path: &Path) {
         warn!("Error when scanning config directory: {:?}", e);
     }).ok();
 }
+/*
 
 fn convert_key(key: &Key) -> Json {
     use rotor_cantal::KeyVisitor::{Key, Value};
@@ -160,6 +161,7 @@ fn convert_metric(metric: &Dataset) -> Json {
         }
     }
 }
+*/
 
 pub fn main(state: SharedState, settings: Settings, mut alarm: Alarm) -> !
 {
@@ -269,13 +271,15 @@ pub fn main(state: SharedState, settings: Settings, mut alarm: Alarm) -> !
                     peers.1.iter()
                         .map(|(id, peer)| (id.to_string(), peer.to_json()))
                         .collect())),
-                ("metrics".to_string(),
+                ("metrics".to_string(), Json::Object(Default::default()))
+                /*
                     state.metrics()
                     .map(|x| Json::Object(x.items.iter()
                         .map(|(host, data)| (host.to_string(),
                             convert_metrics(data)))
                         .collect()))
                     .unwrap_or(Json::Null)),
+                */
             ].into_iter().collect());
 
 
