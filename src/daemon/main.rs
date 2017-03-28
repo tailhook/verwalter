@@ -2,6 +2,7 @@ extern crate abstract_ns;
 extern crate argparse;
 extern crate cbor;
 extern crate env_logger;
+extern crate futures;
 extern crate futures_cpupool;
 extern crate gron;
 extern crate handlebars;
@@ -21,6 +22,9 @@ extern crate sha1;
 extern crate tempfile;
 extern crate time;
 extern crate tk_easyloop;
+extern crate tk_http;
+extern crate tk_listen;
+extern crate tokio_core;
 extern crate yaml_rust;
 
 #[macro_use] extern crate lazy_static;
@@ -41,7 +45,11 @@ use std::process::exit;
 use std::sync::mpsc::{channel, sync_channel};
 use std::thread;
 
+use abstract_ns::Resolver;
+use futures::Future;
 use time::now_utc;
+use tk_easyloop::{run_forever, spawn, handle};
+use tk_listen::ListenExt;
 
 //use shared::{Id, SharedState};
 use config::Sandbox;
@@ -50,6 +58,7 @@ use id::Id;
 mod id;
 mod info;
 mod name;
+mod http;
 //mod shared;
 /*
 mod fs_util;
@@ -212,7 +221,12 @@ fn main() {
     let meter = self_meter_http::Meter::new();
     meter.track_current_thread_by_name();
 
-    let ns = name::init(&meter);
+    run_forever(move || -> Result<(), Box<::std::error::Error>> {
+        let ns = name::init(&meter);
+        http::spawn_listener(&ns,
+            &format!("{}:{}", options.listen_host, options.listen_port))?;
+        Ok(())
+    }).expect("loop starts");
 
 /*
     let addr = (&options.listen_host[..], options.listen_port)
