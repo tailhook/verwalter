@@ -1,26 +1,31 @@
+extern crate abstract_ns;
 extern crate argparse;
-extern crate handlebars;
+extern crate cbor;
 extern crate env_logger;
+extern crate futures_cpupool;
+extern crate gron;
+extern crate handlebars;
+extern crate inotify;
+extern crate itertools;
+extern crate libc;
+extern crate libcantal;
+extern crate nix;
+extern crate ns_std_threaded;
 extern crate quire;
+extern crate rand;
+extern crate regex;
 extern crate rustc_serialize;
+extern crate scan_dir;
+extern crate self_meter_http;
+extern crate sha1;
 extern crate tempfile;
 extern crate time;
-extern crate rand;
-extern crate libc;
-extern crate gron;
-#[macro_use] extern crate lua;
-extern crate nix;
-extern crate scan_dir;
+extern crate tk_easyloop;
 extern crate yaml_rust;
-extern crate cbor;
-extern crate regex;
-extern crate sha1;
-extern crate inotify;
-extern crate libcantal;
-extern crate itertools;
-extern crate self_meter;
+
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate log;
+#[macro_use] extern crate lua;
 #[macro_use] extern crate matches;
 #[macro_use] extern crate quick_error;
 
@@ -44,6 +49,7 @@ use id::Id;
 
 mod id;
 mod info;
+mod name;
 //mod shared;
 /*
 mod fs_util;
@@ -51,6 +57,7 @@ mod scheduler;
 mod elect;
 //mod frontend;
 mod net;
+mod info;
 mod time_util;
 //mod watchdog;
 //mod fetch;
@@ -201,12 +208,13 @@ fn main() {
     };
 
     init_logging(&id, options.log_id);
-/*
-    let meter = Arc::new(Mutex::new(
-        self_meter::Meter::new(Duration::new(1, 0))
-        .expect("meter created")));
-    meter.lock().unwrap().track_current_thread("main");
 
+    let meter = self_meter_http::Meter::new();
+    meter.track_current_thread_by_name();
+
+    let ns = name::init(&meter);
+
+/*
     let addr = (&options.listen_host[..], options.listen_port)
         .to_socket_addrs().expect("Can't resolve hostname")
         .collect::<Vec<_>>()[0];

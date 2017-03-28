@@ -43,11 +43,15 @@ quick-error = "1.1.0"
 libcantal = { git="git://github.com/tailhook/cantal-rs", rev="bbe360a" }
 void = "1.0.0"
 
+abstract-ns = "0.3.2"
 tokio-core = "0.1.6"
 futures = "0.1.11"
+futures-cpupool = "0.1.5"
 tk-cantal = "0.1.0"
 tk-easyloop = "0.1.1"
 tk-listen = "0.1.0"
+ns-std-threaded = "0.2.0"
+self-meter-http = "0.1.1"
 
 [dependencies.indexed_log]
 path = "./indexed_log"
