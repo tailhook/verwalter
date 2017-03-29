@@ -5,7 +5,7 @@ use rustc_serialize::{Encodable, Encoder};
 use time::SteadyTime;
 
 use hash::hash;
-use shared::Id;
+use id::Id;
 use super::prefetch::PrefetchInfo;
 use time_util::ToMsec;
 use itertools::Itertools;

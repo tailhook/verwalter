@@ -2,20 +2,23 @@ use std::net::SocketAddr;
 use std::time::SystemTime;
 use std::collections::{HashMap};
 
+
+use id::Id;
+use peer::Peer;
+pub use self::machine::Epoch;
+pub use self::settings::peers_refresh;
 /*
-use rotor::mio::udp::UdpSocket;
-use rotor_cantal::Schedule as Cantal;
+pub use self::state::ElectionState;
+use shared::{Id, Peer, SharedState};
 */
 
-pub use self::settings::peers_refresh;
-pub use self::state::ElectionState;
-pub use self::machine::Epoch;
-use shared::{Id, Peer, SharedState};
+mod action;
+mod info;
+mod settings;
 
 pub mod machine;  // pub for making counters visible
-mod action;
-mod settings;
-mod info;
+
+/*
 pub mod network;  // pub for making counters visible
 mod encode;
 mod state;
@@ -23,15 +26,16 @@ mod state;
 #[cfg(test)] mod test_mesh;
 #[cfg(test)] mod test_util;
 #[cfg(test)] mod test_split_brain;
+*/
 
 pub struct Election {
     id: Id,
     addr: SocketAddr,
     hostname: String,
     name: String,
-    state: SharedState,
+    //state: SharedState,
     last_schedule_sent: String,
-    machine: machine::Machine,
+    //machine: machine::Machine,
     //cantal: Cantal,
     //socket: UdpSocket,
     debug_force_leader: bool,

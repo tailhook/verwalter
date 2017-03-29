@@ -55,22 +55,23 @@ use tk_listen::ListenExt;
 use config::Sandbox;
 use id::Id;
 
+mod elect;
+mod fs_util;
+mod hash;
+mod http;
 mod id;
 mod info;
 mod name;
-mod http;
-//mod shared;
-/*
-mod fs_util;
+mod peer;
 mod scheduler;
-mod elect;
-//mod frontend;
+mod time_util;
+/*
+mod shared;
+mod frontend;
 mod net;
 mod info;
-mod time_util;
-//mod watchdog;
-//mod fetch;
-mod hash;
+mod watchdog;
+mod fetch;
 mod apply;
 */
 
@@ -221,18 +222,6 @@ fn main() {
     let meter = self_meter_http::Meter::new();
     meter.track_current_thread_by_name();
 
-    run_forever(move || -> Result<(), Box<::std::error::Error>> {
-        let ns = name::init(&meter);
-        http::spawn_listener(&ns,
-            &format!("{}:{}", options.listen_host, options.listen_port))?;
-        Ok(())
-    }).expect("loop starts");
-
-/*
-    let addr = (&options.listen_host[..], options.listen_port)
-        .to_socket_addrs().expect("Can't resolve hostname")
-        .collect::<Vec<_>>()[0];
-
     let schedule_file = options.storage_dir.join("schedule/schedule.json");
     debug!("Loading old schedule from {:?}", schedule_file);
     let old_schedule = match fs_util::read_json(&schedule_file)
@@ -253,6 +242,15 @@ fn main() {
         }
     };
 
+
+    run_forever(move || -> Result<(), Box<::std::error::Error>> {
+        let ns = name::init(&meter);
+        http::spawn_listener(&ns,
+            &format!("{}:{}", options.listen_host, options.listen_port))?;
+        Ok(())
+    }).expect("loop starts");
+
+/*
     let state = SharedState::new(id.clone(), options.debug_force_leader,
                                  old_schedule);
     let hostname = options.hostname

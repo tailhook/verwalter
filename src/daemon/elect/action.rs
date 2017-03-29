@@ -1,6 +1,6 @@
-use std::time::Instant;
+use std::time::{Instant, SystemTime, Duration};
 
-use shared::Id;
+use id::Id;
 
 
 #[derive(PartialEq, Eq, Debug)]
@@ -18,15 +18,19 @@ pub struct ActionList {
 }
 
 impl Action {
-    pub fn and_wait(self, time: Instant) -> ActionList {
+    pub fn and_wait(self, time: SystemTime) -> ActionList {
+        let delay = time.duration_since(SystemTime::now())
+            .unwrap_or(Duration::new(0, 0));
         ActionList {
-            next_wakeup: time,
+            next_wakeup: Instant::now() + delay,
             action: Some(self),
         }
     }
-    pub fn wait(time: Instant) -> ActionList {
+    pub fn wait(time: SystemTime) -> ActionList {
+        let delay = time.duration_since(SystemTime::now())
+            .unwrap_or(Duration::new(0, 0));
         ActionList {
-            next_wakeup: time,
+            next_wakeup: Instant::now() + delay,
             action: None,
         }
     }

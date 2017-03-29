@@ -5,9 +5,9 @@ use std::collections::hash_map::Entry::{Vacant, Occupied};
 use time::{SteadyTime};
 use rustc_serialize::{Encodable, Encoder};
 
-use shared::{Id};
+use id::{Id};
 use elect::ScheduleStamp;
-use super::{Schedule, Hash};
+use scheduler::{Schedule, Hash};
 use time_util::ToMsec;
 
 

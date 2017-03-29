@@ -2,20 +2,27 @@ use std::path::{Path, PathBuf};
 
 use lua::{State as Lua, ThreadStatus, Type, Library};
 use lua::ffi::{lua_upvalueindex};
-use shared::Id;
 
-pub mod main;  // pub for making counters visible
-mod lua_json;
+use id::Id;
+
 mod state;
 mod prefetch;
+/*
+pub mod main;  // pub for making counters visible
+mod lua_json;
 mod execute;
+*/
 
 pub use self::state::{Schedule, State, LeaderState, FollowerState, from_json};
+/*
 pub use self::prefetch::PrefetchInfo;
 pub use self::main::{main as run, Settings};
+*/
+
 
 pub type Hash = String;
 
+/*
 /// A number of milliseconds we are allowed to do prefeching of old data.
 ///
 /// On the one hand, this value may be arbitrarily long, because if all data
@@ -211,3 +218,4 @@ pub fn read(id: Id, hostname: String, base_dir: &Path)
         lua: lua,
     })
 }
+*/

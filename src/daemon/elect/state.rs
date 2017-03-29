@@ -1,6 +1,6 @@
 // use rotor::{GenericScope};
 
-use shared::Id;
+use id::Id;
 use elect::Epoch;
 use elect::machine::Machine;
 use time_util::ToMsec;

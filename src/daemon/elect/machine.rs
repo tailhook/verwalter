@@ -7,7 +7,7 @@ use std::time::{Duration, SystemTime};
 use libcantal::{Counter, Integer};
 
 use time_util::ToMsec;
-use shared::Id;
+use id::Id;
 use super::{Info, Message};
 use super::settings::{start_timeout, election_ivl, HEARTBEAT_INTERVAL};
 use super::action::{Action, ActionList};

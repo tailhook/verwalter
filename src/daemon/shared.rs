@@ -50,32 +50,9 @@ pub struct LeaderCookie {
     pub actions: BTreeMap<u64, Arc<Json>>,
 }
 
-
-#[derive(Clone, PartialEq, Eq, Hash)]
-pub struct Id(Box<[u8]>);
-
 pub enum PushActionError {
     TooManyRequests,
     NotALeader,
-}
-
-
-#[derive(Clone, Debug)]
-pub struct Peer {
-     pub addr: Option<SocketAddr>,
-     pub name: String,
-     pub hostname: String,
-     pub last_report: Option<Timespec>,
-}
-
-impl ToJson for Peer {
-    fn to_json(&self) -> Json {
-        Json::Object(vec![
-            ("hostname".to_string(), self.hostname.to_json()),
-            ("timestamp".to_string(),
-                self.last_report.map(|x| x.to_msec()).to_json()),
-        ].into_iter().collect())
-    }
 }
 
 #[derive(Debug)]
