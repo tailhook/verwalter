@@ -14,15 +14,14 @@ mod execute;
 */
 
 pub use self::state::{Schedule, State, LeaderState, FollowerState, from_json};
-/*
 pub use self::prefetch::PrefetchInfo;
+/*
 pub use self::main::{main as run, Settings};
 */
 
 
 pub type Hash = String;
 
-/*
 /// A number of milliseconds we are allowed to do prefeching of old data.
 ///
 /// On the one hand, this value may be arbitrarily long, because if all data
@@ -79,6 +78,7 @@ quick_error! {
     }
 }
 
+/*
 fn lua_load_file(lua: &mut Lua) -> i32 {
     let mut path = match lua.to_str(lua_upvalueindex(1)) {
         Some(s) => PathBuf::from(s),

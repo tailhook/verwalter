@@ -7,21 +7,21 @@ use id::Id;
 use peer::Peer;
 pub use self::machine::Epoch;
 pub use self::settings::peers_refresh;
-/*
 pub use self::state::ElectionState;
+/*
 use shared::{Id, Peer, SharedState};
 */
 
 mod action;
 mod info;
 mod settings;
+mod state;
 
 pub mod machine;  // pub for making counters visible
 
 /*
 pub mod network;  // pub for making counters visible
 mod encode;
-mod state;
 #[cfg(test)] mod test_node;
 #[cfg(test)] mod test_mesh;
 #[cfg(test)] mod test_util;

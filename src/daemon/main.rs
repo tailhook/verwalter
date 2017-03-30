@@ -51,7 +51,7 @@ use time::now_utc;
 use tk_easyloop::{run_forever, spawn, handle};
 use tk_listen::ListenExt;
 
-//use shared::{Id, SharedState};
+use shared::SharedState;
 use config::Sandbox;
 use id::Id;
 
@@ -64,9 +64,9 @@ mod info;
 mod name;
 mod peer;
 mod scheduler;
+mod shared;
 mod time_util;
 /*
-mod shared;
 mod frontend;
 mod net;
 mod info;
@@ -242,17 +242,19 @@ fn main() {
         }
     };
 
+    let state = SharedState::new(id.clone(), options.debug_force_leader,
+                                 old_schedule);
 
     run_forever(move || -> Result<(), Box<::std::error::Error>> {
         let ns = name::init(&meter);
         http::spawn_listener(&ns,
             &format!("{}:{}", options.listen_host, options.listen_port))?;
+
+
         Ok(())
     }).expect("loop starts");
 
 /*
-    let state = SharedState::new(id.clone(), options.debug_force_leader,
-                                 old_schedule);
     let hostname = options.hostname
                    .unwrap_or_else(|| info::hostname().expect("gethostname"));
     // TODO(tailhook) resolve FQDN
