@@ -245,21 +245,19 @@ fn main() {
     let state = SharedState::new(id.clone(), options.debug_force_leader,
                                  old_schedule);
 
-    run_forever(move || -> Result<(), Box<::std::error::Error>> {
-        let ns = name::init(&meter);
-        http::spawn_listener(&ns,
-            &format!("{}:{}", options.listen_host, options.listen_port))?;
-
-
-        Ok(())
-    }).expect("loop starts");
-
-/*
     let hostname = options.hostname
                    .unwrap_or_else(|| info::hostname().expect("gethostname"));
     // TODO(tailhook) resolve FQDN
     let name = options.name.unwrap_or_else(|| hostname.clone());
+    let listen_addr = format!("{}:{}",
+        options.listen_host, options.listen_port);
 
+    run_forever(move || -> Result<(), Box<::std::error::Error>> {
+        let ns = name::init(&meter);
+        http::spawn_listener(&ns, &listen_addr)?;
+        Ok(())
+    }).expect("loop starts");
+/*
     let (alarm_tx, alarm_rx) = channel();
 
     let scheduler_settings = scheduler::Settings {
