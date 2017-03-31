@@ -17,8 +17,9 @@ use libcantal::{Counter, Integer};
 use config;
 use time_util::ToMsec;
 use hash::hash;
-//use watchdog::{Alarm, ExitOnReturn};
-use shared::{Id, SharedState};
+use watchdog;
+use id::Id;
+use shared::{SharedState};
 use scheduler::Schedule;
 use scheduler::state::num_roles;
 use rustc_serialize::json::{Json, ToJson};
@@ -163,12 +164,12 @@ fn convert_metric(metric: &Dataset) -> Json {
 }
 */
 
-pub fn main(state: SharedState, settings: Settings, mut alarm: Alarm) -> !
+pub fn main(state: SharedState, settings: Settings) -> !
 {
     let mut inotify = INotify::init().expect("create inotify");
-    let _guard = ExitOnReturn(92);
+    let _guard = watchdog::ExitOnReturn(92);
     let mut scheduler = {
-        let _alarm = alarm.after(Duration::from_secs(10));
+        let _alarm = watchdog::Alarm::new(Duration::new(10, 0));
         watch_dir(&mut inotify, &settings.config_dir.join("scheduler"));
         match super::read(settings.id.clone(),
                           settings.hostname.clone(),
@@ -182,7 +183,7 @@ pub fn main(state: SharedState, settings: Settings, mut alarm: Alarm) -> !
         }
     };
     let mut runtime = {
-        let _alarm = alarm.after(Duration::from_secs(2));
+        let _alarm = watchdog::Alarm::new(Duration::new(2, 0));
         watch_dir(&mut inotify, &settings.config_dir.join("runtime"));
         config::read_runtime(&settings.config_dir.join("runtime"))
     };
@@ -200,7 +201,7 @@ pub fn main(state: SharedState, settings: Settings, mut alarm: Alarm) -> !
             if events > 0 {
                 debug!("Inotify events, waiting to become stable");
                 {
-                    let _alarm = alarm.after(Duration::from_secs(10));
+                    let _alarm = watchdog::Alarm::new(Duration::new(10, 0));
                     while events > 0 {
                         // Since we rescan every file anyway, it's negligible
                         // to just rescan the whole directory tree for inotify
@@ -221,7 +222,7 @@ pub fn main(state: SharedState, settings: Settings, mut alarm: Alarm) -> !
 
                 debug!("Directories stable. Reading configs");
                 {
-                    let _alarm = alarm.after(Duration::from_secs(10));
+                    let _alarm = watchdog::Alarm::new(Duration::new(10, 0));
                     match super::read(settings.id.clone(),
                                       settings.hostname.clone(),
                                       &settings.config_dir)
@@ -238,7 +239,7 @@ pub fn main(state: SharedState, settings: Settings, mut alarm: Alarm) -> !
                     }
                 }
                 {
-                    let _alarm = alarm.after(Duration::from_secs(2));
+                    let _alarm = watchdog::Alarm::new(Duration::new(2, 0));
                     runtime = config::read_runtime(
                         &settings.config_dir.join("runtime"))
                 }
@@ -249,7 +250,7 @@ pub fn main(state: SharedState, settings: Settings, mut alarm: Alarm) -> !
 
             let timestamp = SystemTime::now();
             let instant = Instant::now();
-            let _alarm = alarm.after(Duration::from_secs(1));
+            let _alarm = watchdog::Alarm::new(Duration::new(1, 0));
 
             let input = Json::Object(vec![
                 ("now".to_string(), timestamp.to_msec().to_json()),

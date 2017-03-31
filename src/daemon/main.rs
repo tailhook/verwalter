@@ -66,11 +66,11 @@ mod peer;
 mod scheduler;
 mod shared;
 mod time_util;
+mod watchdog;
 /*
 mod frontend;
 mod net;
 mod info;
-mod watchdog;
 mod fetch;
 mod apply;
 */
@@ -252,31 +252,30 @@ fn main() {
     let listen_addr = format!("{}:{}",
         options.listen_host, options.listen_port);
 
-    run_forever(move || -> Result<(), Box<::std::error::Error>> {
-        let ns = name::init(&meter);
-        http::spawn_listener(&ns, &listen_addr)?;
-        Ok(())
-    }).expect("loop starts");
-/*
-    let (alarm_tx, alarm_rx) = channel();
-
     let scheduler_settings = scheduler::Settings {
         id: id.clone(),
         hostname: hostname.clone(),
         config_dir: options.config_dir.clone(),
     };
+
+    run_forever(move || -> Result<(), Box<::std::error::Error>> {
+        watchdog::init();
+
+        let ns = name::init(&meter);
+
+        http::spawn_listener(&ns, &listen_addr)?;
+
+        let m1 = meter.clone();
+        let s1 = state.clone();
+        thread::Builder::new().name(String::from("scheduler")).spawn(move || {
+            m1.track_current_thread_by_name();
+            scheduler::run(s1, scheduler_settings)
+        });
+
+        Ok(())
+    }).expect("loop starts");
+/*
     let scheduler_state = state.clone();
-    let scheduler_alarm_tx = alarm_tx.clone();
-    let mymeter = meter.clone();
-    thread::spawn(move || {
-        mymeter.lock().unwrap().track_current_thread("scheduler");
-        let alarm = {
-            let (tx, rx) = sync_channel(1);
-            {scheduler_alarm_tx}.send(tx).expect("sent alarm task");
-            rx.recv().expect("received alarm")
-        };
-        scheduler::run(scheduler_state, scheduler_settings, alarm)
-    });
 
     let apply_settings = apply::Settings {
         dry_run: options.dry_run,

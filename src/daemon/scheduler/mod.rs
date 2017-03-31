@@ -5,19 +5,15 @@ use lua::ffi::{lua_upvalueindex};
 
 use id::Id;
 
-mod state;
-mod prefetch;
-/*
-pub mod main;  // pub for making counters visible
-mod lua_json;
 mod execute;
-*/
+mod lua_json;
+mod prefetch;
+mod state;
+pub mod main;  // pub for making counters visible
 
 pub use self::state::{Schedule, State, LeaderState, FollowerState, from_json};
 pub use self::prefetch::PrefetchInfo;
-/*
 pub use self::main::{main as run, Settings};
-*/
 
 
 pub type Hash = String;
@@ -78,7 +74,6 @@ quick_error! {
     }
 }
 
-/*
 fn lua_load_file(lua: &mut Lua) -> i32 {
     let mut path = match lua.to_str(lua_upvalueindex(1)) {
         Some(s) => PathBuf::from(s),
@@ -218,4 +213,3 @@ pub fn read(id: Id, hostname: String, base_dir: &Path)
         lua: lua,
     })
 }
-*/
