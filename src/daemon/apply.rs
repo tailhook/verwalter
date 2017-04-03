@@ -13,7 +13,7 @@ use indexed_log::Index;
 
 use fs_util::write_file;
 use shared::{SharedState};
-use watchdog::{ExitOnReturn, Alarm};
+use watchdog;
 
 
 pub struct Settings {
@@ -234,11 +234,11 @@ fn apply_schedule(hash: &String, is_new: bool,
     }
 }
 
-pub fn run(state: SharedState, settings: Settings, mut alarm: Alarm) -> ! {
-    let _guard = ExitOnReturn(93);
+pub fn run(state: SharedState, settings: Settings) -> ! {
+    let _guard = watchdog::ExitOnReturn(93);
     let mut prev_schedule = String::new();
     if let Some(schedule) = state.stable_schedule() {
-        let _alarm = alarm.after(Duration::from_secs(180));
+        let _alarm = watchdog::Alarm::new(Duration::new(180, 0));
         write_file(&settings.schedule_file, &*schedule)
             .map_err(|e| error!("Writing schedule failed: {:?}", e)).ok();
         apply_schedule(&schedule.hash, true, &schedule.data, &settings,
@@ -247,7 +247,7 @@ pub fn run(state: SharedState, settings: Settings, mut alarm: Alarm) -> ! {
     }
     loop {
         let schedule = state.wait_new_schedule(&prev_schedule);
-        let _alarm = alarm.after(Duration::from_secs(180));
+        let _alarm = watchdog::Alarm::new(Duration::new(180, 0));
         write_file(&settings.schedule_file, &*schedule)
             .map_err(|e| error!("Writing schedule failed: {:?}", e)).ok();
         apply_schedule(&schedule.hash, prev_schedule != schedule.hash,

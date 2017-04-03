@@ -55,6 +55,7 @@ use shared::SharedState;
 use config::Sandbox;
 use id::Id;
 
+mod apply;
 mod elect;
 mod fs_util;
 mod hash;
@@ -72,7 +73,6 @@ mod frontend;
 mod net;
 mod info;
 mod fetch;
-mod apply;
 */
 
 use argparse::{ArgumentParser, Parse, ParseOption, StoreOption, StoreTrue};
@@ -258,6 +258,21 @@ fn main() {
         config_dir: options.config_dir.clone(),
     };
 
+    let apply_settings = apply::Settings {
+        dry_run: options.dry_run,
+        use_sudo: options.use_sudo,
+        hostname: hostname.clone(),
+        log_dir: options.log_dir.clone(),
+        config_dir: options.config_dir.clone(),
+        schedule_file: schedule_file,
+    };
+    let apply_state = state.clone();
+    let m1 = meter.clone();
+    thread::Builder::new().name(String::from("apply")).spawn(move || {
+        m1.track_current_thread_by_name();
+        apply::run(apply_state, apply_settings);
+    });
+
     run_forever(move || -> Result<(), Box<::std::error::Error>> {
         watchdog::init();
 
@@ -274,37 +289,4 @@ fn main() {
 
         Ok(())
     }).expect("loop starts");
-/*
-    let scheduler_state = state.clone();
-
-    let apply_settings = apply::Settings {
-        dry_run: options.dry_run,
-        use_sudo: options.use_sudo,
-        hostname: hostname.clone(),
-        log_dir: options.log_dir.clone(),
-        config_dir: options.config_dir.clone(),
-        schedule_file: schedule_file,
-    };
-    let apply_state = state.clone();
-    let apply_alarm_tx = alarm_tx; // this is last one, no clone
-    let mymeter = meter.clone();
-    thread::spawn(move || {
-        mymeter.lock().unwrap().track_current_thread("apply");
-        let alarm = {
-            let (tx, rx) = sync_channel(1);
-            {apply_alarm_tx}.send(tx).expect("sent alarm task");
-            rx.recv().expect("received alarm")
-        };
-        apply::run(apply_state, apply_settings, alarm);
-    });
-
-    info!("Started with machine id {}, listening {}", id, addr);
-    net::main(&addr, id, hostname, name, state,
-        options.config_dir.join("frontend"),
-        &sandbox, options.log_dir.clone(),
-        options.debug_force_leader,
-        alarm_rx, meter)
-        .expect("Error running main loop");
-    unreachable!();
-    */
 }
