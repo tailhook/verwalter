@@ -13,12 +13,14 @@ use tokio_core::net::TcpListener;
 use tokio_core::io::Io;
 use tk_listen::ListenExt;
 
+use frontend;
+use shared::SharedState;
+
 
 fn service<S:Io>(_: Request, mut e: Encoder<S>)
     -> FutureResult<EncoderDone<S>, Error>
 {
     const BODY: &'static str = "Hello World!";
-    println!("SERVING");
 
     e.status(Status::Ok);
     e.add_length(BODY.as_bytes().len() as u64).unwrap();
@@ -29,10 +31,12 @@ fn service<S:Io>(_: Request, mut e: Encoder<S>)
     ok(e.done())
 }
 
-pub fn spawn_listener(ns: &abstract_ns::Router, addr: &str)
+pub fn spawn_listener(ns: &abstract_ns::Router, addr: &str,
+    state: &SharedState)
     -> Result<(), Box<::std::error::Error>>
 {
     let str_addr = addr.to_string();
+    let state = state.clone();
     let hcfg = tk_http::server::Config::new()
         .inflight_request_limit(2)
         .inflight_request_prealoc(0)
@@ -54,12 +58,13 @@ pub fn spawn_listener(ns: &abstract_ns::Router, addr: &str)
                     exit(81);
                 });
             let hcfg = hcfg.clone();
+            let state = state.clone();
             spawn(listener.incoming()
                 .sleep_on_error(Duration::from_millis(100), &handle())
                 .map(move |(socket, saddr)| {
                     println!("accepted {:?}", saddr);
                     Proto::new(socket, &hcfg,
-                       BufferedDispatcher::new(saddr, &handle(), || service),
+                       frontend::Dispatcher(state.clone()),
                        &handle())
                     .map_err(|e| debug!("Http protocol error: {}", e))
                 })

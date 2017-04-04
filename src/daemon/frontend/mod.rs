@@ -7,16 +7,16 @@ use std::time::{Duration};
 use std::ascii::AsciiExt;
 use std::collections::{HashMap, HashSet};
 
+use futures::{Future, Async};
 use gron::json_to_gron;
-use self_meter;
-use rotor::{Scope, Time};
-use rotor_http::server::{Server, Response, RecvMode, Head};
 use rustc_serialize::Encodable;
 use rustc_serialize::json::{as_json, as_pretty_json, Json};
+use tk_http::server::{Codec as CodecTrait, Dispatcher as DispatcherTrait};
+use tk_http::server::{Head, Encoder, EncoderDone, RecvMode, Error};
 
-use net::Context;
+use id::Id;
 use elect::Epoch;
-use shared::{PushActionError, Id};
+use shared::{SharedState, PushActionError};
 use time_util::ToMsec;
 
 mod to_json;
@@ -70,9 +70,16 @@ pub enum Route {
     Static(String),
     Api(ApiRoute, Format),
     Log(LogRoute),
+    NotFound,
 }
 
-pub struct Public(Route);
+pub struct Dispatcher(pub SharedState);
+
+pub struct Codec {
+    state: SharedState,
+    route: Route,
+}
+
 
 fn path_component(path: &str) -> (&str, &str) {
     let path = if path.starts_with('/') {
@@ -98,6 +105,7 @@ fn suffix(path: &str) -> &str {
     }
 }
 
+/*
 fn read_file<P:AsRef<Path>>(path: P, res: &mut Response)
     -> Result<(), io::Error>
 {
@@ -187,6 +195,7 @@ fn serve_log(route: &LogRoute, ctx: &Context, res: &mut Response)
     res.done();
     Ok(())
 }
+*/
 
 
 fn api_suffix(path: &str) -> Format {
@@ -215,9 +224,9 @@ fn parse_range_bytes(x: &str) -> Option<Range> {
 
 fn parse_range(head: &Head) -> Option<(&'static str, Range)> {
     let mut result = None;
-    for header in head.headers {
-        if header.name.eq_ignore_ascii_case("Range") {
-            let s = match from_utf8(header.value) {
+    for (name, value) in head.headers() {
+        if name.eq_ignore_ascii_case("Range") {
+            let s = match from_utf8(value) {
                 Ok(s) => s,
                 // TODO(tailhook) implement 416 or 400
                 Err(..) => return None,
@@ -301,6 +310,7 @@ fn parse_api(path: &str, head: &Head) -> Option<Route> {
     }
 }
 
+/*
 fn respond<T: Encodable>(res: &mut Response, format: Format, data: T)
     -> Result<(), io::Error>
 {
@@ -346,6 +356,8 @@ fn respond_text<T: AsRef<[u8]>>(res: &mut Response, data: T)
 
 fn get_metrics() -> HashMap<&'static str, Json>
 {
+    unimplemented!();
+    /*
     use scheduler::main as S;
     use elect::machine as M;
     use elect::network as N;
@@ -407,8 +419,11 @@ fn get_metrics() -> HashMap<&'static str, Json>
         ("last_confirm_vote", N::LAST_CONFIRM_VOTE.js()),
         ("last_pong", N::LAST_PONG.js()),
     ].into_iter().collect()
+    */
 }
+*/
 
+/*
 fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
     data: &[u8], format: Format, res: &mut Response)
     -> Result<(), io::Error>
@@ -580,50 +595,27 @@ fn serve_error_page(code: u32, response: &mut Response) {
     response.write_body(bytes);
     response.done();
 }
+*/
 
-impl Server for Public {
-    type Context = Context;
-    type Seed = ();
-    fn headers_received(_seed: (), head: Head, res: &mut Response,
-        scope: &mut Scope<Context>)
-        -> Option<(Self, RecvMode, Time)>
-    {
-        use self::Route::*;
-        if !head.path.starts_with('/') {
-            // Don't know what to do with that ugly urls
-            return None;
-        }
-        let path = match head.path.find('?') {
-            Some(x) => &head.path[..x],
-            None => head.path,
-        };
-        let route = match path_component(&path[..]) {
-            ("", _) => Some(Index),
-            ("v1", suffix) => parse_api(suffix, &head),
-            (_, _) => {
-                if !validate_path(&path[1..]) {
-                    serve_error_page(400, res);
-                    return None;
-                }
-                Some(Static(path[1..].to_string()))
-            }
-        };
-        debug!("Routed {:?} to {:?}", head.path, route);
-        match route {
-            Some(route) => {
-                Some((Public(route), RecvMode::Buffered(65536),
-                    scope.now() + Duration::new(120, 0)))
-            }
-            None => {
-                serve_error_page(500, res);
-                None
-            }
-        }
+impl<S> CodecTrait<S> for Codec {
+    type ResponseFuture = Box<Future<Item=EncoderDone<S>, Error=Error>>;
+
+    fn recv_mode(&mut self) -> RecvMode {
+        RecvMode::buffered_upfront(1_048_576)
     }
-    fn request_received(self, data: &[u8], res: &mut Response,
-        scope: &mut Scope<Context>)
-        -> Option<Self>
+
+    fn start_response(&mut self, e: Encoder<S>) -> Self::ResponseFuture {
+        unimplemented!();
+    }
+
+    fn data_received(&mut self,
+                     data: &[u8],
+                     end: bool)
+                     -> Result<Async<usize>, Error>
     {
+        assert!(end);
+        unimplemented!();
+        /*
         use self::Route::*;
         let iores = match *&self.0 {
             Index => read_file(scope.frontend_dir
@@ -656,29 +648,45 @@ impl Server for Public {
             }
         }
         None
-    }
-    fn request_chunk(self, _chunk: &[u8], _response: &mut Response,
-        _scope: &mut Scope<Context>)
-        -> Option<Self>
-    {
-        unreachable!();
+        */
     }
 
-    /// End of request body, only for Progressive requests
-    fn request_end(self, _response: &mut Response, _scope: &mut Scope<Context>)
-        -> Option<Self>
-    {
-        unreachable!();
-    }
+}
 
-    fn timeout(self, _response: &mut Response, _scope: &mut Scope<Context>)
-        -> Option<(Self, Time)>
+impl<S> DispatcherTrait<S> for Dispatcher {
+    type Codec = Codec;
+    fn headers_received(&mut self, headers: &Head)
+        -> Result<Self::Codec, Error>
     {
-        unimplemented!();
+        Ok(Codec {
+            state: self.0.clone(),
+            route: route(headers),
+        })
     }
-    fn wakeup(self, _response: &mut Response, _scope: &mut Scope<Context>)
-        -> Option<Self>
-    {
-        unimplemented!();
-    }
+}
+
+
+fn route(head: &Head) -> Route {
+    use self::Route::*;
+    let path = if let Some(path) = head.path() {
+        path
+    } else {
+        return Route::NotFound;
+    };
+    let path = match path.find('?') {
+        Some(x) => &path[..x],
+        None => path,
+    };
+    let route = match path_component(&path[..]) {
+        ("", _) => Some(Index),
+        ("v1", suffix) => parse_api(suffix, &head),
+        (_, _) => {
+            if !validate_path(&path[1..]) {
+                return Route::NotFound;
+            }
+            Some(Static(path[1..].to_string()))
+        }
+    };
+    debug!("Routed {:?} to {:?}", path, route);
+    route.unwrap_or(Route::NotFound)
 }

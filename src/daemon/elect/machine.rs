@@ -3,7 +3,6 @@ use std::cmp::{Ord, Ordering};
 use std::cmp::Ordering::{Less as Older, Equal as Current, Greater as Newer};
 use std::time::{Duration, SystemTime};
 
-//use rotor::Time;
 use libcantal::{Counter, Integer};
 
 use time_util::ToMsec;

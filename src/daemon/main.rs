@@ -68,8 +68,8 @@ mod scheduler;
 mod shared;
 mod time_util;
 mod watchdog;
-/*
 mod frontend;
+/*
 mod net;
 mod info;
 mod fetch;
@@ -278,7 +278,7 @@ fn main() {
 
         let ns = name::init(&meter);
 
-        http::spawn_listener(&ns, &listen_addr)?;
+        http::spawn_listener(&ns, &listen_addr, &state)?;
 
         let m1 = meter.clone();
         let s1 = state.clone();
