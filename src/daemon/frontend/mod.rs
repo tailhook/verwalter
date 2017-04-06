@@ -11,6 +11,7 @@ use futures::{Future, Async};
 use gron::json_to_gron;
 use rustc_serialize::Encodable;
 use rustc_serialize::json::{as_json, as_pretty_json, Json};
+use tk_http::Status;
 use tk_http::server::{Codec as CodecTrait, Dispatcher as DispatcherTrait};
 use tk_http::server::{Head, Encoder, EncoderDone, RecvMode, Error};
 
@@ -19,112 +20,31 @@ use elect::Epoch;
 use shared::{SharedState, PushActionError};
 use time_util::ToMsec;
 
+mod routing;
+mod quick_reply;
+mod error_page;
 mod to_json;
 
-use self::to_json::ToJson;
+use frontend::to_json::ToJson;
+use frontend::routing::{route, Route};
+pub use frontend::quick_reply::reply;
+pub use frontend::error_page::serve_error_page;
 
 const MAX_LOG_RESPONSE: u64 = 1048576;
 
-#[derive(Clone, Debug)]
-pub enum ApiRoute {
-    Status,
-    Peers,
-    Schedule,
-    Scheduler,
-    SchedulerInput,
-    SchedulerDebugInfo,
-    Election,
-    PushAction,
-    ActionIsPending(u64),
-    PendingActions,
-    ForceRenderAll,
-}
+pub type Request<S> = Box<CodecTrait<S, ResponseFuture=Reply<S>>>;
+pub type Reply<S> = Box<Future<Item=EncoderDone<S>, Error=Error>>;
 
-#[derive(Clone, Copy, Debug)]
-pub enum Range {
-    FromTo(u64, u64),
-    AllFrom(u64),
-    Last(u64),
-}
-
-
-#[derive(Clone, Debug)]
-pub enum LogRoute {
-    Index(String, Range),
-    Global(String, Range),
-    Changes(String, Range),
-    Role(String, Range),
-    External(String, Range),
-}
-
-#[derive(Clone, Debug, Copy)]
-pub enum Format {
-    Json,
-    Gron,
-    Plain,
-}
-
-#[derive(Clone, Debug)]
-pub enum Route {
-    Index,
-    Static(String),
-    Api(ApiRoute, Format),
-    Log(LogRoute),
-    NotFound,
-}
 
 pub struct Dispatcher(pub SharedState);
 
-pub struct Codec {
-    state: SharedState,
-    route: Route,
-}
 
-
-fn path_component(path: &str) -> (&str, &str) {
-    let path = if path.starts_with('/') {
-        &path[1..]
-    } else {
-        path
-    };
-    match path.bytes().position(|x| x == b'/') {
-        Some(end) => (&path[..end], &path[end+1..]),
-        None => {
-            let end = path.bytes().position(|x| x == b'.')
-                .unwrap_or(path.as_bytes().len());
-            (&path[..end], "")
-        }
-    }
-}
-
-fn suffix(path: &str) -> &str {
-    match path.bytes().rposition(|x| x == b'.' || x == b'/') {
-        Some(i) if path.as_bytes()[i] == b'.' => &path[i+1..],
-        Some(_) => "",
-        None => "",
-    }
-}
-
-/*
-fn read_file<P:AsRef<Path>>(path: P, res: &mut Response)
-    -> Result<(), io::Error>
+fn read_file<P:AsRef<Path>, S>(path: P, enc: Encoder<S>)
+    -> EncoderDone<S>
 {
-    let path = path.as_ref();
-    let mut file = try!(File::open(path));
-    let mut buf = Vec::with_capacity(1024);
-    try!(file.read_to_end(&mut buf));
-    res.status(200, "OK");
-    res.add_length(buf.len() as u64).unwrap();
-    if path.extension().and_then(|x| x.to_str()) == Some("js") {
-        res.add_header("Content-Type", b"text/javascript; charset=utf-8")
-            .unwrap();
-    }
-    // TODO(tailhook) guess mime type
-    res.done_headers().unwrap();
-    res.write_body(&buf);
-    res.done();
-    Ok(())
+    unimplemented!();
 }
+/*
 
 fn serve_log(route: &LogRoute, ctx: &Context, res: &mut Response)
     -> io::Result<()>
@@ -198,117 +118,6 @@ fn serve_log(route: &LogRoute, ctx: &Context, res: &mut Response)
 */
 
 
-fn api_suffix(path: &str) -> Format {
-    use self::Format::*;
-    match suffix(path) {
-        "pretty" => Plain,
-        "gron" => Gron,
-        _ => Json,
-    }
-}
-
-fn parse_range_bytes(x: &str) -> Option<Range> {
-    use self::Range::*;
-    let mut iter = x.splitn(2, "-");
-    match (iter.next(), iter.next()) {
-        (_, None) | (None, _) => return None,
-        (Some(""), Some(neg)) => neg.parse().ok().map(Last),
-        (Some(st), Some("")) => st.parse().ok().map(AllFrom),
-        (Some(start), Some(end)) => {
-            start.parse().and_then(
-                |start| end.parse().map(|end| FromTo(start, end))
-            ).ok()
-        }
-    }
-}
-
-fn parse_range(head: &Head) -> Option<(&'static str, Range)> {
-    let mut result = None;
-    for (name, value) in head.headers() {
-        if name.eq_ignore_ascii_case("Range") {
-            let s = match from_utf8(value) {
-                Ok(s) => s,
-                // TODO(tailhook) implement 416 or 400
-                Err(..) => return None,
-            };
-            if result.is_some() {
-                // TODO(tailhook) implement 416 or 400
-                return None;
-            }
-            if s.trim().starts_with("bytes=") {
-                match parse_range_bytes(&s[6..]) {
-                    Some(x) => result = Some(("bytes", x)),
-                    // TODO(tailhook) implement 400
-                    None => return None,
-                }
-            } else if s.trim().starts_with("records=") {
-                match parse_range_bytes(&s[8..]) {
-                    Some(x) => result = Some(("records", x)),
-                    // TODO(tailhook) implement 400
-                    None => return None,
-                }
-            } else {
-                // TODO(tailhook) implement 400
-                return None;
-            }
-        }
-    }
-    return result;
-}
-
-fn validate_path<P: AsRef<Path>>(path: P) -> bool {
-    for cmp in Path::new(path.as_ref()).components(){
-        match cmp {
-            Normal(_) => {}
-            _ => return false,
-        }
-    }
-    return true;
-}
-
-fn parse_log_route(path: &str, head: &Head) -> Option<LogRoute> {
-    use self::LogRoute::*;
-    if !validate_path(path) {
-        // TODO(tailhook) implement 400
-        return None;
-    }
-    // TODO(tailhook) implement 416
-    parse_range(head).and_then(|(typ, rng)| {
-        match (path_component(path), typ) {
-            (("index", tail), "bytes") => Some(Index(tail.into(), rng)),
-            (("global", tail), "bytes") => Some(Global(tail.into(), rng)),
-            (("changes", tail), "bytes") => Some(Changes(tail.into(), rng)),
-            (("role", tail), "bytes") => Some(Role(tail.into(), rng)),
-            (("external", tail), "bytes") => Some(External(tail.into(), rng)),
-            _ => None,
-        }
-    })
-}
-
-fn parse_api(path: &str, head: &Head) -> Option<Route> {
-    use self::Route::*;
-    use self::ApiRoute::*;
-    use self::Format::Plain;
-    match path_component(path) {
-        ("status", "") => Some(Api(Status, api_suffix(path))),
-        ("peers", "") => Some(Api(Peers, api_suffix(path))),
-        ("schedule", "") => Some(Api(Schedule, api_suffix(path))),
-        ("scheduler", "") => Some(Api(Scheduler, api_suffix(path))),
-        ("scheduler_input", "") => Some(Api(SchedulerInput, api_suffix(path))),
-        ("scheduler_debug_info", "") => Some(Api(SchedulerDebugInfo, Plain)),
-        ("election", "") => Some(Api(Election, api_suffix(path))),
-        ("action", "") => Some(Api(PushAction, api_suffix(path))),
-        ("force_render_all", "") => Some(Api(ForceRenderAll, Plain)),
-        ("action_is_pending", tail) => {
-            tail.parse().map(|x| {
-                Api(ActionIsPending(x), api_suffix(path))
-            }).ok()
-        }
-        ("pending_actions", "") => Some(Api(PendingActions, api_suffix(path))),
-        ("log", tail) => parse_log_route(tail, &head).map(Log),
-        _ => None,
-    }
-}
 
 /*
 fn respond<T: Encodable>(res: &mut Response, format: Format, data: T)
@@ -571,56 +380,25 @@ fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
     }
 }
 
-
-fn serve_error_page(code: u32, response: &mut Response) {
-    let (status, reason) = match code {
-        400 => (400, "Bad Request"),
-        404 => (404, "Not Found"),
-        408 => (408, "Request Timeout"),
-        413 => (413, "Payload Too Large"),
-        421 => (421, "Misdirected Request"),
-        429 => (429, "Too Many Requests"),
-        431 => (431, "Request Header Fields Too Large"),
-        500 => (500, "Internal Server Error"),
-        _ => unreachable!(),
-    };
-    response.status(status, reason);
-    let data = format!("<h1>{} {}</h1>\n\
-        <p><small>Served for you by rotor-http</small></p>\n",
-        status, reason);
-    let bytes = data.as_bytes();
-    response.add_length(bytes.len() as u64).unwrap();
-    response.add_header("Content-Type", b"text/html").unwrap();
-    response.done_headers().unwrap();
-    response.write_body(bytes);
-    response.done();
-}
 */
 
-impl<S> CodecTrait<S> for Codec {
-    type ResponseFuture = Box<Future<Item=EncoderDone<S>, Error=Error>>;
-
-    fn recv_mode(&mut self) -> RecvMode {
-        RecvMode::buffered_upfront(1_048_576)
-    }
-
-    fn start_response(&mut self, e: Encoder<S>) -> Self::ResponseFuture {
-        unimplemented!();
-    }
-
-    fn data_received(&mut self,
-                     data: &[u8],
-                     end: bool)
-                     -> Result<Async<usize>, Error>
+impl<S: 'static> DispatcherTrait<S> for Dispatcher {
+    type Codec = Request<S>;
+    fn headers_received(&mut self, headers: &Head)
+        -> Result<Self::Codec, Error>
     {
-        assert!(end);
-        unimplemented!();
-        /*
         use self::Route::*;
-        let iores = match *&self.0 {
-            Index => read_file(scope.frontend_dir
-                               .join("common/index.html"), res),
+        match route(headers) {
+            Index => {
+                unimplemented!();
+                /*
+                read_file(scope.frontend_dir
+                               .join("common/index.html"), res)
+                */
+            }
             Static(ref x) => {
+                unimplemented!();
+                /*
                 match read_file(scope.frontend_dir.join(&x), res) {
                     Err(ref e) if e.kind() == io::ErrorKind::NotFound => {
                         read_file(scope.frontend_dir
@@ -628,65 +406,21 @@ impl<S> CodecTrait<S> for Codec {
                     }
                     res => res,
                 }
+                */
             }
-            Api(ref route, fmt) => serve_api(scope, route, data, fmt, res),
+            Api(ref route, fmt) => {
+                unimplemented!();
+                /*
+                serve_api(scope, route, data, fmt, res);
+                */
+            }
             Log(ref x) => {
-                serve_log(x, scope, res)
+                unimplemented!();
+                //serve_log(x, scope, res)
             }
-        };
-        match iores {
-            Ok(()) => {}
-            Err(ref e) if e.kind() == io::ErrorKind::NotFound => {
-                serve_error_page(404, res);
-            }
-            Err(ref e) if e.kind() == io::ErrorKind::PermissionDenied => {
-                serve_error_page(403, res);
-            }
-            Err(e) => {
-                info!("Error serving {:?}: {}", self.0, e);
-                serve_error_page(500, res);
+            NotFound => {
+                serve_error_page(Status::NotFound)
             }
         }
-        None
-        */
     }
-
-}
-
-impl<S> DispatcherTrait<S> for Dispatcher {
-    type Codec = Codec;
-    fn headers_received(&mut self, headers: &Head)
-        -> Result<Self::Codec, Error>
-    {
-        Ok(Codec {
-            state: self.0.clone(),
-            route: route(headers),
-        })
-    }
-}
-
-
-fn route(head: &Head) -> Route {
-    use self::Route::*;
-    let path = if let Some(path) = head.path() {
-        path
-    } else {
-        return Route::NotFound;
-    };
-    let path = match path.find('?') {
-        Some(x) => &path[..x],
-        None => path,
-    };
-    let route = match path_component(&path[..]) {
-        ("", _) => Some(Index),
-        ("v1", suffix) => parse_api(suffix, &head),
-        (_, _) => {
-            if !validate_path(&path[1..]) {
-                return Route::NotFound;
-            }
-            Some(Static(path[1..].to_string()))
-        }
-    };
-    debug!("Routed {:?} to {:?}", path, route);
-    route.unwrap_or(Route::NotFound)
 }
