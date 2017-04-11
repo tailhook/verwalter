@@ -1,16 +1,19 @@
 use std::io;
+use std::default::Default;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 
 use tempfile::NamedTempFile;
-use handlebars::{Handlebars, RenderError};
+use handlebars::{Handlebars, RenderError as HbsError};
+use tera::Error as TeraError;
 use rustc_serialize::json::Json;
 
-use renderfile::{self as config, TemplateError};
 use apply::{Source, Command};
 use indexed_log::Role;
 use quick_error::ResultExt;
+use renderfile::{self as config, TemplateError};
+use tera::Tera;
 
 #[derive(RustcDecodable, Debug)]
 pub struct Renderer {
@@ -31,13 +34,26 @@ quick_error! {
             display("bad templates, errors: {}", err)
             description("couldn't parse templates")
         }
-        Render(err: RenderError, file: PathBuf, data: Json) {
+        UnknownTemplateType(path: PathBuf) {
+            display("unknown template type {:?}", path)
+            description("unknown template type")
+        }
+        Handlebars(err: HbsError, file: PathBuf, data: Json) {
+            cause(err)
             display("error rendering template, file {:?}: \
                 {}\n    data: {:?}", file, err, data)
             description("template rendering error")
-            context(ctx: (&'a PathBuf, &'a Json), err: RenderError)
+            context(ctx: (&'a PathBuf, &'a Json), err: HbsError)
                 -> (err, ctx.0.clone(), ctx.1.clone())
-       }
+        }
+        Tera(err: TeraError, file: PathBuf, data: Json) {
+            cause(err)
+            display("error rendering template, file {:?}: \
+                {}\n    data: {:?}", file, err, data)
+            description("template rendering error")
+            context(ctx: (&'a PathBuf, &'a Json), err: TeraError)
+                -> (err, ctx.0.clone(), ctx.1.clone())
+        }
     }
 }
 
@@ -45,18 +61,30 @@ pub fn render_role(dir: &Path, vars: &Json, log: &mut Role)
     -> Result<Vec<(String, Vec<Command>, Source)>, Error>
 {
     let mut hbars = Handlebars::new();
+    let mut tera = Tera::default();
     let mut result = Vec::new();
 
-    let renderers = try!(config::read_renderers(dir, &mut hbars));
+    let renderers = config::read_renderers(dir, &mut hbars, &mut tera)?;
 
     for (rname, render) in renderers {
         let mut dest = HashMap::new();
         for (tname, tpath) in render.templates {
             let mut tmpfile = try!(NamedTempFile::new());
 
-            let output = try!(hbars.render(&tpath.display().to_string(), vars)
-                .context((&tpath, vars)));
-            try!(tmpfile.write_all(output.as_bytes()));
+            let output = match tpath.extension().and_then(|x| x.to_str()) {
+                Some("hbs") | Some("handlebars") => {
+                    hbars.render(&tpath.display().to_string(), vars)
+                        .context((&tpath, vars))?
+                }
+                Some("tera") => {
+                    unimplemented!();
+                }
+                _ => {
+                    return Err(
+                        Error::UnknownTemplateType(tpath.to_path_buf()));
+                }
+            };
+            tmpfile.write_all(output.as_bytes())?;
             log.template(&tpath, &tmpfile.path(), &output);
             dest.insert(tname.clone(), tmpfile);
         }

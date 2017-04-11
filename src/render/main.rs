@@ -1,15 +1,16 @@
-extern crate rand;
-extern crate libc;
-extern crate regex;
-extern crate quire;
-extern crate scan_dir;
 extern crate argparse;
-extern crate tempfile;
-extern crate yaml_rust;
 extern crate handlebars;
+extern crate libc;
+extern crate quire;
+extern crate rand;
+extern crate regex;
 extern crate rustc_serialize;
-#[macro_use] extern crate quick_error;
+extern crate scan_dir;
+extern crate tempfile;
+extern crate tera;
+extern crate yaml_rust;
 #[macro_use] extern crate lazy_static;
+#[macro_use] extern crate quick_error;
 
 extern crate indexed_log;
 extern crate verwalter_config as config;
