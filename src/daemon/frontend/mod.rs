@@ -24,6 +24,7 @@ mod routing;
 mod quick_reply;
 mod error_page;
 mod to_json;
+mod files;
 
 use frontend::to_json::ToJson;
 use frontend::routing::{route, Route};
@@ -39,11 +40,6 @@ pub type Reply<S> = Box<Future<Item=EncoderDone<S>, Error=Error>>;
 pub struct Dispatcher(pub SharedState);
 
 
-fn read_file<P:AsRef<Path>, S>(path: P, enc: Encoder<S>)
-    -> EncoderDone<S>
-{
-    unimplemented!();
-}
 /*
 
 fn serve_log(route: &LogRoute, ctx: &Context, res: &mut Response)
@@ -390,33 +386,20 @@ impl<S: 'static> DispatcherTrait<S> for Dispatcher {
         use self::Route::*;
         match route(headers) {
             Index => {
-                unimplemented!();
-                /*
-                read_file(scope.frontend_dir
-                               .join("common/index.html"), res)
-                */
+                files::INDEX.serve()
             }
-            Static(ref x) => {
-                unimplemented!();
-                /*
-                match read_file(scope.frontend_dir.join(&x), res) {
-                    Err(ref e) if e.kind() == io::ErrorKind::NotFound => {
-                        read_file(scope.frontend_dir
-                            .join("common/index.html"), res)
-                    }
-                    res => res,
-                }
-                */
+            Static(ref file) => {
+                file.serve()
             }
             Api(ref route, fmt) => {
-                unimplemented!();
-                /*
-                serve_api(scope, route, data, fmt, res);
-                */
+                serve_error_page(Status::NotImplemented)
+                // unimplemented!();
+                // serve_api(scope, route, data, fmt, res);
             }
             Log(ref x) => {
-                unimplemented!();
-                //serve_log(x, scope, res)
+                serve_error_page(Status::NotImplemented)
+                // unimplemented!();
+                // serve_log(x, scope, res)
             }
             NotFound => {
                 serve_error_page(Status::NotFound)

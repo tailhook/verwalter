@@ -6,7 +6,7 @@ commands:
     description: Make default javascripts
     container:  js
     work-dir: frontend
-    run: [webpack]
+    run: [webpack, --progress]
 
   make-js-release: !Command
     description: Make default javascripts
@@ -14,11 +14,12 @@ commands:
     work-dir: frontend
     environ:
       NODE_ENV: production
-    run: [webpack]
+    run: [webpack, --progress]
 
   make: !Command
     description: Build binaries and frontend
     container: xenial
+    prerequisites: [make-js]
     run: [cargo, build]
 
   bulk: !Command
@@ -72,12 +73,6 @@ commands:
         - alpha
         - beta
         - gamma
-      webpack: !Command
-        container: js
-        work-dir: frontend
-        run:
-        - webpack-dev-server
-        - --hot
 
   doc: !Command
     description: Build docs
