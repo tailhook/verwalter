@@ -1,15 +1,17 @@
-extern crate rand;
-extern crate libc;
-extern crate regex;
-extern crate quire;
-extern crate scan_dir;
 extern crate argparse;
-extern crate tempfile;
-extern crate yaml_rust;
 extern crate handlebars;
+extern crate libc;
+extern crate quire;
+extern crate rand;
+extern crate regex;
 extern crate rustc_serialize;
-#[macro_use] extern crate quick_error;
+extern crate scan_dir;
+extern crate serde_json;
+extern crate tempfile;
+extern crate tera;
+extern crate yaml_rust;
 #[macro_use] extern crate lazy_static;
+#[macro_use] extern crate quick_error;
 
 extern crate indexed_log;
 extern crate verwalter_config as config;
@@ -25,23 +27,23 @@ use std::path::{PathBuf};
 use std::process::exit;
 
 use argparse::{ArgumentParser, Parse, ParseOption, StoreTrue, FromCommandLine};
-use rustc_serialize::json::Json;
+use serde_json::{Value, from_str as parse_json};
 
 use indexed_log::Index;
 use config::Sandbox;
 
-struct ParseJson(Json);
+struct ParseJson(Value);
 
 impl FromCommandLine for ParseJson {
     fn from_argument(s: &str) -> Result<ParseJson, String> {
-        Json::from_str(s).map_err(|x| x.to_string()).map(ParseJson)
+        parse_json(s).map_err(|x| x.to_string()).map(ParseJson)
     }
 }
 
 
 fn main() {
-    let mut vars = ParseJson(Json::Null);
-    let mut schedule = ParseJson(Json::Null);
+    let mut vars = ParseJson(Value::Null);
+    let mut schedule = ParseJson(Value::Null);
     let mut log_dir = PathBuf::from("/var/log/verwalter");
     let mut config_dir = PathBuf::from("/etc/verwalter");
     let mut check_dir = None::<PathBuf>;
@@ -77,7 +79,7 @@ fn main() {
         ap.parse_args_or_exit();
     }
     let mut vars = match vars {
-        ParseJson(Json::Object(v)) => v,
+        ParseJson(Value::Object(v)) => v,
         _ => exit(3),
     };
     if check_dir.is_some() {
@@ -88,15 +90,15 @@ fn main() {
     let (id, dir, sandbox) = if let Some(dir) = check_dir {
         ("dry-run-dep-id-dead-beef".into(), dir, Sandbox::empty())
     } else {
-        let id = match vars.get("deployment_id").and_then(|x| x.as_string()) {
+        let id = match vars.get("deployment_id").and_then(|x| x.as_str()) {
             Some(x) => x.to_string(),
             None => exit(3),
         };
-        let template = match vars.get("template").and_then(|x| x.as_string()) {
+        let template = match vars.get("template").and_then(|x| x.as_str()) {
             Some(x) => x.to_string(),
             None => exit(4),
         };
-        match vars.get("verwalter_version").and_then(|x| x.as_string()) {
+        match vars.get("verwalter_version").and_then(|x| x.as_str()) {
             Some(concat!("v", env!("CARGO_PKG_VERSION"))) => {},
             Some(_) => exit(5),
             None => exit(3),
@@ -112,7 +114,7 @@ fn main() {
         (id, config_dir.join("templates").join(template), sandbox)
     };
 
-    let role = match vars.get("role").and_then(|x| x.as_string()) {
+    let role = match vars.get("role").and_then(|x| x.as_str()) {
         Some(x) => x.to_string(),
         None => exit(3),
     };
@@ -124,7 +126,7 @@ fn main() {
             Ok(rlog) => rlog,
             Err(_) => exit(81),
         };
-        match render::render_role(&dir, &Json::Object(vars), &mut rlog)
+        match render::render_role(&dir, &Value::Object(vars), &mut rlog)
         {
             Err(e) => {
                 rlog.log(format_args!(

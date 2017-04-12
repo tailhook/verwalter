@@ -2,10 +2,12 @@ use std::io::{self, Read};
 use std::fs::File;
 use std::path::{Path, PathBuf};
 
-use scan_dir;
-use quire::validate as V;
-use quire::sky::parse_config;
 use handlebars::{Handlebars, TemplateError as HandlebarsError};
+use quire::{parse_config, Options, ErrorList as ConfigError};
+use quire::validate as V;
+use scan_dir;
+use tera::{Tera, Error as TeraError};
+use quick_error::ResultExt;
 
 use apply;
 use render::Renderer;
@@ -18,14 +20,25 @@ quick_error! {
             cause(err)
             display("error reading {:?}: {}", path, err)
             description("error reading template file")
+            context(path: &'a Path, e: io::Error) -> (e, path.to_path_buf())
         }
-        TemplateParse(err: HandlebarsError, path: PathBuf) {
+        Handlebars(err: HandlebarsError, path: PathBuf) {
             cause(err)
             display("error reading {:?}: {}", path, err)
             description("error reading template file")
+            context(path: &'a Path, e: HandlebarsError)
+                -> (e, path.to_path_buf())
         }
-        Config(err: String, path: PathBuf) {
+        Tera(err: TeraError, path: PathBuf) {
+            cause(err)
             display("error reading {:?}: {}", path, err)
+            description("error reading template file")
+            context(path: &'a Path, e: TeraError)
+                -> (e, path.to_path_buf())
+        }
+        Config(err: ConfigError) {
+            from()
+            display("{}", err)
             description("error reading config from template dir")
         }
         ScanDir(err: scan_dir::Error) {
@@ -57,9 +70,8 @@ fn read_renderer(path: &Path, base: &Path)
 {
     let path_rel = path.strip_prefix(base).unwrap();
     let template_base = path_rel.parent().unwrap();
-    let orig: Renderer = try!(parse_config(&path,
-        &config_validator(), Default::default())
-        .map_err(|e| TemplateError::Config(e, path.to_path_buf())));
+    let orig: Renderer = parse_config(&path,
+            &config_validator(), &Options::default())?;
     Ok((path_rel.to_string_lossy().to_string(), Renderer {
             // Normalize path to be relative to base path
             // rather than relative to current subdir
@@ -70,10 +82,9 @@ fn read_renderer(path: &Path, base: &Path)
     }))
 }
 
-pub fn read_renderers(path: &Path, hbars: &mut Handlebars)
+pub fn read_renderers(path: &Path, hbars: &mut Handlebars, tera: &mut Tera)
     -> Result<Vec<(String, Renderer)>, TemplateError>
 {
-    use self::TemplateError::{TemplateRead, TemplateParse};
     let mut renderers = Vec::new();
     try!(scan_dir::ScanDir::files().walk(path, |iter| {
         for (entry, fname) in iter {
@@ -84,11 +95,20 @@ pub fn read_renderers(path: &Path, hbars: &mut Handlebars)
                 let tname = epath
                     .strip_prefix(path).unwrap()
                     .to_string_lossy();
-                try!(File::open(&epath)
+                File::open(&epath)
                     .and_then(|mut f| f.read_to_string(&mut buf))
-                    .map_err(|e| TemplateRead(e, path.to_path_buf())));
-                try!(hbars.register_template_string(&tname, buf)
-                    .map_err(|e| TemplateParse(e, path.to_path_buf())));
+                    .context(path)?;
+                hbars.register_template_string(&tname, buf).context(path)?;
+            } else if fname.ends_with(".tera") {
+                let epath = entry.path();
+                let mut buf = String::with_capacity(4096);
+                let tname = epath
+                    .strip_prefix(path).unwrap()
+                    .to_string_lossy();
+                File::open(&epath)
+                    .and_then(|mut f| f.read_to_string(&mut buf))
+                    .context(path)?;
+                tera.add_raw_template(&tname, &buf).context(path)?;
             } else if fname.ends_with(".render.yaml") ||
                       fname.ends_with(".render.yml")
             {

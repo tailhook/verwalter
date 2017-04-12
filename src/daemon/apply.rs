@@ -50,7 +50,7 @@ fn merge_vars<'x, I, J>(iter: I) -> BTreeMap<String, Json>
     };
 
     iter.map(|x| x.map(Wrapper)).kmerge().map(|x| x.0)
-    .group_by_lazy(|&(key, _)| key).into_iter()
+    .group_by(|&(key, _)| key).into_iter()
     .map(|(key, vals)| {
         let x = vals.map(|(_, v)| v).coalesce(|x, y| {
             match (x, y) {
@@ -70,7 +70,7 @@ fn merge_vars<'x, I, J>(iter: I) -> BTreeMap<String, Json>
                 x.iter()
                 .map(|x| x.as_object().unwrap().iter())
                 .map(|x| x.map(Wrapper)).kmerge().map(|x| x.0)
-                .group_by_lazy(|&(k, _)| k).into_iter()
+                .group_by(|&(k, _)| k).into_iter()
                 .map(|(k, mut vv)| (k.clone(), vv.next().unwrap().1.clone()))
                 .collect()))
         }

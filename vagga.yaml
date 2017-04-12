@@ -189,6 +189,18 @@ commands:
     container: util
     run: [python3, util/fetch-runtime.py]
 
+  test-render: !Command
+    description: "An example command to run render with some test data
+                  (mostly useful for debugging verwalter_render or templates)"
+    container: xenial
+    environ:
+      RUST_LOG: debug
+      RUST_BACKTRACE: 1
+    run:
+    - ./target/debug/verwalter_render
+    - --check-dir=example-configs/pyapp/templates/pyapp/v1
+    - '{"daemons":{"celery":{"config":"/cfg/celery.yaml","image":"celery.v2.0","instances":2,"key":"celery"},"worker":{"config":"/cfg/web-worker.yaml","image":"worker.v2.0","instances":1,"key":"worker"}},"deployment_id":"p0YD7nkS5Vn29UgAjK0wm5hj","frontend":{"allow_stop":true,"kind":"version"},"role":"app2","shortinfo":[["num","Memory (GiB)",2],["num","CPU cores",3]],"template":"pyapp/v1","timestamp":"2017-04-12T09:21:21Z","versions":["v3.1","v2.2","v2.0","v1.1","v1.0"],"verwalter_version":"v0.7.6"}'
+
 containers:
 
   js:
@@ -214,6 +226,7 @@ containers:
       url: "http://files.zerogw.com/bulk/bulk-0.4.5.tar.gz"
       sha256: 8ee5a5f6386c1b408543a82bf22f184ddbc8add8e5eb6cb6b7e8492e5d4036e3
       path: /
+    - !Sh cargo install --root=/usr cargo-outdated
 
     environ: &environ
       HOME: /work/target

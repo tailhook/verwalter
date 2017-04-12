@@ -1,5 +1,5 @@
 templates:
-  processes: lithos.yaml.hbs
+  processes: lithos.yaml.tera
 commands:
 - !PeekLog "vw/.global/latest"
 - !Cmd [echo, lithos_switch, "{{ role }}", "{{ files.processes }}"]
