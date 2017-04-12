@@ -7,13 +7,14 @@ use std::collections::HashMap;
 use tempfile::NamedTempFile;
 use handlebars::{Handlebars, RenderError as HbsError};
 use tera::Error as TeraError;
-use rustc_serialize::json::Json;
 
 use apply::{Source, Command};
 use indexed_log::Role;
 use quick_error::ResultExt;
 use renderfile::{self as config, TemplateError};
 use tera::Tera;
+use serde_json::Value;
+
 
 #[derive(RustcDecodable, Debug)]
 pub struct Renderer {
@@ -38,26 +39,26 @@ quick_error! {
             display("unknown template type {:?}", path)
             description("unknown template type")
         }
-        Handlebars(err: HbsError, file: PathBuf, data: Json) {
+        Handlebars(err: HbsError, file: PathBuf, data: Value) {
             cause(err)
             display("error rendering template, file {:?}: \
                 {}\n    data: {:?}", file, err, data)
             description("template rendering error")
-            context(ctx: (&'a PathBuf, &'a Json), err: HbsError)
+            context(ctx: (&'a PathBuf, &'a Value), err: HbsError)
                 -> (err, ctx.0.clone(), ctx.1.clone())
         }
-        Tera(err: TeraError, file: PathBuf, data: Json) {
+        Tera(err: TeraError, file: PathBuf, data: Value) {
             cause(err)
             display("error rendering template, file {:?}: \
                 {}\n    data: {:?}", file, err, data)
             description("template rendering error")
-            context(ctx: (&'a PathBuf, &'a Json), err: TeraError)
+            context(ctx: (&'a PathBuf, &'a Value), err: TeraError)
                 -> (err, ctx.0.clone(), ctx.1.clone())
         }
     }
 }
 
-pub fn render_role(dir: &Path, vars: &Json, log: &mut Role)
+pub fn render_role(dir: &Path, vars: &Value, log: &mut Role)
     -> Result<Vec<(String, Vec<Command>, Source)>, Error>
 {
     let mut hbars = Handlebars::new();
