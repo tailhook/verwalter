@@ -1,14 +1,13 @@
 use std::path::{Path, PathBuf};
-use std::default::Default;
 use std::collections::HashMap;
 
 use scan_dir::{ScanDir, Error as ScanDirError};
 use quire::validate::{Structure, Mapping, Scalar};
-use quire::sky::{parse_config};
+use quire::{parse_config, Options, ErrorList};
 use quick_error::ResultExt;
 
 
-pub type QuireError = String;  // TODO(tailhook) hopefully quire fixes this
+pub type QuireError = ErrorList;
 
 #[derive(RustcDecodable, Clone)]
 pub struct Sandbox {
@@ -48,7 +47,7 @@ impl Sandbox {
         }
     }
     pub fn parse<P: AsRef<Path>>(p: P) -> Result<Sandbox, QuireError> {
-        parse_config(p.as_ref(), &Sandbox::validator(), Default::default())
+        parse_config(p.as_ref(), &Sandbox::validator(), &Options::default())
     }
     pub fn parse_all<P: AsRef<Path>>(dir: P) -> Result<Sandbox, Error> {
         ScanDir::files().walk(dir, |iter| {

@@ -1,7 +1,6 @@
 extern crate yaml_rust;
 extern crate scan_dir;
 extern crate quire;
-extern crate handlebars;
 extern crate rustc_serialize;
 #[macro_use] extern crate log;
 #[macro_use] extern crate quick_error;

@@ -21,12 +21,12 @@ impl Variables {
     pub fn expand(&self, src: &str) -> String {
         // TODO(tailhook) proper failure when no such var
         VAR_REGEX.replace_all(src, |caps: &Captures| {
-            let name = caps.at(1).unwrap();
-            match self.0.get(name) {
+            let name = caps.get(1).unwrap();
+            match self.0.get(name.as_str()) {
                 Some(x) => x.clone(),
-                None => format!("<< unknown variable: {} >>", name).into(),
+                None => format!("<< unknown variable: {} >>", name.as_str()),
             }
-        })
+        }).to_string()
     }
     pub fn add<A: AsRef<str>, B: AsRef<str>>(mut self, a: A, b: B)
         -> Variables

@@ -231,6 +231,7 @@ containers:
       url: "http://files.zerogw.com/bulk/bulk-0.4.5.tar.gz"
       sha256: 8ee5a5f6386c1b408543a82bf22f184ddbc8add8e5eb6cb6b7e8492e5d4036e3
       path: /
+    - !Sh cargo install --root=/usr cargo-outdated
 
     environ: &environ
       HOME: /work/target

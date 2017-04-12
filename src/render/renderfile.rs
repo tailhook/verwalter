@@ -3,7 +3,7 @@ use std::fs::File;
 use std::path::{Path, PathBuf};
 
 use handlebars::{Handlebars, TemplateError as HandlebarsError};
-use quire::sky::parse_config;
+use quire::{parse_config, Options, ErrorList as ConfigError};
 use quire::validate as V;
 use scan_dir;
 use tera::{Tera, Error as TeraError};
@@ -36,8 +36,9 @@ quick_error! {
             context(path: &'a Path, e: TeraError)
                 -> (e, path.to_path_buf())
         }
-        Config(err: String, path: PathBuf) {
-            display("error reading {:?}: {}", path, err)
+        Config(err: ConfigError) {
+            from()
+            display("{}", err)
             description("error reading config from template dir")
         }
         ScanDir(err: scan_dir::Error) {
@@ -69,9 +70,8 @@ fn read_renderer(path: &Path, base: &Path)
 {
     let path_rel = path.strip_prefix(base).unwrap();
     let template_base = path_rel.parent().unwrap();
-    let orig: Renderer = try!(parse_config(&path,
-        &config_validator(), Default::default())
-        .map_err(|e| TemplateError::Config(e, path.to_path_buf())));
+    let orig: Renderer = parse_config(&path,
+            &config_validator(), &Options::default())?;
     Ok((path_rel.to_string_lossy().to_string(), Renderer {
             // Normalize path to be relative to base path
             // rather than relative to current subdir
