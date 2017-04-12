@@ -95,7 +95,7 @@ fn test_voted_timeout() {
     assert!(act.action == Some(Action::ConfirmVote(two.clone())));
     assert!(matches!(node, Machine::Voted { .. }));
 
-    env.sleep(3000);  // Large timeout, should be enough for new election
+    env.sleep(4000);  // Large timeout, should be enough for new election
     let (node, _) = node.time_passed(&env.info(), env.now());
     assert!(matches!(node, Machine::Electing { epoch: 2, .. }));
 }
