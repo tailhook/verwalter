@@ -78,7 +78,8 @@ pub fn render_role(dir: &Path, vars: &Value, log: &mut Role)
                         .context((&tpath, vars))?
                 }
                 Some("tera") => {
-                    unimplemented!();
+                    tera.render(&tpath.display().to_string(), vars)
+                        .context((&tpath, vars))?
                 }
                 _ => {
                     return Err(
