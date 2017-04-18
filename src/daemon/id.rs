@@ -6,6 +6,7 @@ use std::sync::Arc;
 use cbor::{Encoder, EncodeResult, Decoder, DecodeResult};
 use rustc_serialize::hex::{FromHex, ToHex, FromHexError};
 use rustc_serialize::{Encodable, Encoder as RustcEncoder};
+use serde::{Serialize, Serializer};
 
 
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -48,6 +49,14 @@ impl Id {
 impl Encodable for Id {
     fn encode<S: RustcEncoder>(&self, s: &mut S) -> Result<(), S::Error> {
         self.to_hex().encode(s)
+    }
+}
+
+impl Serialize for Id {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where S: Serializer
+    {
+        self.to_hex().serialize(serializer)
     }
 }
 

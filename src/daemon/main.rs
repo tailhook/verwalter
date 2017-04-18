@@ -18,6 +18,8 @@ extern crate regex;
 extern crate rustc_serialize;
 extern crate scan_dir;
 extern crate self_meter_http;
+extern crate serde;
+extern crate serde_json;
 extern crate sha1;
 extern crate tempfile;
 extern crate time;
@@ -32,6 +34,7 @@ extern crate yaml_rust;
 #[macro_use] extern crate lua;
 #[macro_use] extern crate matches;
 #[macro_use] extern crate quick_error;
+#[macro_use] extern crate serde_derive;
 
 extern crate indexed_log;
 extern crate verwalter_config as config;

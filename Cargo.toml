@@ -42,6 +42,8 @@ self-meter = "0.3.0"
 quick-error = "1.1.0"
 libcantal = { git="git://github.com/tailhook/cantal-rs", rev="bbe360a" }
 tera = "0.9.0"
+serde = "0.9.10"
+serde_derive = "0.9.10"
 serde_json = "0.9.10"
 
 abstract-ns = "0.3.2"

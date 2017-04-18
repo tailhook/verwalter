@@ -213,7 +213,7 @@ pub fn route(head: &Head) -> Route {
             Some(Static(&files::BOOTSTRAP_CSS))
         },
         ("common", "js/bundle.js") => Some(Static(&files::BUNDLE_JS)),
-        (_, _) => None
+        (_, _) => Some(Index),
     };
     debug!("Routed {:?} to {:?}", path, route);
     route.unwrap_or(Route::NotFound)

@@ -34,6 +34,8 @@ dependencies = [
  "scan_dir 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "self-meter 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "self-meter-http 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 0.9.13 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_derive 0.9.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 0.9.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "sha1 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempfile 2.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
