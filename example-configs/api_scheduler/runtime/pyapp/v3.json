@@ -1,0 +1,33 @@
+{
+  "daemons": {
+    "site2": {
+      "port": 7321,
+      "cpu_shares": 1024,
+      "memory_limit": 1073741824,
+      "config": "/config/prod/lithos-site2.yaml",
+      "image": "pyapp-prod.45f2331b"
+    },
+    "site1": {
+      "port": 7320,
+      "cpu_shares": 1024,
+      "memory_limit": 1073741824,
+      "config": "/config/prod/lithos-site1.yaml",
+      "image": "pyapp-prod.45f2331b"
+    }
+  },
+  "containers": {
+    "pyapp-prod": "pyapp-prod.45f2331b",
+    "assets": "assets.7e63e512"
+  },
+  "timestamp": "1492517643.220673",
+  "commands": {
+    "migrate": {
+      "config": "/config/prod/alembic_migrate.yaml",
+      "image": "pyapp-prod.45f2331b"
+    },
+    "downgrade": {
+      "config": "/config/prod/alembic_downgrade.yaml",
+      "image": "pyapp-prod.45f2331b"
+    }
+  }
+}
