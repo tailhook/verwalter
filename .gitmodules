@@ -1,0 +1,3 @@
+[submodule "example-configs/api_scheduler/scheduler/v1/toolbox"]
+	path = example-configs/api_scheduler/scheduler/v1/toolbox
+	url = git@github.com:tailhook/verwalter-toolbox.git
