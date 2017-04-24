@@ -9,11 +9,12 @@ use handlebars::{Handlebars, RenderError as HbsError};
 use tera::Error as TeraError;
 
 use apply::{Source, Command};
+use error_chain::ChainedError;
 use indexed_log::Role;
 use quick_error::ResultExt;
 use renderfile::{self as config, TemplateError};
+use serde_json::{Value, to_string};
 use tera::Tera;
-use serde_json::Value;
 
 
 #[derive(RustcDecodable, Debug)]
@@ -50,7 +51,8 @@ quick_error! {
         Tera(err: TeraError, file: PathBuf, data: Value) {
             cause(err)
             display("error rendering template, file {:?}: \
-                {}\n    data: {:?}", file, err, data)
+                {}\nData: {}", file, err.display(),
+                to_string(data).unwrap_or_else(|_| String::from("bad data")))
             description("template rendering error")
             context(ctx: (&'a PathBuf, &'a Value), err: TeraError)
                 -> (err, ctx.0.clone(), ctx.1.clone())
