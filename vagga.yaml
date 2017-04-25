@@ -76,8 +76,9 @@ commands:
         container: js
         work-dir: frontend
         run:
-        - webpack-dev-server
-        - --hot
+        - webpack
+        - --progress
+        - --watch
 
   doc: !Command
     description: Build docs
