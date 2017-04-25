@@ -1,23 +1,13 @@
 {
   "daemons": {
-    "site2": {
-      "port": 7321,
+    "site": {
+      "variables": {"nginx_port": {"type": "TcpPort"}},
+      "nginx_host": "pyapp.devd.io",
       "cpu_shares": 1024,
       "memory_limit": 1073741824,
-      "config": "/config/prod/lithos-site2.yaml",
-      "image": "pyapp-prod.0eba97c1"
-    },
-    "site1": {
-      "port": 7320,
-      "cpu_shares": 1024,
-      "memory_limit": 1073741824,
-      "config": "/config/prod/lithos-site1.yaml",
+      "config": "/config/prod/lithos-site.yaml",
       "image": "pyapp-prod.0eba97c1"
     }
-  },
-  "containers": {
-    "pyapp-prod": "pyapp-prod.0eba97c1",
-    "assets": "assets.7e63e512"
   },
   "timestamp": "1492518585.6133344",
   "commands": {
