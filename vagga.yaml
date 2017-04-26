@@ -209,7 +209,7 @@ commands:
 
   run-example-api-scheduler: !Supervise
     description: "Run verwalter with api_scheduler example"
-    prerequisites: [make]
+    prerequisites: [make-js, make]
     children:
       verw: !Command
         container: xenial
