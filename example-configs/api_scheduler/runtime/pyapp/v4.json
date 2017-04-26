@@ -9,6 +9,7 @@
       "image": "pyapp-prod.0eba97c1"
     }
   },
+  "ports": ["10000-20000"],
   "timestamp": "1492518585.6133344",
   "commands": {
     "migrate": {
