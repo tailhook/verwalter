@@ -1,0 +1,12 @@
+import pending_actions from '../stores/actions'
+import {refresher, json} from '../middleware/request'
+import {repr} from '../util/object'
+
+
+view main(role, role_name, {role_state, schedule, system_status}):
+  <div>
+    store @actions = pending_actions | refresher
+      | json('/v1/pending_actions')
+
+    <pre>
+      repr(role)

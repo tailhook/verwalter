@@ -8,6 +8,7 @@ import {preloader, action} from '../util/global_actions'
 import {main as example} from '../roles/example.khufu'
 import {main as version} from '../roles/version.khufu'
 import {main as migration} from '../roles/migration.khufu'
+import {main as api} from '../roles/api.khufu'
 
 style:
   .frontend-kind
@@ -80,6 +81,12 @@ view main(status):
               })
           elif frontend == 'migration':
               migration(role, role_name, {
+                role_state: role_state,
+                schedule: @schedule.data,
+                system_status: status
+              })
+          elif frontend == 'api':
+              api(role, role_name, {
                 role_state: role_state,
                 schedule: @schedule.data,
                 system_status: status
