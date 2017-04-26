@@ -15,13 +15,13 @@ view show_leaders(title, suffix, status):
             <li>
               let url = set_port(status.leader.hostname,
                                   status.leader.addr)
-              <a href=url>
+              <a href=`${url}${suffix}`>
                 url
             if status.leader.name != status.leader.hostname:
               <li>
                 let url = set_port(status.leader.name,
                                    status.leader.addr)
-                <a href=url>
+                <a href=`${url}${suffix}`>
                   url
       else:
         <div.panel-body>
