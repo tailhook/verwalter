@@ -1,6 +1,7 @@
 import pending_actions from '../stores/actions'
 import {refresher, json} from '../middleware/request'
 import {repr} from '../util/object'
+import {main as new_deployment} from './api/new_deployment.khufu'
 
 
 view main(role, role_name, {role_state, schedule, system_status}):
@@ -10,3 +11,5 @@ view main(role, role_name, {role_state, schedule, system_status}):
 
     <pre>
       repr(role)
+
+    new_deployment(role)

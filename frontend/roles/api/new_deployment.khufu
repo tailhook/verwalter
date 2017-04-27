@@ -1,0 +1,43 @@
+import {value, bool, set, init, toggle} from '../../stores/simple'
+import {section} from '../../blocks/title.khufu'
+import {url_query, smart_query} from '../../util/routing'
+import {filter_versions} from '../../util/version'
+
+style:
+  .versions
+    display: flex
+    flex-wrap: wrap
+  .version-block
+    margin: 2px
+
+view main(role):
+  section():
+    title: "New deployment"
+    body:
+      <div>
+        store @version =  value
+        store @trunc = value | url_query('trunc') | init('')
+        store @filter = value | smart_query('versions') | init('')
+        <h3> "Version"
+        <div.input-group.panel>
+          <div.input-group-btn>
+            <button.btn.btn-default.active?(@trunc == 'no')>
+              link {click} set(@trunc == 'no' ? '' : 'no') -> @trunc
+              "Show All"
+          <input.form-control placeholder=`Filter Versions` value=@filter>
+            link {input} set(this.value) -> @filter
+          if @filter:
+            <div.input-group-btn>
+              <button.btn.btn-default>
+                link {click} set('') -> @filter
+                <span.glyphicon.glyphicon-remove>
+        <div.versions>
+          store @confirm = value
+          let all = filter_versions(role.versions or [], @filter)
+          let shown = @trunc == 'no' and all or all.slice(0, 20)
+          for ver of shown:
+            <div.version-block.confirm?(@confirm and ver == @confirm.ver)>
+              <div.version-id>
+                <button.btn.btn-default.active?(@version == ver)>
+                  link {click} set(ver) -> @version
+                  ver
