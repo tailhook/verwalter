@@ -1,7 +1,11 @@
 import {value, bool, set, init, toggle} from '../../stores/simple'
+import {repr, entries, keys} from '../../util/object'
+import {refresher, json} from '../../middleware/request'
 import {section} from '../../blocks/title.khufu'
 import {url_query, smart_query} from '../../util/routing'
 import {filter_versions} from '../../util/version'
+import json_store from '../../stores/json'
+
 
 style:
   .versions
@@ -9,35 +13,118 @@ style:
     flex-wrap: wrap
   .version-block
     margin: 2px
+  .panel
+    max-width: 40ex
+  .short
+    max-width: 40ex
 
-view main(role):
+view version(role, @version):
+  <div>
+    store @trunc = value | url_query('trunc') | init('')
+    store @filter = value | smart_query('versions') | init('')
+    <div.input-group.panel>
+      <div.input-group-btn>
+        <button.btn.btn-default.active?(@trunc == 'no')>
+          link {click} set(@trunc == 'no' ? '' : 'no') -> @trunc
+          "Show All"
+      <input.form-control placeholder=`Filter Versions` value=@filter>
+        link {input} set(this.value) -> @filter
+      if @filter:
+        <div.input-group-btn>
+          <button.btn.btn-default>
+            link {click} set('') -> @filter
+            <span.glyphicon.glyphicon-remove>
+    <div.versions>
+      store @confirm = value
+      let all = filter_versions(role.versions or [], @filter)
+      let shown = @trunc == 'no' and all or all.slice(0, 20)
+      for ver of shown:
+        <div.version-block.confirm?(@confirm and ver == @confirm.ver)>
+          <div.version-id>
+            <button.btn.btn-default.btn-xs.active?(@version == ver)>
+              link {click} set(ver) -> @version
+              ver
+
+view main(role, role_name):
   section():
     title: "New deployment"
     body:
       <div>
-        store @version =  value
-        store @trunc = value | url_query('trunc') | init('')
-        store @filter = value | smart_query('versions') | init('')
-        <h3> "Version"
-        <div.input-group.panel>
-          <div.input-group-btn>
-            <button.btn.btn-default.active?(@trunc == 'no')>
-              link {click} set(@trunc == 'no' ? '' : 'no') -> @trunc
-              "Show All"
-          <input.form-control placeholder=`Filter Versions` value=@filter>
-            link {input} set(this.value) -> @filter
-          if @filter:
-            <div.input-group-btn>
-              <button.btn.btn-default>
-                link {click} set('') -> @filter
-                <span.glyphicon.glyphicon-remove>
-        <div.versions>
-          store @confirm = value
-          let all = filter_versions(role.versions or [], @filter)
-          let shown = @trunc == 'no' and all or all.slice(0, 20)
-          for ver of shown:
-            <div.version-block.confirm?(@confirm and ver == @confirm.ver)>
-              <div.version-id>
-                <button.btn.btn-default.active?(@version == ver)>
-                  link {click} set(ver) -> @version
-                  ver
+        store @new_group = value | init('')
+        store @new_group_version = value | init('')
+        <h3> "New group"
+        <div>
+          <div.form-group>
+            <label for="new_group_name"> "Name"
+            <input.form-control.short id="new_group_name" placeholder=`Name`
+              value=@new_group>
+
+          <div.form-group>
+            <label> "Initial version"
+            version(role, -> @new_group_version)
+
+          <button.btn.btn-default>
+            "Create Group"
+
+        <h3> "Add to group"
+        <div>
+          store @input = json_store | refresher
+            | json('/v1/scheduler_input')
+          store @daemon = value | init('')
+
+          let version = role.versions[0]  // TODO fetch version from group
+          let runtime = @input and @input.runtime
+          let role_meta = runtime and runtime[role_name]
+          let meta = role_meta and role_meta[version]
+
+          <div.form-group>
+            <label> "Group"
+            <div>
+              <div.btn-group>
+                <button.btn.btn-default.btn-xs.active?(false)>
+                  "group1"
+                <button.btn.btn-default.btn-xs.active?(false)>
+                  "group2"
+
+          if meta:
+            <div.form-group>
+              <label> "Daemon"
+              <div.daemons>
+                for daemon of keys(meta.daemons):
+                  <button.btn.btn-default.btn-xs.active?(@daemon == daemon)>
+                    link {click} set(daemon) -> @daemon
+                    daemon
+            let vars = @daemon and meta.daemons[@daemon].variables
+            for [varname, vartype] of entries(vars or {}) key varname:
+              <div.form-group>
+                <label> `Variable: ${varname}`
+                if vartype.type == 'TcpPort':
+                  <div.input-group.panel>
+                    <input.form-control.short>
+                    if varname == 'nginx_port':
+                      <label.input-group-addon> "alternate port: "
+                      <input.form-control.short>
+                  `Allowed ranges: ${meta.ports.join(', ')}`
+                elif vartype.type == 'Choice':
+                  <div>
+                    <div.btn-group>
+                      for value of vartype.choices:
+                        <button.btn.btn-default.btn-xs.active?(false)>
+                          value
+
+          <div.form-group>
+            <label> "Servers"
+            <div>
+              <div.btn-group>
+                <button.btn.btn-default.btn-xs.active?(false)>
+                  "server1"
+                <button.btn.btn-default.btn-xs.active?(false)>
+                  "server2"
+
+          <div.form-group>
+            <label> "Number per server"
+            <input.form-control.short>
+
+
+          <button.btn.btn-default>
+            "Add daemon"

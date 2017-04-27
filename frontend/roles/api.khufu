@@ -1,7 +1,9 @@
 import pending_actions from '../stores/actions'
 import {refresher, json} from '../middleware/request'
 import {repr} from '../util/object'
+import {is_leader} from '../util/status'
 import {main as new_deployment} from './api/new_deployment.khufu'
+import {show_leaders} from '../util/leaders.khufu'
 
 
 view main(role, role_name, {role_state, schedule, system_status}):
@@ -12,4 +14,9 @@ view main(role, role_name, {role_state, schedule, system_status}):
     <pre>
       repr(role)
 
-    new_deployment(role)
+    if is_leader(system_status):
+      new_deployment(role, role_name)
+    else:
+      show_leaders(
+        "Actions are Only Available on Leader",
+        `/role/${role_name}`, system_status)
