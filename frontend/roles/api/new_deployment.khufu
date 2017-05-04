@@ -1,10 +1,13 @@
 import {value, bool, set, init, toggle} from '../../stores/simple'
-import {repr, entries, keys} from '../../util/object'
+import {repr, entries, keys, pretty_json} from '../../util/object'
 import {refresher, json} from '../../middleware/request'
 import {section} from '../../blocks/title.khufu'
 import {url_query, smart_query} from '../../util/routing'
 import {filter_versions} from '../../util/version'
 import json_store from '../../stores/json'
+import pending_actions from '../../stores/actions'
+import {execute} from '../../util/action'
+import {parse_int} from '../../util/parse'
 
 
 style:
@@ -50,6 +53,8 @@ view main(role, role_name):
     title: "New deployment"
     body:
       <div>
+        store @actions = pending_actions | refresher
+          | json('/v1/pending_actions')
         store @new_group = value | init('')
         store @new_group_version = value | init('')
         <h3> "New group"
@@ -58,19 +63,32 @@ view main(role, role_name):
             <label for="new_group_name"> "Name"
             <input.form-control.short id="new_group_name" placeholder=`Name`
               value=@new_group>
+              link {input} set(this.value) -> @new_group
 
           <div.form-group>
             <label> "Initial version"
             version(role, -> @new_group_version)
 
+          let api_call = {"button": {role: role_name,
+                                     action: "create_group",
+                                     group_name: @new_group,
+                                     group_version: @new_group_version}}
           <button.btn.btn-default>
+            link {click} execute(api_call) -> @actions
             "Create Group"
+
+          <h4> "Or via API"
+          <pre>
+            `curl http://localhost:8379 -XPOST -d '${pretty_json(api_call)}'`
 
         <h3> "Add to group"
         <div>
           store @input = json_store | refresher
             | json('/v1/scheduler_input')
           store @daemon = value | init('')
+          store @group_name = value | init('')
+          store @servers = value | init([])
+          store @number_per_server = value | init('1')
 
           let version = role.versions[0]  // TODO fetch version from group
           let runtime = @input and @input.runtime
@@ -126,5 +144,20 @@ view main(role, role_name):
             <input.form-control.short>
 
 
+          let api_call = {"button": {
+            role: role_name,
+            action: "add_daemon",
+            group_name: @group_name,
+            daemon_name: @daemon,
+            servers: @servers,
+            number_per_server: parse_int(@number_per_server),
+            // TODO(tailhook)
+            variables: {},
+          }}
           <button.btn.btn-default>
+            link {click} execute(api_call) -> @actions
             "Add daemon"
+
+          <h4> "Or via API"
+          <pre>
+            `curl http://localhost:8379 -XPOST -d '${pretty_json(api_call)}'`
