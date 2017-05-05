@@ -88,8 +88,9 @@ view main(role, role_name, role_state, {peers}):
         <div>
           store @input = json_store | refresher
             | json('/v1/scheduler_input')
-          store @daemon = value | init('')
           store @group_name = value | init('')
+          store @name = value | init('')
+          store @service = value | init('')
           store @servers = uniqueset | init({})
           store @number_per_server = value | init('1')
 
@@ -108,15 +109,19 @@ view main(role, role_name, role_state, {peers}):
                     link {click} set(gname) -> @group_name
                     gname
 
+          <div.form-group>
+            <label> "Name"
+            <input.form-control.short>
+              link {input} set(this.value) -> @name
           if meta:
             <div.form-group>
               <label> "Daemon"
               <div.daemons>
                 for daemon of keys(meta.daemons):
-                  <button.btn.btn-default.btn-xs.active?(@daemon == daemon)>
-                    link {click} set(daemon) -> @daemon
+                  <button.btn.btn-default.btn-xs.active?(@service == daemon)>
+                    link {click} set(daemon) -> @service
                     daemon
-            let vars = @daemon and meta.daemons[@daemon].variables
+            let vars = @service and meta.daemons[@service].variables
             for [varname, vartype] of entries_sorted(vars or {}) key varname:
               <div.form-group>
                 <label> `Variable: ${varname}`
@@ -147,13 +152,14 @@ view main(role, role_name, role_state, {peers}):
           <div.form-group>
             <label> "Number per server"
             <input.form-control.short>
-
+              link {input} set(this.value) -> @number_per_server
 
           let api_call = {"button": {
             role: role_name,
             action: "add_daemon",
             group_name: @group_name,
-            daemon_name: @daemon,
+            new_name: @name,
+            service: @service,
             servers: keys(@servers),
             number_per_server: parse_int(@number_per_server),
             // TODO(tailhook)

@@ -1,0 +1,35 @@
+import {entries_sorted, repr} from '../../util/object'
+import {section} from '../../blocks/title.khufu'
+import {main as versions} from '../../blocks/version_buttons.khufu'
+
+style:
+  .version
+    color: gray
+    font-size: 75%
+    margin-left: 8px
+
+view main(role, role_name, role_state, @actions):
+  for [gname, group] of entries_sorted(role_state.groups) key gname:
+    section():
+      title:
+        gname
+        <span.version>
+          group.version
+      body:
+        <h3> "Services"
+        for [sname, service] of entries_sorted(group.services) key sname:
+          <h4> sname
+          <table.table.table-hover>
+            <thead>
+              <tr>
+                <th> "Property"
+                <th> "Value"
+            <tbody>
+              for [name, value] of entries_sorted(service) key name:
+                <tr>
+                  <td>
+                    name
+                  <td>
+                    repr(value)
+        <h3> "Update"
+        versions(-> @actions, role, role_name)
