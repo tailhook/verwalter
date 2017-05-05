@@ -1,5 +1,6 @@
 import {value, bool, set, init, toggle} from '../../stores/simple'
-import {repr, entries, keys, pretty_json} from '../../util/object'
+import {uniqueset, toggleunique} from '../../stores/simple'
+import {repr, entries_sorted, keys, pretty_json} from '../../util/object'
 import {refresher, json} from '../../middleware/request'
 import {section} from '../../blocks/title.khufu'
 import {url_query, smart_query} from '../../util/routing'
@@ -8,6 +9,7 @@ import json_store from '../../stores/json'
 import pending_actions from '../../stores/actions'
 import {execute} from '../../util/action'
 import {parse_int} from '../../util/parse'
+import {show_action_progress} from '../../blocks/action.khufu'
 
 
 style:
@@ -48,7 +50,7 @@ view version(role, @version):
               link {click} set(ver) -> @version
               ver
 
-view main(role, role_name):
+view main(role, role_name, role_state, {peers}):
   section():
     title: "New deployment"
     body:
@@ -72,22 +74,23 @@ view main(role, role_name):
           let api_call = {"button": {role: role_name,
                                      action: "create_group",
                                      group_name: @new_group,
-                                     group_version: @new_group_version}}
+                                     version: @new_group_version}}
           <button.btn.btn-default>
             link {click} execute(api_call) -> @actions
             "Create Group"
+            show_action_progress("create_group", @actions)
 
           <h4> "Or via API"
           <pre>
             `curl http://localhost:8379 -XPOST -d '${pretty_json(api_call)}'`
 
-        <h3> "Add to group"
+        <h3> "New process"
         <div>
           store @input = json_store | refresher
             | json('/v1/scheduler_input')
           store @daemon = value | init('')
           store @group_name = value | init('')
-          store @servers = value | init([])
+          store @servers = uniqueset | init({})
           store @number_per_server = value | init('1')
 
           let version = role.versions[0]  // TODO fetch version from group
@@ -99,10 +102,11 @@ view main(role, role_name):
             <label> "Group"
             <div>
               <div.btn-group>
-                <button.btn.btn-default.btn-xs.active?(false)>
-                  "group1"
-                <button.btn.btn-default.btn-xs.active?(false)>
-                  "group2"
+                let groups = role_state.groups
+                for [gname, group] of entries_sorted(groups or {}) key gname:
+                  <button.btn.btn-default.btn-xs.active?(@group_name == gname)>
+                    link {click} set(gname) -> @group_name
+                    gname
 
           if meta:
             <div.form-group>
@@ -113,7 +117,7 @@ view main(role, role_name):
                     link {click} set(daemon) -> @daemon
                     daemon
             let vars = @daemon and meta.daemons[@daemon].variables
-            for [varname, vartype] of entries(vars or {}) key varname:
+            for [varname, vartype] of entries_sorted(vars or {}) key varname:
               <div.form-group>
                 <label> `Variable: ${varname}`
                 if vartype.type == 'TcpPort':
@@ -134,10 +138,11 @@ view main(role, role_name):
             <label> "Servers"
             <div>
               <div.btn-group>
-                <button.btn.btn-default.btn-xs.active?(false)>
-                  "server1"
-                <button.btn.btn-default.btn-xs.active?(false)>
-                  "server2"
+                for peer of peers key peer.id:
+                  <button.btn.btn-default.btn-xs
+                         .active?(@servers[peer.hostname])>
+                    link {click} toggleunique(peer.hostname) -> @servers
+                    peer.hostname
 
           <div.form-group>
             <label> "Number per server"
@@ -149,7 +154,7 @@ view main(role, role_name):
             action: "add_daemon",
             group_name: @group_name,
             daemon_name: @daemon,
-            servers: @servers,
+            servers: keys(@servers),
             number_per_server: parse_int(@number_per_server),
             // TODO(tailhook)
             variables: {},
@@ -157,6 +162,7 @@ view main(role, role_name):
           <button.btn.btn-default>
             link {click} execute(api_call) -> @actions
             "Add daemon"
+            show_action_progress("add_daemon", @actions)
 
           <h4> "Or via API"
           <pre>
