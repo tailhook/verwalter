@@ -23,6 +23,7 @@ extern crate serde_json;
 extern crate sha1;
 extern crate tempfile;
 extern crate time;
+extern crate tk_cantal;
 extern crate tk_easyloop;
 extern crate tk_http;
 extern crate tk_listen;
@@ -59,6 +60,7 @@ use config::Sandbox;
 use id::Id;
 
 mod apply;
+mod cantal;
 mod elect;
 mod fs_util;
 mod hash;
@@ -282,6 +284,7 @@ fn main() {
         let ns = name::init(&meter);
 
         http::spawn_listener(&ns, &listen_addr, &state)?;
+        cantal::spawn_fetcher(&state)?;
 
         let m1 = meter.clone();
         let s1 = state.clone();
