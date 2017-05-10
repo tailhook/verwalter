@@ -4,7 +4,7 @@ export var fetch_indexes = {
     type: UPDATE_REQUEST,
     url: "/v1/log/index/latest",
     response_type: 'text',
-    headers: {'Range': 'bytes=-65536'},
+    headers: {'Range': 'bytes=-1048576'},
     decoder: x => x,
 }
 
