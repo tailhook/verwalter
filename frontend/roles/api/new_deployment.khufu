@@ -131,7 +131,7 @@ view main(role, role_name, role_state, {peers}):
           let api_call = {"button": {
             role: role_name,
             action: "add_daemon",
-            group_name: @group_name,
+            group: @group_name,
             new_name: @name,
             service: @service,
             servers: keys(@servers),
