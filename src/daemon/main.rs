@@ -276,7 +276,7 @@ fn main() {
     thread::Builder::new().name(String::from("apply")).spawn(move || {
         m1.track_current_thread_by_name();
         apply::run(apply_state, apply_settings);
-    });
+    }).expect("apply thread starts");
 
     run_forever(move || -> Result<(), Box<::std::error::Error>> {
         watchdog::init();
@@ -291,7 +291,7 @@ fn main() {
         thread::Builder::new().name(String::from("scheduler")).spawn(move || {
             m1.track_current_thread_by_name();
             scheduler::run(s1, scheduler_settings)
-        });
+        }).expect("scheduler thread starts");
 
         Ok(())
     }).expect("loop starts");
