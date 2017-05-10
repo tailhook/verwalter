@@ -112,7 +112,6 @@ fn apply_schedule(hash: &String, is_new: bool,
         if debug_info.1 != "" {
             dlog.text("scheduler-debug", &debug_info.1);
         }
-        dlog.gron("scheduler_result", scheduler_result);
 
         dlog.changes(&hash[..8]).map(|mut changes| {
             scheduler_result.as_object()
