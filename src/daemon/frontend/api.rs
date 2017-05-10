@@ -201,9 +201,26 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
             }))
         }
         Peers => {
-            serve_error_page(NotImplemented)
-            //respond(res, format, &scope.cantal.get_peers().as_ref()
-            //    .map(|x| &x.peers))
+            #[derive(Serialize)]
+            struct Peer<'a> {
+                id: &'a Id,
+                primary_addr: Option<String>,
+                name: &'a String,
+                hostname: &'a String,
+            }
+            Ok(reply(move |e| {
+                Box::new(respond(e, format,
+                    &state.peers().as_ref()
+                    .map(|x| {
+                        x.1.iter().map(|(id, peer)| Peer {
+                            id: id,
+                            name: &peer.name,
+                            hostname: &peer.hostname,
+                            primary_addr: peer.addr.map(|x| x.to_string()),
+                        }).collect::<Vec<_>>()
+                    })
+                ))
+            }))
         }
         Schedule => {
             serve_error_page(NotImplemented)

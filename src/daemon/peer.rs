@@ -9,7 +9,9 @@ pub struct Peer {
      pub addr: Option<SocketAddr>,
      pub name: String,
      pub hostname: String,
-     // pub last_report: Option<SystemTime>,  // TODO(tailhook)
+     // pub addressses: Vec<SocketAddr>,  // TODO(tailhook)
+     // pub known_since: SystemTime,  // TODO(tailhook)
+     // pub last_report_direct: Option<SystemTime>,  // TODO(tailhook)
 }
 
 impl ToJson for Peer {
