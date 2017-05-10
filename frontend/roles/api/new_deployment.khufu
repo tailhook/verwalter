@@ -3,8 +3,7 @@ import {uniqueset, toggleunique} from '../../stores/simple'
 import {repr, entries_sorted, keys, pretty_json} from '../../util/object'
 import {refresher, json} from '../../middleware/request'
 import {section} from '../../blocks/title.khufu'
-import {url_query, smart_query} from '../../util/routing'
-import {filter_versions} from '../../util/version'
+import {main as version} from '../../blocks/version_select.khufu'
 import json_store from '../../stores/json'
 import pending_actions from '../../stores/actions'
 import {execute} from '../../util/action'
@@ -22,33 +21,6 @@ style:
     max-width: 40ex
   .short
     max-width: 40ex
-
-view version(role, @version):
-  <div>
-    store @trunc = value | url_query('trunc') | init('')
-    store @filter = value | smart_query('versions') | init('')
-    <div.input-group.panel>
-      <div.input-group-btn>
-        <button.btn.btn-default.active?(@trunc == 'no')>
-          link {click} set(@trunc == 'no' ? '' : 'no') -> @trunc
-          "Show All"
-      <input.form-control placeholder=`Filter Versions` value=@filter>
-        link {input} set(this.value) -> @filter
-      if @filter:
-        <div.input-group-btn>
-          <button.btn.btn-default>
-            link {click} set('') -> @filter
-            <span.glyphicon.glyphicon-remove>
-    <div.versions>
-      store @confirm = value
-      let all = filter_versions(role.versions or [], @filter)
-      let shown = @trunc == 'no' and all or all.slice(0, 20)
-      for ver of shown:
-        <div.version-block.confirm?(@confirm and ver == @confirm.ver)>
-          <div.version-id>
-            <button.btn.btn-default.btn-xs.active?(@version == ver)>
-              link {click} set(ver) -> @version
-              ver
 
 view main(role, role_name, role_state, {peers}):
   section():
@@ -75,7 +47,9 @@ view main(role, role_name, role_state, {peers}):
                                      action: "create_group",
                                      group_name: @new_group,
                                      version: @new_group_version}}
-          <button.btn.btn-default disabled=(@new_group?null:"disabled")>
+          <button.btn.btn-default disabled=(
+              (@new_group and @new_group_version) ? null : "disabled"
+            )>
             link {click} execute(api_call) -> @actions
             "Create Group"
             show_action_progress("create_group", @actions)
@@ -165,7 +139,10 @@ view main(role, role_name, role_state, {peers}):
             // TODO(tailhook)
             variables: {},
           }}
-          <button.btn.btn-default disabled=(@group_name?null:"disabled")>
+          <button.btn.btn-default disabled=(
+              (@group_name and @name and @service and @number_per_server)
+              ?null:"disabled"
+            )>
             link {click} execute(api_call) -> @actions
             "Add daemon"
             show_action_progress("add_daemon", @actions)

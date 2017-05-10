@@ -1,6 +1,9 @@
-import {entries_sorted, repr} from '../../util/object'
+import {entries_sorted, repr, pretty_json} from '../../util/object'
+import {value, bool, set, init, toggle} from '../../stores/simple'
 import {section} from '../../blocks/title.khufu'
-import {main as versions} from '../../blocks/version_buttons.khufu'
+import {main as versions} from '../../blocks/version_select.khufu'
+import {execute} from '../../util/action'
+import {show_action_progress} from '../../blocks/action.khufu'
 
 style:
   .version
@@ -16,20 +19,52 @@ view main(role, role_name, role_state, @actions):
         <span.version>
           group.version
       body:
-        <h3> "Services"
-        for [sname, service] of entries_sorted(group.services) key sname:
-          <h4> sname
-          <table.table.table-hover>
-            <thead>
-              <tr>
-                <th> "Property"
-                <th> "Value"
-            <tbody>
-              for [name, value] of entries_sorted(service) key name:
+        <div>
+          store @version = value | init('')
+          <h3> "Services"
+          for [sname, service] of entries_sorted(group.services) key sname:
+            <h4> sname
+            <table.table.table-hover>
+              <thead>
                 <tr>
-                  <td>
-                    name
-                  <td>
-                    repr(value)
-        <h3> "Update"
-        versions(-> @actions, role, role_name)
+                  <th> "Property"
+                  <th> "Value"
+              <tbody>
+                for [name, value] of entries_sorted(service) key name:
+                  <tr>
+                    <td>
+                      name
+                    <td>
+                      repr(value)
+          <h3> "Update"
+          let start_call = {"button": {
+            role: role_name,
+            group: gname,
+            action: "start_update",
+            to_version: @version,
+          }}
+          let force_call = {"button": {
+            role: role_name,
+            group: gname,
+            action: "force_version",
+            to_version: @version,
+          }}
+
+          <p>
+            versions(role, -> @version)
+          <p>
+            <div.btn-group>
+              <button.btn.btn-success disabled=(@version ? null : "1")>
+                link {click} execute(start_call) -> @actions
+                "Start Update"
+                show_action_progress("start_update", @actions)
+              <button.btn.btn-danger disabled=(@version ? null : "1")>
+                link {click} execute(force_call) -> @actions
+                "Force Version"
+                show_action_progress("force_version", @actions)
+
+          <h4> "Or via API"
+          <pre>
+            `curl http://localhost:8379 -XPOST -d '${pretty_json(start_call)}'`
+          <pre>
+            `curl http://localhost:8379 -XPOST -d '${pretty_json(force_call)}'`
