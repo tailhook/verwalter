@@ -62,7 +62,6 @@ pub fn spawn_listener(ns: &abstract_ns::Router, addr: &str,
             spawn(listener.incoming()
                 .sleep_on_error(Duration::from_millis(100), &handle())
                 .map(move |(socket, saddr)| {
-                    println!("accepted {:?}", saddr);
                     Proto::new(socket, &hcfg,
                        frontend::Dispatcher(state.clone()),
                        &handle())
