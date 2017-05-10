@@ -4,10 +4,12 @@ import {main as api_links} from './pages/api_links.khufu'
 import {main as peers} from './pages/peers.khufu'
 import {main as services} from './pages/services.khufu'
 import {main as logs} from './pages/logs.khufu'
-import {refresher, fast_refresh_json, json} from './middleware/request'
+import {plain, refresher, fast_refresh_json, json} from './middleware/request'
 import json_store from './stores/json'
+import text_store from './stores/text'
 import {value, toggle, init, bool} from './stores/simple'
 import {set_port} from './util/port'
+import {is_leader} from './util/status'
 import {format_error_hint, format_error_badge} from './util/format_err'
 import * as self_meter from './blocks/self_meter.khufu'
 import * as metrics from './blocks/metrics.khufu'
@@ -79,6 +81,22 @@ view _navbar(status, frontend_version, @expand):
               if @self_meter:
                  <div.dropdown-menu>
                   self_meter.big(status.self_report, status.threads_report)
+
+          store @log_visible = bool | init(false)
+
+          if is_leader(status):
+            <li.dropdown.open?(@log_visible)>
+              <a.dropdown-toggle href="#" role="button"
+                  aria-haspopup="true" aria-expanded="false">
+                link {click} toggle(@log_visible) -> @log_visible
+                "Log"
+                <span.caret>
+              if @log_visible:
+                <div.dropdown-menu>
+                  store @log_data = text_store | refresher
+                    | plain('/v1/scheduler_debug_info')
+                  <pre>
+                    @log_data
 
           store @metrics = bool | init(false)
 
