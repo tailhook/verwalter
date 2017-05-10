@@ -75,7 +75,7 @@ view main(role, role_name, role_state, {peers}):
                                      action: "create_group",
                                      group_name: @new_group,
                                      version: @new_group_version}}
-          <button.btn.btn-default>
+          <button.btn.btn-default disabled=(@new_group?null:"disabled")>
             link {click} execute(api_call) -> @actions
             "Create Group"
             show_action_progress("create_group", @actions)
@@ -165,7 +165,7 @@ view main(role, role_name, role_state, {peers}):
             // TODO(tailhook)
             variables: {},
           }}
-          <button.btn.btn-default>
+          <button.btn.btn-default disabled=(@group_name?null:"disabled")>
             link {click} execute(api_call) -> @actions
             "Add daemon"
             show_action_progress("add_daemon", @actions)
