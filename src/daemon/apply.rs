@@ -106,9 +106,6 @@ fn apply_schedule(hash: &String, is_new: bool,
     let mut dlog = index.deployment(&id, true);
     dlog.string("schedule-hash", &hash);
     if is_new {
-        if debug_info.0 != Json::Null {
-            dlog.gron("scheduler_input", &debug_info.0);
-        }
         if debug_info.1 != "" {
             dlog.text("scheduler-debug", &debug_info.1);
         }
