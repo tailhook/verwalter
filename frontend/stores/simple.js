@@ -30,6 +30,15 @@ export function toggle(value) {
     }
 }
 
+export function add(value) {
+    return { type: 'add', value: value }
+}
+export function remove(value) {
+    return { type: 'remove', value: value }
+}
+export function toggleunique(value) {
+    return { type: 'toggle', value: value }
+}
 export function value(state=undefined, action) {
     switch(action.type) {
         case 'init':
@@ -40,6 +49,34 @@ export function value(state=undefined, action) {
             }
         case 'set':
             return action.value;
+        default: return state;
+    }
+}
+
+export function uniqueset(state=undefined, action) {
+    switch(action.type) {
+        case 'init':
+            if(state === undefined) {
+                return action.value
+            } else {
+                return state
+            }
+        case 'add':
+            return {[action.value]:true, ...state}
+        case 'remove': {
+            let newstate = {...state}
+            delete newstate[action.value]
+            return newstate
+        }
+        case 'toggle': {
+            let newstate = {...state}
+            if(newstate[action.value]) {
+                delete newstate[action.value]
+            } else {
+                newstate[action.value] = true
+            }
+            return newstate
+        }
         default: return state;
     }
 }

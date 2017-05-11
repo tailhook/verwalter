@@ -61,7 +61,7 @@ commands:
         - --override-machine-id=77985419c732412ea38b94db00000001
         - --hostname=alpha
         - --debug-force-leader
-      cantal: !Command
+      cantal: &fake_cantal !Command
         container: util
         environ:
           RUST_LOG: warn
@@ -206,6 +206,43 @@ commands:
     - ./target/debug/verwalter_render
     - --check-dir=example-configs/pyapp/templates/pyapp/v1
     - '{"daemons":{"celery":{"config":"/cfg/celery.yaml","image":"celery.v2.0","instances":2,"key":"celery"},"worker":{"config":"/cfg/web-worker.yaml","image":"worker.v2.0","instances":1,"key":"worker"}},"deployment_id":"p0YD7nkS5Vn29UgAjK0wm5hj","frontend":{"allow_stop":true,"kind":"version"},"role":"app2","shortinfo":[["num","Memory (GiB)",2],["num","CPU cores",3]],"template":"pyapp/v1","timestamp":"2017-04-12T09:21:21Z","versions":["v3.1","v2.2","v2.0","v1.1","v1.0"],"verwalter_version":"v0.7.6"}'
+
+  run-example-api-scheduler: !Supervise
+    description: "Run verwalter with api_scheduler example"
+    prerequisites: [make-js, make]
+    children:
+      verw: !Command
+        container: xenial
+        environ:
+          RUST_LOG: info
+        run:
+        - ./target/debug/verwalter
+        - --config-dir=/work/example-configs/api_scheduler
+        - --storage-dir=tmp/storage2
+        - --log-dir=/tmp/logs
+        - --override-machine-id=77985419c732412ea38b94db00000001
+        - --hostname=alpha
+        - --debug-force-leader
+      cantal: *fake_cantal
+
+  run-example-minimal: !Supervise
+    description: "Run verwalter with rudiculously minimal, do-nothing example"
+    prerequisites: [make]
+    children:
+      verw: !Command
+        container: xenial
+        environ:
+          RUST_LOG: info
+        run:
+        - ./target/debug/verwalter
+        - --config-dir=/work/example-configs/minimal
+        - --storage-dir=tmp/storage_m
+        - --log-dir=/tmp/logs
+        - --override-machine-id=77985419c732412ea38b94db00000001
+        - --hostname=alpha
+        - --debug-force-leader
+      cantal: *fake_cantal
+
 
 containers:
 

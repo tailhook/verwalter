@@ -1,0 +1,30 @@
+import pending_actions from '../stores/actions'
+import json_store from '../stores/json'
+import {refresher, json} from '../middleware/request'
+import {repr} from '../util/object'
+import {is_leader} from '../util/status'
+import {main as new_deployment} from './api/new_deployment.khufu'
+import {main as current_groups} from './api/groups.khufu'
+import {show_leaders} from '../util/leaders.khufu'
+
+
+view main(role, role_name, {role_state, schedule, system_status}):
+  <div>
+    store @actions = pending_actions | refresher
+      | json('/v1/pending_actions')
+    store @peers = json_store | refresher | json('/v1/peers')
+
+    <pre>
+      repr(role)
+      " "
+      repr(role_state)
+
+
+    current_groups(role, role_name, role_state, -> @actions)
+
+    if is_leader(system_status):
+      new_deployment(role, role_name, role_state, {peers: @peers})
+    else:
+      show_leaders(
+        "Actions are Only Available on Leader",
+        `/role/${role_name}`, system_status)

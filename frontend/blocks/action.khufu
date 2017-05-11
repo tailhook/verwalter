@@ -1,0 +1,17 @@
+import {entries} from '../util/object'
+
+
+style:
+  .rotate
+    animation-name: rotateThis
+    animation-duration: .5s
+    animation-iteration-count: infinite
+    animation-timing-function: linear
+
+
+view show_action_progress(aname, actions):
+  for [id, act] of entries(actions) key id:
+    let abut = act.button
+    if abut and abut.action == aname:
+      " "
+      <span.glyphicon.glyphicon-refresh.rotate>
