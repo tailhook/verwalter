@@ -1,10 +1,12 @@
 use std::net::SocketAddr;
-use std::time::{SystemTime, Duration, UNIX_EPOCH};
+use std::time::{SystemTime, Instant, Duration, UNIX_EPOCH};
 use std::sync::Mutex;
 use std::collections::HashMap;
 
-use time::{Timespec, get_time};
+use futures::future::{Future, loop_fn, Loop, ok};
 use libcantal::{Counter, Integer};
+use tk_easyloop;
+
 /*
 use rotor::{Machine, EventSet, Scope, Response, PollOpt};
 use rotor::mio::udp::UdpSocket;
@@ -329,5 +331,13 @@ fn to_system_time(time: Timespec) -> SystemTime {
 pub fn spawn(state: &SharedState)
     -> Result<(), Box<::std::error::Error>>
 {
+    let mach = machine::Machine::new(Instant::now());
+    tk_easyloop::spawn(loop_fn(mach, |mach| {
+        tk_easyloop::timeout_at(mach.current_deadline())
+        .map_err(|_| unreachable!())
+        .and_then(move |()| {
+            ok(Loop::Continue(mach))
+        })
+    }));
     Ok(())
 }

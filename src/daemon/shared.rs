@@ -107,7 +107,7 @@ impl SharedState {
             schedule: Arc::new(scheduler::State::Unstable),
             last_known_schedule: old_schedule.map(Arc::new),
             last_scheduler_debug_info: Arc::new((Json::Null, String::new())),
-            election: Default::default(),
+            election: Arc::new(ElectionState::blank()),
             actions: BTreeMap::new(),
             //cantal: None,
             debug_force_leader: debug_force_leader,

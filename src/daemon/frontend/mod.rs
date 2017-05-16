@@ -25,7 +25,7 @@ mod error_page;
 mod files;
 mod quick_reply;
 mod routing;
-mod serialize;
+pub mod serialize;
 mod to_json;
 
 use frontend::to_json::ToJson;

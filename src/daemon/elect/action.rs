@@ -1,4 +1,4 @@
-use std::time::{Instant, SystemTime, Duration};
+use std::time::{Instant, Duration};
 
 use id::Id;
 
@@ -18,19 +18,15 @@ pub struct ActionList {
 }
 
 impl Action {
-    pub fn and_wait(self, time: SystemTime) -> ActionList {
-        let delay = time.duration_since(SystemTime::now())
-            .unwrap_or(Duration::new(0, 0));
+    pub fn and_wait(self, time: Instant) -> ActionList {
         ActionList {
-            next_wakeup: Instant::now() + delay,
+            next_wakeup: time,
             action: Some(self),
         }
     }
-    pub fn wait(time: SystemTime) -> ActionList {
-        let delay = time.duration_since(SystemTime::now())
-            .unwrap_or(Duration::new(0, 0));
+    pub fn wait(time: Instant) -> ActionList {
         ActionList {
-            next_wakeup: Instant::now() + delay,
+            next_wakeup: time,
             action: None,
         }
     }

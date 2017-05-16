@@ -146,7 +146,8 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                     scheduler_state: &'static str,
                     roles: usize,
                     election_epoch: Epoch,
-                    last_stable_timestamp: u64,
+                    #[serde(serialize_with="serialize_opt_timestamp")]
+                    last_stable_timestamp: Option<SystemTime>,
                     num_errors: usize,
                     errors: &'a HashMap<&'static str, String>,
                     failed_roles: &'a HashSet<String>,
@@ -188,8 +189,7 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                     roles: schedule.map(|x| x.num_roles).unwrap_or(0),
                     scheduler_state: state.scheduler_state().describe(),
                     election_epoch: election.epoch,
-                    last_stable_timestamp:
-                        election.last_stable_timestamp.unwrap_or(0),
+                    last_stable_timestamp: election.last_stable_timestamp,
                     num_errors: errors.len() + failed_roles.len(),
                     errors: &*errors,
                     failed_roles: &*failed_roles,

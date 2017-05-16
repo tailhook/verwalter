@@ -13,7 +13,7 @@ static NODE_COUNTER: AtomicUsize = ATOMIC_USIZE_INIT;
 pub struct Environ {
     pub id: Id,
     all_hosts: HashMap<Id, Peer>,
-    now: SystemTime,
+    now: Instant,  // TODO(tailhook) should `now` and `tspec` be unified?
     tspec: Instant,
 }
 
@@ -29,7 +29,7 @@ impl Environ {
                 name: format!("{}", id),
                 //last_report: Some(Instant::now()),
             })].into_iter().collect(),
-            now: SystemTime::now(),
+            now: Instant::now(),
             tspec: Instant::now(),
         }
     }
@@ -50,7 +50,7 @@ impl Environ {
     pub fn tick(&mut self) {
         self.sleep(100)
     }
-    pub fn now(&self) -> SystemTime {
+    pub fn now(&self) -> Instant {
         self.now
     }
     pub fn add_node(&mut self) -> Id {
