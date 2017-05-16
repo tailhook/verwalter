@@ -12,16 +12,16 @@ use rotor::void::{unreachable, Void};
 use rotor_cantal::{Schedule as Cantal};
 */
 
-use time_util::ToMsec;
-use net::Context;
+use elect::action::Action;
+use elect::{Election, Info};
+use elect::{machine, encode};
+use elect::machine::Epoch;
+use elect::settings::MAX_PACKET_SIZE;
+use elect::state::ElectionState;
+use id::Id;
+use peer::Peer;
 use shared::{SharedState};
-use super::{machine, encode};
-use super::settings::MAX_PACKET_SIZE;
-use super::action::Action;
-use super::machine::Epoch;
-use super::state::ElectionState;
-use super::{Election, Info};
-use shared::{Peer, Id};
+use time_util::ToMsec;
 
 
 lazy_static! {
@@ -49,10 +49,10 @@ lazy_static! {
     static ref LOG_TRACKER: Mutex<LogTracker> = Mutex::new(LogTracker::Nothing);
 }
 
+/*
 impl Election {
     pub fn new(id: Id, hostname: String, name: String, addr: &SocketAddr,
-        debug_force_leader: bool,
-        state: SharedState, cantal: Cantal, scope: &mut Scope<Context>)
+        debug_force_leader: bool, state: SharedState)
         -> Response<Election, Void>
     {
         let mach = machine::Machine::new(scope.now());
@@ -322,4 +322,11 @@ impl Machine for Election {
 
 fn to_system_time(time: Timespec) -> SystemTime {
     UNIX_EPOCH + Duration::new(time.sec as u64, time.nsec as u32)
+}
+
+*/
+pub fn spawn(state: &SharedState)
+    -> Result<(), Box<::std::error::Error>>
+{
+    Ok(())
 }

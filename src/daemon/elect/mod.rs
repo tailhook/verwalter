@@ -3,11 +3,12 @@ use std::time::SystemTime;
 use std::collections::{HashMap};
 
 
-use id::Id;
-use peer::Peer;
 pub use self::machine::Epoch;
+pub use self::network::spawn;
 pub use self::settings::peers_refresh;
 pub use self::state::ElectionState;
+use id::Id;
+use peer::Peer;
 /*
 use shared::{Id, Peer, SharedState};
 */
@@ -18,10 +19,10 @@ mod settings;
 mod state;
 
 pub mod machine;  // pub for making counters visible
-
-/*
 pub mod network;  // pub for making counters visible
+
 mod encode;
+/*
 #[cfg(test)] mod test_node;
 #[cfg(test)] mod test_mesh;
 #[cfg(test)] mod test_util;
