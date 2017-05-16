@@ -1,13 +1,11 @@
 use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
 use std::net;
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, SystemTime, Instant};
 use std::collections::HashMap;
 
-use rotor::Time;
-use time::{Timespec, Duration as Dur, get_time};
-
 use super::{Info};
-use shared::{Id, Peer};
+use id::Id;
+use peer::Peer;
 
 static NODE_COUNTER: AtomicUsize = ATOMIC_USIZE_INIT;
 
@@ -15,8 +13,8 @@ static NODE_COUNTER: AtomicUsize = ATOMIC_USIZE_INIT;
 pub struct Environ {
     pub id: Id,
     all_hosts: HashMap<Id, Peer>,
-    now: Time,
-    tspec: Timespec,
+    now: SystemTime,
+    tspec: Instant,
 }
 
 impl Environ {
@@ -29,10 +27,10 @@ impl Environ {
                     12345))),
                 hostname: format!("{}", id),
                 name: format!("{}", id),
-                last_report: Some(get_time()),
+                //last_report: Some(Instant::now()),
             })].into_iter().collect(),
-            now: Time::zero(),
-            tspec: get_time(),
+            now: SystemTime::now(),
+            tspec: Instant::now(),
         }
     }
     pub fn info<'x>(&'x self) -> Info<'x> {
@@ -45,14 +43,14 @@ impl Environ {
     }
     pub fn sleep(&mut self, ms: u64) {
         self.now = self.now +  Duration::from_millis(ms);
-        self.tspec = self.tspec + Dur::milliseconds(ms as i64);
+        self.tspec = self.tspec + Duration::from_millis(ms);
     }
     /// A single tick in mio is 100ms AFAIK. This is convenience method
     /// to have some time passed
     pub fn tick(&mut self) {
         self.sleep(100)
     }
-    pub fn now(&self) -> Time {
+    pub fn now(&self) -> SystemTime {
         self.now
     }
     pub fn add_node(&mut self) -> Id {
@@ -64,7 +62,7 @@ impl Environ {
                 12345))),
             hostname: format!("{}", id),
             name: format!("{}", id),
-            last_report: Some(self.tspec),
+            // last_report: Some(self.tspec),
         });
         id
     }

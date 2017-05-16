@@ -22,12 +22,10 @@ pub mod machine;  // pub for making counters visible
 pub mod network;  // pub for making counters visible
 
 mod encode;
-/*
 #[cfg(test)] mod test_node;
 #[cfg(test)] mod test_mesh;
 #[cfg(test)] mod test_util;
 #[cfg(test)] mod test_split_brain;
-*/
 
 pub struct Election {
     id: Id,
