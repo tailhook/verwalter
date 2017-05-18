@@ -21,6 +21,7 @@ view main(role, role_name, role_state, @actions):
       body:
         <div>
           store @version = value | init('')
+          store @delete_confirm = value | init(false)
           <h3> "Services"
           for [sname, service] of entries_sorted(group.services) key sname:
             <h4> sname
@@ -69,7 +70,6 @@ view main(role, role_name, role_state, @actions):
             <pre>
               `curl http://localhost:8379 -XPOST -d '${pretty_json(force_call)}'`
 
-          <p align="right">
             <button.btn.btn-danger>
               link {click} execute({button: {
                 role: role_name,
@@ -84,3 +84,25 @@ view main(role, role_name, role_state, @actions):
                 "Enable Auto Update"
               show_action_progress("enable_auto_update", @actions)
               show_action_progress("disable_auto_update", @actions)
+
+          if @delete_confirm:
+            let delete_call = {"button": {
+              role: role_name,
+              group: gname,
+              action: "delete_group",
+            }}
+            <h4> "Delete via API"
+            <pre>
+              `curl http://localhost:8379 -XPOST -d '${pretty_json(delete_call)}'`
+            <button.btn.btn-success>
+              link {click} set(false) -> @delete_confirm
+              "Oh, not now"
+            " "
+            <button.btn.btn-danger>
+              link {click} execute(delete_call) -> @actions
+              `Yes, delete group "${ gname }" of role "${ role_name }" for me`
+          else:
+            <p align="right">
+              <button.btn.btn-danger>
+                link {click} set(true) -> @delete_confirm
+                "Delete This Group"
