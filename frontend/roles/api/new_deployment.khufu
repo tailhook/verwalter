@@ -1,4 +1,5 @@
 import {value, bool, set, init, toggle} from '../../stores/simple'
+import {variables, set as set_var, set_types} from '../../stores/variables'
 import {uniqueset, toggleunique} from '../../stores/simple'
 import {repr, entries_sorted, keys, pretty_json} from '../../util/object'
 import {refresher, json} from '../../middleware/request'
@@ -67,6 +68,7 @@ view main(role, role_name, role_state, {peers}):
           store @service = value | init('')
           store @servers = uniqueset | init({})
           store @number_per_server = value | init('1')
+          store @variables = variables
 
           let version = role.versions[0]  // TODO fetch version from group
           let runtime = @input and @input.runtime
@@ -94,6 +96,9 @@ view main(role, role_name, role_state, {peers}):
                 for daemon of keys(meta.daemons):
                   <button.btn.btn-default.btn-xs.active?(@service == daemon)>
                     link {click} set(daemon) -> @service
+                    link {click} (
+                        set_types(meta.daemons[daemon].variables)
+                      ) -> @variables
                     daemon
             let vars = @service and meta.daemons[@service].variables
             for [varname, vartype] of entries_sorted(vars or {}) key varname:
@@ -102,6 +107,7 @@ view main(role, role_name, role_state, {peers}):
                 if vartype.type == 'TcpPort':
                   <div.input-group.panel>
                     <input.form-control.short>
+                      link {input} set_var(varname, this.value) -> @variables
                     if varname == 'nginx_port':
                       <label.input-group-addon> "alternate port: "
                       <input.form-control.short>
@@ -110,7 +116,9 @@ view main(role, role_name, role_state, {peers}):
                   <div>
                     <div.btn-group>
                       for value of vartype.choices:
-                        <button.btn.btn-default.btn-xs.active?(false)>
+                        <button.btn.btn-default.btn-xs
+                            .active?(@variables.values[varname] == value)>
+                          link {input} set_var(varname, value) -> @variables
                           value
 
           <div.form-group>
@@ -125,7 +133,7 @@ view main(role, role_name, role_state, {peers}):
 
           <div.form-group>
             <label> "Number per server"
-            <input.form-control.short>
+            <input.form-control.short value=@number_per_server>
               link {input} set(this.value) -> @number_per_server
 
           let api_call = {"button": {
@@ -136,8 +144,7 @@ view main(role, role_name, role_state, {peers}):
             service: @service,
             servers: keys(@servers),
             number_per_server: parse_int(@number_per_server),
-            // TODO(tailhook)
-            variables: {},
+            variables: @variables.values,
           }}
           <button.btn.btn-default disabled=(
               (@group_name and @name and @service and @number_per_server)
