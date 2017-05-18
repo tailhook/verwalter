@@ -111,7 +111,8 @@ view main(role, role_name, role_state, {peers}):
                     if varname == 'nginx_port':
                       <label.input-group-addon> "alternate port: "
                       <input.form-control.short>
-                  `Allowed ranges: ${meta.ports.join(', ')}`
+                  if meta.ports:
+                    `Allowed ranges: ${meta.ports.join(', ')}`
                 elif vartype.type == 'Choice':
                   <div>
                     <div.btn-group>
