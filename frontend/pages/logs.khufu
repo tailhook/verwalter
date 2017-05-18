@@ -4,7 +4,7 @@ import {index, fetch_indexes} from '../stores/logs'
 import {bool, enable, disable} from '../stores/simple'
 import {init, value, set} from '../stores/simple'
 import {smart_query} from '../util/routing'
-import {log, view_from, show_mark, matches_filter} from '../stores/logs'
+import {log, view_from, show_mark, matches_filter, filtered} from '../stores/logs'
 
 style:
   .RoleFinish
@@ -42,8 +42,7 @@ view main():
                   "*"
             <th>
         <tbody>
-          for record of @index.items key repr(record):
-            if matches_filter(@role_filter, record):
+          for record of filtered(@index.items, @role_filter) key repr(record):
               <tr class=(record[3].variant or record[3])>
                 <td>
                   record[0]

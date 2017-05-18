@@ -149,3 +149,16 @@ export function matches_filter(filter, record) {
     }
     return false;
 }
+
+export function filtered(items, filter) {
+    let result = []
+    for(let item of items) {
+        if(matches_filter(filter, item)) {
+            result.push(item);
+        }
+    }
+    if(result.length > 200) {
+        result.splice(0, result.length-200)
+    }
+    return result
+}
