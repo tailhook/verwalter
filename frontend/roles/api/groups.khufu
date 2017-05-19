@@ -70,20 +70,23 @@ view main(role, role_name, role_state, @actions):
             <pre>
               `curl http://localhost:8379 -XPOST -d '${pretty_json(force_call)}'`
 
-            <button.btn.btn-danger>
-              link {click} execute({button: {
-                role: role_name,
-                group: gname,
-                action: group.auto_update
-                  ? "disable_auto_update"
-                  : "enable_auto_update",
-              }}) -> @actions
-              if group.auto_update:
-                "Disable Auto Update"
-              else:
-                "Enable Auto Update"
-              show_action_progress("enable_auto_update", @actions)
-              show_action_progress("disable_auto_update", @actions)
+          else: // auto-updates enabled
+
+            <p align="right">
+              <button.btn.btn-danger>
+                link {click} execute({button: {
+                  role: role_name,
+                  group: gname,
+                  action: group.auto_update
+                    ? "disable_auto_update"
+                    : "enable_auto_update",
+                }}) -> @actions
+                if group.auto_update:
+                  "Disable Auto Update"
+                else:
+                  "Enable Auto Update"
+                show_action_progress("enable_auto_update", @actions)
+                show_action_progress("disable_auto_update", @actions)
 
           if @delete_confirm:
             let delete_call = {"button": {
@@ -101,6 +104,7 @@ view main(role, role_name, role_state, @actions):
             <button.btn.btn-danger>
               link {click} execute(delete_call) -> @actions
               `Yes, delete group "${ gname }" of role "${ role_name }" for me`
+              show_action_progress("delete_group", @actions)
           else:
             <p align="right">
               <button.btn.btn-danger>
