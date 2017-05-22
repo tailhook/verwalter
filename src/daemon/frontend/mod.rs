@@ -427,6 +427,8 @@ fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
             struct Status<'a> {
                 version: &'static str,
                 id: &'a Id,
+                name: &'a str,
+                hostname: &'a str,
                 peers: usize,
                 peers_timestamp: Option<u64>,
                 leader: Option<LeaderInfo<'a>>,
@@ -463,7 +465,9 @@ fn serve_api(scope: &mut Scope<Context>, route: &ApiRoute,
             };
             respond(res, format, &Status {
                 version: concat!("v", env!("CARGO_PKG_VERSION")),
-                id: scope.state.id(),
+                id: &scope.state.id,
+                name: &scope.state.name,
+                hostname: &scope.state.hostname,
                 peers: peers.as_ref().map(|x| x.1.len()).unwrap_or(0),
                 peers_timestamp: peers.as_ref().map(|x| x.0.to_msec()),
                 leader: leader.map(|peer| LeaderInfo {
