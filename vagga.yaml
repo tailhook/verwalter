@@ -58,7 +58,7 @@ commands:
         - --config-dir=/work/example-configs/pyapp
         - --storage-dir=tmp/storage
         - --log-dir=/tmp/logs
-        - --override-machine-id=77985419c732412ea38b94db00000001
+        - --override-machine-id=77985419c732412ea38b94db00000000
         - --hostname=alpha
         - --debug-force-leader
       cantal: &fake_cantal !Command
@@ -69,7 +69,6 @@ commands:
         - python3
         - util/fake-cantal.py
         - --peers
-        - alpha
         - beta
         - gamma
       webpack: !Command
@@ -220,7 +219,7 @@ commands:
         - --config-dir=/work/example-configs/api_scheduler
         - --storage-dir=tmp/storage2
         - --log-dir=/tmp/logs
-        - --override-machine-id=77985419c732412ea38b94db00000001
+        - --override-machine-id=77985419c732412ea38b94db00000000
         - --hostname=alpha
         - --debug-force-leader
       cantal: *fake_cantal
@@ -238,7 +237,7 @@ commands:
         - --config-dir=/work/example-configs/minimal
         - --storage-dir=tmp/storage_m
         - --log-dir=/tmp/logs
-        - --override-machine-id=77985419c732412ea38b94db00000001
+        - --override-machine-id=77985419c732412ea38b94db00000000
         - --hostname=alpha
         - --debug-force-leader
       cantal: *fake_cantal

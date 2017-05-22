@@ -23,13 +23,11 @@ style:
   .short
     max-width: 40ex
 
-view main(role, role_name, role_state, {peers}):
+view main(role, role_name, role_state, @actions, {servers}):
   section():
     title: "New deployment"
     body:
       <div>
-        store @actions = pending_actions | refresher
-          | json('/v1/pending_actions')
         store @new_group = value | init('')
         store @new_group_version = value | init('')
         <h3> "New group"
@@ -126,11 +124,11 @@ view main(role, role_name, role_state, {peers}):
             <label> "Servers"
             <div>
               <div.btn-group>
-                for peer of peers key peer.id:
+                for srv of servers key srv.id:
                   <button.btn.btn-default.btn-xs
-                         .active?(@servers[peer.hostname])>
-                    link {click} toggleunique(peer.hostname) -> @servers
-                    peer.hostname
+                         .active?(@servers[srv.hostname])>
+                    link {click} toggleunique(srv.hostname) -> @servers
+                    srv.hostname
 
           <div.form-group>
             <label> "Number per server"
