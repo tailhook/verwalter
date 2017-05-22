@@ -1,0 +1,17 @@
+import {value, bool, set, init, toggle} from '../stores/simple'
+
+
+view section(){title, body}:
+  <div>
+    store @show = bool | init(false)
+    <h2>
+      title()
+      " "
+      <button.btn.btn-default.btn-xs>
+        link {click} toggle(@show) -> @show
+        if @show:
+          <span.glyphicons.glyphicon-minus>
+        else:
+          <span.glyphicons.glyphicon-plus>
+    if @show:
+      body()

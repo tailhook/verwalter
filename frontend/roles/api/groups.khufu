@@ -1,0 +1,245 @@
+import {entries_sorted, repr, pretty_json, keys} from '../../util/object'
+import {value, bool, set, init, toggle, disable} from '../../stores/simple'
+import {section} from '../../blocks/title.khufu'
+import {main as versions} from '../../blocks/version_select.khufu'
+import {execute} from '../../util/action'
+import {show_action_progress} from '../../blocks/action.khufu'
+import {sample} from './sample.khufu'
+import {uniqueset, toggleunique} from '../../stores/simple'
+import {count_instances} from '../../util/groups'
+
+
+style:
+
+  .version
+    cursor: pointer
+    color: gray
+    font-size: 75%
+    margin-left: 8px
+
+  .number
+    cursor: pointer
+    margin-left: 8px
+    font-size: 75%
+    color: #337ab7
+
+
+view edit_servers(role_name, group_name, service_name, value,
+                  @actions, {servers, system_status}):
+  <div>
+    store @edit = bool | init(false)
+    store @new_servers = uniqueset | init(value)
+    store @show_api = bool | init(false)
+
+    let api_call = {"button": {
+      role: role_name,
+      action: "set_servers",
+      group: group_name,
+      service: service_name,
+      servers: keys(@new_servers),
+    }}
+
+    if @edit:
+
+      <p>
+        <div.btn-group>
+          for srv of servers key srv.id:
+            <button.btn.btn-default.btn-xs
+                   .active?(@new_servers[srv.hostname])>
+              link {click} toggleunique(srv.hostname) -> @new_servers
+              srv.hostname
+
+      <p>
+        <div.btn-group>
+          <button.btn.btn-default>
+            link {click} execute(api_call) -> @actions
+            "Set servers"
+            show_action_progress("set_servers", @actions)
+          <button.btn.btn-default>
+            link {click} disable() -> @edit
+            "Cancel"
+          <button.btn.btn-default>
+            link {click} toggle(@show_api) -> @show_api
+            <span.caret>
+      if @show_api:
+        <p>
+          sample("Set Servers Via API", api_call, system_status)
+
+    else:
+
+      value.join(', ')
+      " "
+      <button.btn.btn-default.btn.xs>
+        <span.glyphicon.glyphicon-edit>
+        link {click} toggle(@edit) -> @edit
+
+view edit_number(role_name, group_name, service_name, service, old_value,
+                  @actions, {servers, system_status}):
+  <div>
+    store @edit = bool | init(false)
+    store @value = value | init(old_value)
+    store @show_api = bool | init(false)
+
+    let api_call = {"button": {
+      role: role_name,
+      action: "set_number_per_server",
+      group: group_name,
+      service: service_name,
+      number_per_server: @value,
+    }}
+
+    if @edit:
+
+      <p>
+        old_value
+        " -> "
+        <input type="text" size="4" value=old_value>
+          link {input} set(this.value) -> @value
+        let total = @value * service.servers.length
+        ` (total instances: ${ total })`
+
+      <p>
+        <div.btn-group>
+          <button.btn.btn-default>
+            link {click} execute(api_call) -> @actions
+            "Set number"
+            show_action_progress(api_call.button.action, @actions)
+          <button.btn.btn-default>
+            link {click} disable() -> @edit
+            "Cancel"
+          <button.btn.btn-default>
+            link {click} toggle(@show_api) -> @show_api
+            <span.caret>
+      if @show_api:
+        <p>
+          sample("Set Instance Number Via API", api_call, system_status)
+
+    else:
+      let total = old_value * service.servers.length
+      `${ old_value } (total instances: ${ total }) `
+      <button.btn.btn-default.btn.xs>
+        <span.glyphicon.glyphicon-edit>
+        link {click} toggle(@edit) -> @edit
+
+
+view main(role, role_name, role_state, @actions, {servers, system_status}):
+  for [gname, group] of entries_sorted(role_state.groups) key gname:
+    section():
+      title:
+        gname
+        <span.version
+          title="Version this group is currently running">
+          group.version
+        <span.number
+          title="Total number of all daemon scheduled on all servers">
+          `${ count_instances(group) }p`
+      body:
+        <div>
+          store @version = value | init('')
+          store @delete_confirm = value | init(false)
+          <h3> "Services"
+          for [sname, service] of entries_sorted(group.services) key sname:
+            <h4> sname
+            <table.table.table-hover>
+              <thead>
+                <tr>
+                  <th> "Property"
+                  <th> "Value"
+              <tbody>
+                for [name, value] of entries_sorted(service) key name:
+                  <tr>
+                    <td>
+                      name
+                    <td>
+                      if name == 'servers':
+                        edit_servers(role_name, gname, sname, value,
+                          -> @actions,
+                          {servers: servers, system_status: system_status})
+                      elif name == 'number_per_server':
+                        edit_number(role_name, gname, sname, service, value,
+                          -> @actions,
+                          {servers: servers, system_status: system_status})
+                      else:
+                        repr(value)
+          <h3> "Update"
+          if not group.auto_update:
+            let start_call = {"button": {
+              role: role_name,
+              group: gname,
+              action: "start_update",
+              to_version: @version,
+            }}
+            let force_call = {"button": {
+              role: role_name,
+              group: gname,
+              action: "force_version",
+              to_version: @version,
+            }}
+            <p>
+              versions(role, -> @version)
+            <p>
+              store @show_api = bool | init(false)
+              <div.btn-group>
+                <button.btn.btn-success disabled=(@version ? null : "1")>
+                  link {click} execute(start_call) -> @actions
+                  "Start Update"
+                  show_action_progress("start_update", @actions)
+                <button.btn.btn-danger disabled=(@version ? null : "1")>
+                  link {click} execute(force_call) -> @actions
+                  "Force Version"
+                  show_action_progress("force_version", @actions)
+                <button.btn.btn-default>
+                  link {click} toggle(@show_api) -> @show_api
+                  <span.caret>
+              if @show_api:
+                <p>
+                  sample("Start Update Via API", start_call, system_status)
+                  sample("Force Version Via API", force_call, system_status)
+
+          else: // auto-updates enabled
+
+            <p align="right">
+              <button.btn.btn-danger>
+                link {click} execute({button: {
+                  role: role_name,
+                  group: gname,
+                  action: group.auto_update
+                    ? "disable_auto_update"
+                    : "enable_auto_update",
+                }}) -> @actions
+                if group.auto_update:
+                  "Disable Auto Update"
+                else:
+                  "Enable Auto Update"
+                show_action_progress("enable_auto_update", @actions)
+                show_action_progress("disable_auto_update", @actions)
+
+          let delete_call = {"button": {
+            role: role_name,
+            group: gname,
+            action: "delete_group",
+          }}
+          if @delete_confirm:
+            <div.btn-group>
+              <button.btn.btn-success>
+                link {click} set(false) -> @delete_confirm
+                "Oh, not now"
+              " "
+              <button.btn.btn-danger>
+                link {click} execute(delete_call) -> @actions
+                `Yes, delete group "${ gname }" `
+                `of role "${ role_name }" for me`
+                show_action_progress("delete_group", @actions)
+          else:
+            <p align="right">
+              store @show_api = bool | init(false)
+              <div.btn-group>
+                <button.btn.btn-danger>
+                  link {click} set(true) -> @delete_confirm
+                  "Delete This Group"
+                <button.btn.btn-default>
+                  link {click} toggle(@show_api) -> @show_api
+                  <span.caret>
+              if @show_api:
+                <div>
+                  sample("Delete Group Via API", delete_call, system_status)

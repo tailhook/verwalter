@@ -247,15 +247,15 @@ fn main() {
         }
     };
 
-    let state = SharedState::new(id.clone(), options.debug_force_leader,
-                                 old_schedule);
-
     let hostname = options.hostname
                    .unwrap_or_else(|| info::hostname().expect("gethostname"));
     // TODO(tailhook) resolve FQDN
     let name = options.name.unwrap_or_else(|| hostname.clone());
     let listen_addr = format!("{}:{}",
         options.listen_host, options.listen_port);
+
+    let state = SharedState::new(&id, &name, &hostname,
+        options.debug_force_leader, old_schedule);
 
     let scheduler_settings = scheduler::Settings {
         id: id.clone(),

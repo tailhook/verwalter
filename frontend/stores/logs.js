@@ -4,7 +4,7 @@ export var fetch_indexes = {
     type: UPDATE_REQUEST,
     url: "/v1/log/index/latest",
     response_type: 'text',
-    headers: {'Range': 'bytes=-65536'},
+    headers: {'Range': 'bytes=-1048576'},
     decoder: x => x,
 }
 
@@ -148,4 +148,17 @@ export function matches_filter(filter, record) {
         return true;
     }
     return false;
+}
+
+export function filtered(items, filter) {
+    let result = []
+    for(let item of items) {
+        if(matches_filter(filter, item)) {
+            result.push(item);
+        }
+    }
+    if(result.length > 200) {
+        result.splice(0, result.length-200)
+    }
+    return result
 }

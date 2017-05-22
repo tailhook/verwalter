@@ -139,6 +139,8 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                 struct Status<'a> {
                     version: &'static str,
                     id: &'a Id,
+                    name: &'a str,
+                    hostname: &'a str,
                     peers: usize,
                     #[serde(serialize_with="serialize_opt_timestamp")]
                     peers_timestamp: Option<SystemTime>,
@@ -177,7 +179,9 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                 //};
                 Box::new(respond(e, format, &Status {
                     version: concat!("v", env!("CARGO_PKG_VERSION")),
-                    id: state.id(),
+                    id: &state.id,
+                    name: &state.name,
+                    hostname: &state.hostname,
                     peers: peers.as_ref().map(|x| x.1.len()).unwrap_or(0),
                     peers_timestamp: peers.as_ref().map(|x| x.0),
                     leader: leader.map(|peer| LeaderInfo {

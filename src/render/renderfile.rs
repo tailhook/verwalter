@@ -2,12 +2,13 @@ use std::io::{self, Read};
 use std::fs::File;
 use std::path::{Path, PathBuf};
 
+use error_chain::ChainedError;
 use handlebars::{Handlebars, TemplateError as HandlebarsError};
+use quick_error::ResultExt;
 use quire::{parse_config, Options, ErrorList as ConfigError};
 use quire::validate as V;
 use scan_dir;
 use tera::{Tera, Error as TeraError};
-use quick_error::ResultExt;
 
 use apply;
 use render::Renderer;
@@ -31,7 +32,7 @@ quick_error! {
         }
         Tera(err: TeraError, path: PathBuf) {
             cause(err)
-            display("error reading {:?}: {}", path, err)
+            display("error reading {:?}: {}", path, err.display())
             description("error reading template file")
             context(path: &'a Path, e: TeraError)
                 -> (e, path.to_path_buf())

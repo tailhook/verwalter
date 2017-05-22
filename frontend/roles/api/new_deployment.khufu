@@ -1,0 +1,171 @@
+import {value, bool, set, init, toggle} from '../../stores/simple'
+import {variables, set as set_var, set_types} from '../../stores/variables'
+import {uniqueset, toggleunique} from '../../stores/simple'
+import {repr, entries_sorted, keys, pretty_json} from '../../util/object'
+import {refresher, json} from '../../middleware/request'
+import {section} from '../../blocks/title.khufu'
+import {main as version} from '../../blocks/version_select.khufu'
+import json_store from '../../stores/json'
+import pending_actions from '../../stores/actions'
+import {execute} from '../../util/action'
+import {parse_int} from '../../util/parse'
+import {show_action_progress} from '../../blocks/action.khufu'
+import {sample} from './sample.khufu'
+
+
+style:
+  .versions
+    display: flex
+    flex-wrap: wrap
+  .version-block
+    margin: 2px
+  .panel
+    max-width: 40ex
+  .short
+    max-width: 40ex
+
+view new_group(role, role_name, role_state, @actions,
+               {servers, system_status}):
+  <div>
+    store @new_group = value | init('')
+    store @new_group_version = value | init('')
+    <h3> "New group"
+    <div>
+      store @show_api = bool | init(false)
+      <div.form-group>
+        <label for="new_group_name"> "Name"
+        <input.form-control.short id="new_group_name" placeholder=`Name`
+          value=@new_group>
+          link {input} set(this.value) -> @new_group
+
+      <div.form-group>
+        <label> "Initial version"
+        version(role, -> @new_group_version)
+
+      let api_call = {"button": {role: role_name,
+                                 action: "create_group",
+                                 group_name: @new_group,
+                                 version: @new_group_version}}
+      <div.btn-group>
+        <button.btn.btn-default disabled=(
+            (@new_group and @new_group_version) ? null : "disabled"
+          )>
+          link {click} execute(api_call) -> @actions
+          "Create Group"
+          show_action_progress("create_group", @actions)
+        <button.btn.btn-default>
+          link {click} toggle(@show_api) -> @show_api
+          <span.caret>
+      if @show_api:
+        <p>
+          sample("Create Group Via API", api_call, system_status)
+
+
+view new_process(role, role_name, role_state, @actions,
+                 {servers, system_status}):
+  <div>
+    <h3> "New process"
+    <div>
+      store @input = json_store | refresher
+        | json('/v1/scheduler_input')
+      store @group_name = value | init('')
+      store @name = value | init('')
+      store @service = value | init('')
+      store @servers = uniqueset | init({})
+      store @number_per_server = value | init('1')
+      store @variables = variables
+      store @show_api = bool | init(false)
+
+      let version = role.versions[0]  // TODO fetch version from group
+      let runtime = @input and @input.runtime
+      let role_meta = runtime and runtime[role_name]
+      let meta = role_meta and role_meta[version]
+
+      <div.form-group>
+        <label> "Group"
+        <div>
+          <div.btn-group>
+            let groups = role_state.groups
+            for [gname, group] of entries_sorted(groups or {}) key gname:
+              <button.btn.btn-default.btn-xs.active?(@group_name == gname)>
+                link {click} set(gname) -> @group_name
+                gname
+
+      <div.form-group>
+        <label> "Name"
+        <input.form-control.short>
+          link {input} set(this.value) -> @name
+      if meta:
+        <div.form-group>
+          <label> "Daemon"
+          <div.daemons>
+            for daemon of keys(meta.daemons):
+              <button.btn.btn-default.btn-xs.active?(@service == daemon)>
+                link {click} set(daemon) -> @service
+                link {click} (
+                    set_types(meta.daemons[daemon].variables)
+                  ) -> @variables
+                daemon
+        let vars = @service and meta.daemons[@service].variables
+        for [varname, vartype] of entries_sorted(vars or {}) key varname:
+          <div.form-group>
+            <label> `Variable: ${varname}`
+            if vartype.type == 'TcpPort':
+              <div.input-group.panel>
+                <input.form-control.short>
+                  link {input} set_var(varname, this.value) -> @variables
+                if varname == 'nginx_port':
+                  <label.input-group-addon> "alternate port: "
+                  <input.form-control.short>
+              if meta.ports:
+                `Allowed ranges: ${meta.ports.join(', ')}`
+            elif vartype.type == 'Choice':
+              <div>
+                <div.btn-group>
+                  for value of vartype.choices:
+                    <button.btn.btn-default.btn-xs
+                        .active?(@variables.values[varname] == value)>
+                      link {input} set_var(varname, value) -> @variables
+                      value
+
+      <div.form-group>
+        <label> "Servers"
+        <div>
+          <div.btn-group>
+            for srv of servers key srv.id:
+              <button.btn.btn-default.btn-xs
+                     .active?(@servers[srv.hostname])>
+                link {click} toggleunique(srv.hostname) -> @servers
+                srv.hostname
+
+      <div.form-group>
+        <label> "Number per server"
+        <input.form-control.short value=@number_per_server>
+          link {input} set(this.value) -> @number_per_server
+
+      let api_call = {"button": {
+        role: role_name,
+        action: "add_daemon",
+        group: @group_name,
+        new_name: @name,
+        service: @service,
+        servers: keys(@servers),
+        number_per_server: parse_int(@number_per_server),
+        variables: @variables.values,
+      }}
+
+
+      <div.btn-group>
+        <button.btn.btn-default disabled=(
+            (@group_name and @name and @service and @number_per_server)
+            ?null:"disabled"
+          )>
+          link {click} execute(api_call) -> @actions
+          "Add Daemon"
+          show_action_progress("add_daemon", @actions)
+        <button.btn.btn-default>
+          link {click} toggle(@show_api) -> @show_api
+          <span.caret>
+      if @show_api:
+        <p>
+          sample("Add Daemon Group Via API", api_call, system_status)

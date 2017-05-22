@@ -1,4 +1,5 @@
 extern crate argparse;
+extern crate error_chain;
 extern crate handlebars;
 extern crate libc;
 extern crate quire;

@@ -125,3 +125,10 @@ export var fast_refresh_json = url => ({
     decoder: x => x,
     delay: 500,
 })
+
+export var plain = url => ({
+    type: UPDATE_REQUEST,
+    url: url,
+    response_type: 'text',
+    decoder: x => x,
+})

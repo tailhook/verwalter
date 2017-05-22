@@ -1,0 +1,61 @@
+import {value, bool, set, init, toggle, disable} from '../stores/simple'
+import pending_actions from '../stores/actions'
+import json_store from '../stores/json'
+import {refresher, json} from '../middleware/request'
+import {pretty_json} from '../util/object'
+import {servers} from '../util/peers'
+import {is_leader} from '../util/status'
+import {new_group, new_process} from './api/new_deployment.khufu'
+import {main as current_groups} from './api/groups.khufu'
+import {show_leaders} from '../util/leaders.khufu'
+
+
+style:
+  .actions
+    margin-top: 12px
+    margin-bottom: 16px
+
+
+view main(role, role_name, {role_state, schedule, system_status}):
+  <div>
+    store @actions = pending_actions | refresher
+      | json('/v1/pending_actions')
+    store @peers = json_store | refresher | json('/v1/peers')
+    store @show_json = bool | init(false)
+    store @show_new_group = bool | init(false)
+    store @show_new_process = bool | init(false)
+    let server_list = servers(@peers, system_status)
+
+
+    current_groups(role, role_name, role_state, -> @actions,
+      {system_status: system_status, servers: server_list})
+
+    <div.btn-group.actions>
+      <div.btn.btn-default>
+        link {click} toggle(@show_new_group) -> @show_new_group
+        "New Group"
+      <div.btn.btn-default>
+        link {click} toggle(@show_new_process) -> @show_new_process
+        "New Process"
+      <div.btn.btn-default>
+        link {click} toggle(@show_json) -> @show_json
+        <span.caret>
+
+    if @show_json:
+      <pre>
+        pretty_json(role)
+
+      <pre>
+        pretty_json(role_state)
+
+    if is_leader(system_status):
+      if @show_new_group:
+        new_group(role, role_name, role_state, -> @actions,
+          {system_status: system_status, servers: server_list})
+      if @show_new_process:
+        new_process(role, role_name, role_state, -> @actions,
+          {system_status: system_status, servers: server_list})
+    else:
+      show_leaders(
+        "Actions are Only Available on Leader",
+        `/role/${role_name}`, system_status)

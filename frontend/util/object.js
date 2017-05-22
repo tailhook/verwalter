@@ -29,3 +29,7 @@ export function reversed(x) {
     r.reverse();
     return r
 }
+
+export function pretty_json(x) {
+    return JSON.stringify(x, null, 2)
+}
