@@ -1,0 +1,22 @@
+import {value, bool, set, init, toggle} from '../../stores/simple'
+import {pretty_json} from '../../util/object'
+
+style:
+  .api-btn
+    margin: 2px
+  .api-popup
+    background: white
+    border: solid rgb(204, 204, 204) 1px
+    border-radius: 5px
+    box-shadow: 2px 2px 5px #DDD
+    padding: 4px 12px
+    margin: 6px
+    display: inline-block
+  .sample
+    text-align: left
+
+view sample(title, action_data, system_status):
+  <div.api-popup>
+    <h4> title
+    <pre.sample>
+      `curl http://${system_status.name}:8379/v1/action -XPOST -d '${pretty_json(action_data)}'`

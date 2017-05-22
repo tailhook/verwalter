@@ -20,11 +20,11 @@ view main(role, role_name, {role_state, schedule, system_status}):
       repr(server_list)
 
     current_groups(role, role_name, role_state, -> @actions,
-      {servers: server_list})
+      {system_status: system_status, servers: server_list})
 
     if is_leader(system_status):
       new_deployment(role, role_name, role_state, -> @actions,
-        {servers: server_list})
+        {system_status: system_status, servers: server_list})
     else:
       show_leaders(
         "Actions are Only Available on Leader",

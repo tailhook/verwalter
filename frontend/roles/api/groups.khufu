@@ -4,6 +4,8 @@ import {section} from '../../blocks/title.khufu'
 import {main as versions} from '../../blocks/version_select.khufu'
 import {execute} from '../../util/action'
 import {show_action_progress} from '../../blocks/action.khufu'
+import {sample} from './sample.khufu'
+
 
 style:
   .version
@@ -11,7 +13,8 @@ style:
     font-size: 75%
     margin-left: 8px
 
-view main(role, role_name, role_state, @actions, {servers}):
+
+view main(role, role_name, role_state, @actions, {servers, system_status}):
   for [gname, group] of entries_sorted(role_state.groups) key gname:
     section():
       title:
@@ -54,6 +57,7 @@ view main(role, role_name, role_state, @actions, {servers}):
             <p>
               versions(role, -> @version)
             <p>
+              store @show_api = bool | init(false)
               <div.btn-group>
                 <button.btn.btn-success disabled=(@version ? null : "1")>
                   link {click} execute(start_call) -> @actions
@@ -63,12 +67,13 @@ view main(role, role_name, role_state, @actions, {servers}):
                   link {click} execute(force_call) -> @actions
                   "Force Version"
                   show_action_progress("force_version", @actions)
-
-            <h4> "Or via API"
-            <pre>
-              `curl http://localhost:8379 -XPOST -d '${pretty_json(start_call)}'`
-            <pre>
-              `curl http://localhost:8379 -XPOST -d '${pretty_json(force_call)}'`
+                <button.btn.btn-default>
+                  link {click} toggle(@show_api) -> @show_api
+                  <span.caret>
+              if @show_api:
+                <p>
+                  sample("Start Update Via API", start_call, system_status)
+                  sample("Force Version Via API", force_call, system_status)
 
           else: // auto-updates enabled
 
@@ -88,25 +93,32 @@ view main(role, role_name, role_state, @actions, {servers}):
                 show_action_progress("enable_auto_update", @actions)
                 show_action_progress("disable_auto_update", @actions)
 
+          let delete_call = {"button": {
+            role: role_name,
+            group: gname,
+            action: "delete_group",
+          }}
           if @delete_confirm:
-            let delete_call = {"button": {
-              role: role_name,
-              group: gname,
-              action: "delete_group",
-            }}
-            <h4> "Delete via API"
-            <pre>
-              `curl http://localhost:8379 -XPOST -d '${pretty_json(delete_call)}'`
-            <button.btn.btn-success>
-              link {click} set(false) -> @delete_confirm
-              "Oh, not now"
-            " "
-            <button.btn.btn-danger>
-              link {click} execute(delete_call) -> @actions
-              `Yes, delete group "${ gname }" of role "${ role_name }" for me`
-              show_action_progress("delete_group", @actions)
+            <div.btn-group>
+              <button.btn.btn-success>
+                link {click} set(false) -> @delete_confirm
+                "Oh, not now"
+              " "
+              <button.btn.btn-danger>
+                link {click} execute(delete_call) -> @actions
+                `Yes, delete group "${ gname }" `
+                `of role "${ role_name }" for me`
+                show_action_progress("delete_group", @actions)
           else:
             <p align="right">
-              <button.btn.btn-danger>
-                link {click} set(true) -> @delete_confirm
-                "Delete This Group"
+              store @show_api = bool | init(false)
+              <div.btn-group>
+                <button.btn.btn-danger>
+                  link {click} set(true) -> @delete_confirm
+                  "Delete This Group"
+                <button.btn.btn-default>
+                  link {click} toggle(@show_api) -> @show_api
+                  <span.caret>
+              if @show_api:
+                <div>
+                  sample("Delete Group Via API", delete_call, system_status)

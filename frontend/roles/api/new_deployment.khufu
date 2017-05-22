@@ -10,6 +10,7 @@ import pending_actions from '../../stores/actions'
 import {execute} from '../../util/action'
 import {parse_int} from '../../util/parse'
 import {show_action_progress} from '../../blocks/action.khufu'
+import {sample} from './sample.khufu'
 
 
 style:
@@ -23,7 +24,7 @@ style:
   .short
     max-width: 40ex
 
-view main(role, role_name, role_state, @actions, {servers}):
+view main(role, role_name, role_state, @actions, {servers, system_status}):
   section():
     title: "New deployment"
     body:
@@ -32,6 +33,7 @@ view main(role, role_name, role_state, @actions, {servers}):
         store @new_group_version = value | init('')
         <h3> "New group"
         <div>
+          store @show_api = bool | init(false)
           <div.form-group>
             <label for="new_group_name"> "Name"
             <input.form-control.short id="new_group_name" placeholder=`Name`
@@ -46,16 +48,20 @@ view main(role, role_name, role_state, @actions, {servers}):
                                      action: "create_group",
                                      group_name: @new_group,
                                      version: @new_group_version}}
-          <button.btn.btn-default disabled=(
-              (@new_group and @new_group_version) ? null : "disabled"
-            )>
-            link {click} execute(api_call) -> @actions
-            "Create Group"
-            show_action_progress("create_group", @actions)
+          <div.btn-group>
+            <button.btn.btn-default disabled=(
+                (@new_group and @new_group_version) ? null : "disabled"
+              )>
+              link {click} execute(api_call) -> @actions
+              "Create Group"
+              show_action_progress("create_group", @actions)
+            <button.btn.btn-default>
+              link {click} toggle(@show_api) -> @show_api
+              <span.caret>
+          if @show_api:
+            <p>
+              sample("Create Group Via API", api_call, system_status)
 
-          <h4> "Or via API"
-          <pre>
-            `curl http://localhost:8379 -XPOST -d '${pretty_json(api_call)}'`
 
         <h3> "New process"
         <div>
@@ -67,6 +73,7 @@ view main(role, role_name, role_state, @actions, {servers}):
           store @servers = uniqueset | init({})
           store @number_per_server = value | init('1')
           store @variables = variables
+          store @show_api = bool | init(false)
 
           let version = role.versions[0]  // TODO fetch version from group
           let runtime = @input and @input.runtime
@@ -145,14 +152,19 @@ view main(role, role_name, role_state, @actions, {servers}):
             number_per_server: parse_int(@number_per_server),
             variables: @variables.values,
           }}
-          <button.btn.btn-default disabled=(
-              (@group_name and @name and @service and @number_per_server)
-              ?null:"disabled"
-            )>
-            link {click} execute(api_call) -> @actions
-            "Add daemon"
-            show_action_progress("add_daemon", @actions)
 
-          <h4> "Or via API"
-          <pre>
-            `curl http://localhost:8379 -XPOST -d '${pretty_json(api_call)}'`
+
+          <div.btn-group>
+            <button.btn.btn-default disabled=(
+                (@group_name and @name and @service and @number_per_server)
+                ?null:"disabled"
+              )>
+              link {click} execute(api_call) -> @actions
+              "Add Daemon"
+              show_action_progress("add_daemon", @actions)
+            <button.btn.btn-default>
+              link {click} toggle(@show_api) -> @show_api
+              <span.caret>
+          if @show_api:
+            <p>
+              sample("Add Daemon Group Via API", api_call, system_status)
