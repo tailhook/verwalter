@@ -57,7 +57,15 @@ export function uniqueset(state=undefined, action) {
     switch(action.type) {
         case 'init':
             if(state === undefined) {
-                return action.value
+                if(Array.isArray(action.value)) {
+                    let nstate = {}
+                    for(let k of action.value) {
+                        nstate[k] = true;
+                    }
+                    return nstate;
+                } else {
+                    return action.value
+                }
             } else {
                 return state
             }
