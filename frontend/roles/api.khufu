@@ -31,12 +31,13 @@ view main(role, role_name, {role_state, schedule, system_status}):
       {system_status: system_status, servers: server_list})
 
     <div.btn-group.actions>
-      <div.btn.btn-default>
-        link {click} toggle(@show_new_group) -> @show_new_group
-        "New Group"
-      <div.btn.btn-default>
-        link {click} toggle(@show_new_process) -> @show_new_process
-        "New Process"
+      if is_leader(system_status):
+        <div.btn.btn-default>
+          link {click} toggle(@show_new_group) -> @show_new_group
+          "New Group"
+        <div.btn.btn-default>
+          link {click} toggle(@show_new_process) -> @show_new_process
+          "New Process"
       <div.btn.btn-default>
         link {click} toggle(@show_json) -> @show_json
         <span.caret>

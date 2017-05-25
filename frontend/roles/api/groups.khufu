@@ -8,6 +8,7 @@ import {sample} from './sample.khufu'
 import {uniqueset, toggleunique} from '../../stores/simple'
 import {count_instances} from '../../util/groups'
 import {parse_int} from '../../util/parse'
+import {is_leader} from '../../util/status'
 
 
 style:
@@ -40,7 +41,7 @@ view edit_servers(role_name, group_name, service_name, value,
       servers: keys(@new_servers),
     }}
 
-    if @edit:
+    if @edit and is_leader(system_status):
 
       <p>
         <div.btn-group>
@@ -70,9 +71,10 @@ view edit_servers(role_name, group_name, service_name, value,
 
       value.join(', ')
       " "
-      <button.btn.btn-default.btn.xs>
-        <span.glyphicon.glyphicon-edit>
-        link {click} toggle(@edit) -> @edit
+      if is_leader(system_status):
+        <button.btn.btn-default.btn.xs>
+          <span.glyphicon.glyphicon-edit>
+          link {click} toggle(@edit) -> @edit
 
 view edit_number(role_name, group_name, service_name, service, old_value,
                   @actions, {servers, system_status}):
@@ -89,7 +91,7 @@ view edit_number(role_name, group_name, service_name, service, old_value,
       number_per_server: parse_int(@value),
     }}
 
-    if @edit:
+    if @edit and is_leader(system_status):
 
       <p>
         old_value
@@ -118,9 +120,10 @@ view edit_number(role_name, group_name, service_name, service, old_value,
     else:
       let total = old_value * service.servers.length
       `${ old_value } (total instances: ${ total }) `
-      <button.btn.btn-default.btn.xs>
-        <span.glyphicon.glyphicon-edit>
-        link {click} toggle(@edit) -> @edit
+      if is_leader(system_status):
+        <button.btn.btn-default.btn.xs>
+          <span.glyphicon.glyphicon-edit>
+          link {click} toggle(@edit) -> @edit
 
 
 view main(role, role_name, role_state, @actions, {servers, system_status}):
