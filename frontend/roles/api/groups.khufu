@@ -7,6 +7,7 @@ import {show_action_progress} from '../../blocks/action.khufu'
 import {sample} from './sample.khufu'
 import {uniqueset, toggleunique} from '../../stores/simple'
 import {count_instances} from '../../util/groups'
+import {parse_int} from '../../util/parse'
 
 
 style:
@@ -85,7 +86,7 @@ view edit_number(role_name, group_name, service_name, service, old_value,
       action: "set_number_per_server",
       group: group_name,
       service: service_name,
-      number_per_server: @value,
+      number_per_server: parse_int(@value),
     }}
 
     if @edit:
