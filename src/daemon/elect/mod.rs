@@ -4,7 +4,7 @@ use std::collections::{HashMap};
 
 
 pub use self::machine::Epoch;
-pub use self::network::spawn;
+pub use self::network::spawn_election;
 pub use self::settings::peers_refresh;
 pub use self::state::ElectionState;
 use id::Id;
