@@ -1,14 +1,16 @@
+use std::fmt;
+
 use futures::future::{ok, FutureResult};
 use tk_http::{Status};
 use tk_http::server::{Error, Encoder, EncoderDone};
 use frontend::{reply, Request};
 
 
-#[derive(Debug)]
 pub struct File {
     pub data: &'static [u8],
     pub content_type: &'static str,
 }
+
 
 pub static INDEX: File = File {
     data: include_bytes!("../../../public/index.html"),
@@ -34,6 +36,13 @@ pub static BUNDLE_JS: File = File {
 impl File {
     pub fn serve<S: 'static>(&'static self) -> Result<Request<S>, Error> {
         Ok(reply(move |e| Box::new(serve_file(self, e))))
+    }
+}
+
+impl fmt::Debug for File {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "File {{ size: {}, content_type: {:?} }}",
+            self.data.len(), self.content_type)
     }
 }
 
