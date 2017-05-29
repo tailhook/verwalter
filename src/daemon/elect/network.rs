@@ -1,11 +1,14 @@
-use std::net::SocketAddr;
-use std::time::{SystemTime, Instant, Duration, UNIX_EPOCH};
-use std::sync::Mutex;
 use std::collections::HashMap;
+use std::net::SocketAddr;
+use std::process::exit;
+use std::sync::Mutex;
+use std::time::{SystemTime, Instant, Duration, UNIX_EPOCH};
 
-use futures::future::{Future, loop_fn, Loop, ok};
+use abstract_ns::{self, Resolver};
+use futures::{Async, Future};
+use tokio_core::net::UdpSocket;
 use libcantal::{Counter, Integer};
-use tk_easyloop;
+use tk_easyloop::{handle, spawn};
 
 /*
 use rotor::{Machine, EventSet, Scope, Response, PollOpt};
@@ -328,16 +331,38 @@ fn to_system_time(time: Timespec) -> SystemTime {
 
 */
 
-pub fn spawn(state: &SharedState)
+struct ElectionMachine {
+    sockets: Vec<UdpSocket>,
+}
+
+impl Future for ElectionMachine {
+    type Item = ();
+    type Error = ();
+    fn poll(&mut self) -> Result<Async<()>, ()> {
+        unimplemented!();
+    }
+}
+
+pub fn spawn_election(ns: &abstract_ns::Router, addr: &str,
+    state: &SharedState)
     -> Result<(), Box<::std::error::Error>>
 {
+    let str_addr = addr.to_string();
     let mach = machine::Machine::new(Instant::now());
-    tk_easyloop::spawn(loop_fn(mach, |mach| {
-        tk_easyloop::timeout_at(mach.current_deadline())
-        .map_err(|_| unreachable!())
-        .and_then(move |()| {
-            ok(Loop::Continue(mach))
-        })
+    spawn(ns.resolve(addr).map(move |address| {
+        let socks = address.at(0).addresses().map(|a| {
+                UdpSocket::bind(&a, &handle())
+                .map_err(move |e| {
+                    error!("Can't bind address {}: {}", a, e);
+                    exit(3);
+                }).unwrap()
+            }).collect();
+        spawn(ElectionMachine {
+            sockets: socks,
+        });
+    }).map_err(move |e| {
+        error!("Can't bind address {}: {}", str_addr, e);
+        exit(3);
     }));
     Ok(())
 }

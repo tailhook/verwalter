@@ -285,7 +285,7 @@ fn main() {
 
         http::spawn_listener(&ns, &listen_addr, &state)?;
         cantal::spawn_fetcher(&state)?;
-        elect::spawn(&state)?;
+        elect::spawn_election(&ns, &listen_addr, &state)?;
 
         let m1 = meter.clone();
         let s1 = state.clone();
