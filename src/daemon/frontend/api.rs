@@ -166,8 +166,7 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                 } else {
                     election.leader.as_ref()
                 };
-                let leader = leader_id.and_then(
-                    |id| peers.as_ref().and_then(|x| x.1.get(id)));
+                let leader = leader_id.and_then(|id| peers.1.get(id));
                 let errors = state.errors();
                 let failed_roles = state.failed_roles();
                 //let (me, thr) = {
@@ -182,8 +181,8 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                     id: &state.id,
                     name: &state.name,
                     hostname: &state.hostname,
-                    peers: peers.as_ref().map(|x| x.1.len()).unwrap_or(0),
-                    peers_timestamp: peers.as_ref().map(|x| x.0),
+                    peers: peers.1.len(),
+                    peers_timestamp: Some(peers.0),
                     leader: leader.map(|peer| LeaderInfo {
                         id: leader_id.unwrap(),
                         name: &peer.name,
@@ -214,15 +213,12 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
             }
             Ok(reply(move |e| {
                 Box::new(respond(e, format,
-                    &state.peers().as_ref()
-                    .map(|x| {
-                        x.1.iter().map(|(id, peer)| Peer {
-                            id: id,
-                            name: &peer.name,
-                            hostname: &peer.hostname,
-                            primary_addr: peer.addr.map(|x| x.to_string()),
-                        }).collect::<Vec<_>>()
-                    })
+                    &state.peers().1.iter().map(|(id, peer)| Peer {
+                        id: id,
+                        name: &peer.name,
+                        hostname: &peer.hostname,
+                        primary_addr: peer.addr.map(|x| x.to_string()),
+                    }).collect::<Vec<_>>()
                 ))
             }))
         }

@@ -74,6 +74,7 @@ mod shared;
 mod time_util;
 mod watchdog;
 mod frontend;
+mod cell;
 /*
 mod net;
 mod info;
@@ -253,6 +254,8 @@ fn main() {
     let name = options.name.unwrap_or_else(|| hostname.clone());
     let listen_addr = format!("{}:{}",
         options.listen_host, options.listen_port);
+    // note this port is expected to be the same across cluster
+    let udp_port = options.listen_port;
 
     let state = SharedState::new(&id, &name, &hostname,
         options.debug_force_leader, old_schedule);
@@ -284,7 +287,7 @@ fn main() {
         let ns = name::init(&meter);
 
         http::spawn_listener(&ns, &listen_addr, &state)?;
-        cantal::spawn_fetcher(&state)?;
+        cantal::spawn_fetcher(&state, udp_port)?;
         elect::spawn_election(&ns, &listen_addr, &state)?;
 
         let m1 = meter.clone();

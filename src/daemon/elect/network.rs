@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::process::exit;
-use std::sync::Mutex;
+use std::sync::{Mutex, Arc};
 use std::time::{SystemTime, Instant, Duration, UNIX_EPOCH};
 
 use abstract_ns::{self, Resolver};
@@ -11,13 +11,7 @@ use tokio_core::reactor::Timeout;
 use libcantal::{Counter, Integer};
 use tk_easyloop::{handle, spawn, timeout_at};
 
-/*
-use rotor::{Machine, EventSet, Scope, Response, PollOpt};
-use rotor::mio::udp::UdpSocket;
-use rotor::void::{unreachable, Void};
-use rotor_cantal::{Schedule as Cantal};
-*/
-
+use cell::Cell;
 use elect::action::Action;
 use elect::{Election, Info};
 use elect::{machine, encode};
@@ -327,6 +321,7 @@ fn execute_action(action: Action, info: &Info, epoch: Epoch,
 
 struct ElectionMachine {
     sockets: Vec<UdpSocket>,
+    peers: Cell<Arc<(SystemTime, HashMap<Id, Peer>)>>,
     shared: SharedState,
     machine: Option<Machine>,
     last_schedule_sent: String,
@@ -337,15 +332,14 @@ impl Future for ElectionMachine {
     type Item = ();
     type Error = ();
     fn poll(&mut self) -> Result<Async<()>, ()> {
-        let empty_map = HashMap::new();
-        let peers_opt = self.shared.peers();
-        let peers = peers_opt.as_ref().map(|x| &x.1).unwrap_or(&empty_map);
+        let peers = self.peers.get();
         let ref info = Info {
             id: &self.shared.id.clone(),
-            hosts_timestamp: peers_opt.as_ref().map(|x| x.0),
-            all_hosts: &peers,
+            hosts_timestamp: Some(peers.0),
+            all_hosts: &peers.1,
             debug_force_leader: self.shared.debug_force_leader(),
         };
+        println!("PEers {:?}", peers);
         let mut me = self.machine.take().expect("machine is always here");
         let dline = me.current_deadline();
         loop {
@@ -433,6 +427,7 @@ pub fn spawn_election(ns: &abstract_ns::Router, addr: &str,
             }).collect();
         spawn(ElectionMachine {
             machine: Some(Machine::new(Instant::now())),
+            peers: state.peer_cell(),
             sockets: socks,
             shared: state,
             last_schedule_sent: String::new(),

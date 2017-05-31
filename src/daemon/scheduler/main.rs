@@ -245,7 +245,7 @@ pub fn main(state: SharedState, settings: Settings) -> !
                 }
             }
 
-            let peers = state.peers().expect("peers are ready for scheduler");
+            let peers = state.peers();
             // TODO(tailhook) check if peers are outdated
 
             let timestamp = SystemTime::now();

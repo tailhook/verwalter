@@ -15,6 +15,7 @@ use rustc_serialize::hex::{FromHex, ToHex, FromHexError};
 use rustc_serialize::{Encodable, Encoder as RustcEncoder};
 use rustc_serialize::json::{Json, ToJson};
 
+use cell;
 use id::Id;
 use peer::Peer;
 use time_util::ToMsec;
@@ -50,6 +51,7 @@ pub struct SharedData {
     pub name: String,
     pub hostname: String,
     notifiers: Notifiers,
+    peers: cell::Sender<Arc<(SystemTime, HashMap<Id, Peer>)>>,
 }
 
 pub struct LeaderCookie {
@@ -65,7 +67,6 @@ pub enum PushActionError {
 
 #[derive(Debug)]
 struct State {
-    peers: Option<Arc<(SystemTime, HashMap<Id, Peer>)>>,
     last_known_schedule: Option<Arc<Schedule>>,
     // TODO(tailhook) rename schedule -> scheduleR
     schedule: Arc<scheduler::State>,
@@ -127,9 +128,10 @@ impl SharedState {
                     apply_schedule: Condvar::new(),
                     run_scheduler: Condvar::new(),
                 },
+                peers: cell::Sender::new(
+                    Arc::new((SystemTime::now(), HashMap::new()))),
             }),
             Arc::new(Mutex::new(State {
-                peers: None,
                 schedule: Arc::new(scheduler::State::Unstable),
                 last_known_schedule: old_schedule.map(Arc::new),
                 last_scheduler_debug_info: Arc::new((Json::Null, String::new())),
@@ -154,8 +156,13 @@ impl SharedState {
         // -- TODO(tailhook) move this flag out of mutex
         self.lock().debug_force_leader
     }
-    pub fn peers(&self) -> Option<Arc<(SystemTime, HashMap<Id, Peer>)>> {
-        self.lock().peers.clone()
+    pub fn peers(&self) -> Arc<(SystemTime, HashMap<Id, Peer>)> {
+        self.peers.get()
+    }
+    pub fn peer_cell(&self)
+        -> cell::Cell<Arc<(SystemTime, HashMap<Id, Peer>)>>
+    {
+        self.peers.cell()
     }
     /// Returns last known schedule
     pub fn schedule(&self) -> Option<Arc<Schedule>> {
@@ -205,8 +212,7 @@ impl SharedState {
     */
     // Setters
     pub fn set_peers(&self, time: SystemTime, peers: HashMap<Id, Peer>) {
-        let mut guard = self.lock();
-        guard.peers = Some(Arc::new((time, peers)));
+        self.peers.set(Arc::new((time, peers)));
 
         // TODO(tailhook) should we bother to run it every time?
         //
@@ -281,11 +287,8 @@ impl SharedState {
         } else if elect.is_leader {
             match *guard.schedule.clone() {
                 Unstable | Following(..) => {
-                    let empty_map = HashMap::new();
                     let mut initial = PrefetchInfo::new(
-                        guard.peers.as_ref()
-                        .map(|x| &x.1).unwrap_or(&empty_map)
-                        .keys().cloned(),
+                        self.0.peers.get().1.keys().cloned(),
                         guard.last_known_schedule.clone());
                     peer_schedule.map(|(id, stamp)| {
                         initial.peer_report(id, stamp)
@@ -371,10 +374,6 @@ impl SharedState {
                 .wait_timeout(guard, wait_time)
                 .expect("shared state lock")
                 .0;
-            if guard.peers.is_none() {
-                // Don't care even checking anything if we have no peers
-                continue;
-            }
             wait_time = match *guard.schedule.clone() {
                 Leading(Prefetching(time, ref mutex)) => {
                     let time_left = time + Dur::milliseconds(MAX_PREFETCH_TIME)
