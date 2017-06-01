@@ -165,42 +165,41 @@ view main(role, role_name, role_state, @actions, {servers, system_status}):
                           {servers: servers, system_status: system_status})
                       else:
                         repr(value)
-          <h3> "Update"
-          if not group.auto_update:
-            let start_call = {"button": {
-              role: role_name,
-              group: gname,
-              action: "start_update",
-              to_version: @version,
-            }}
-            let force_call = {"button": {
-              role: role_name,
-              group: gname,
-              action: "force_version",
-              to_version: @version,
-            }}
-            <p>
-              versions(role, -> @version)
-            <p>
-              store @show_api = bool | init(false)
-              <div.btn-group>
-                <button.btn.btn-success disabled=(@version ? null : "1")>
-                  link {click} execute(start_call) -> @actions
-                  "Start Update"
-                  show_action_progress("start_update", @actions)
-                <button.btn.btn-danger disabled=(@version ? null : "1")>
-                  link {click} execute(force_call) -> @actions
-                  "Force Version"
-                  show_action_progress("force_version", @actions)
-                <button.btn.btn-default>
-                  link {click} toggle(@show_api) -> @show_api
-                  <span.caret>
-              if @show_api:
-                <p>
-                  sample("Start Update Via API", start_call, system_status)
-                  sample("Force Version Via API", force_call, system_status)
-
-          else: // auto-updates enabled
+          if is_leader(system_status):
+            <h3> "Update"
+            if not group.auto_update:
+              let start_call = {"button": {
+                role: role_name,
+                group: gname,
+                action: "start_update",
+                to_version: @version,
+              }}
+              let force_call = {"button": {
+                role: role_name,
+                group: gname,
+                action: "force_version",
+                to_version: @version,
+              }}
+              <p>
+                versions(role, -> @version)
+              <p>
+                store @show_api = bool | init(false)
+                <div.btn-group>
+                  <button.btn.btn-success disabled=(@version ? null : "1")>
+                    link {click} execute(start_call) -> @actions
+                    "Start Update"
+                    show_action_progress("start_update", @actions)
+                  <button.btn.btn-danger disabled=(@version ? null : "1")>
+                    link {click} execute(force_call) -> @actions
+                    "Force Version"
+                    show_action_progress("force_version", @actions)
+                  <button.btn.btn-default>
+                    link {click} toggle(@show_api) -> @show_api
+                    <span.caret>
+                if @show_api:
+                  <p>
+                    sample("Start Update Via API", start_call, system_status)
+                    sample("Force Version Via API", force_call, system_status)
 
             <p align="right">
               <button.btn.btn-danger>
@@ -218,32 +217,32 @@ view main(role, role_name, role_state, @actions, {servers, system_status}):
                 show_action_progress("enable_auto_update", @actions)
                 show_action_progress("disable_auto_update", @actions)
 
-          let delete_call = {"button": {
-            role: role_name,
-            group: gname,
-            action: "delete_group",
-          }}
-          if @delete_confirm:
-            <div.btn-group>
-              <button.btn.btn-success>
-                link {click} set(false) -> @delete_confirm
-                "Oh, not now"
-              " "
-              <button.btn.btn-danger>
-                link {click} execute(delete_call) -> @actions
-                `Yes, delete group "${ gname }" `
-                `of role "${ role_name }" for me`
-                show_action_progress("delete_group", @actions)
-          else:
-            <p align="right">
-              store @show_api = bool | init(false)
+            let delete_call = {"button": {
+              role: role_name,
+              group: gname,
+              action: "delete_group",
+            }}
+            if @delete_confirm:
               <div.btn-group>
+                <button.btn.btn-success>
+                  link {click} set(false) -> @delete_confirm
+                  "Oh, not now"
+                " "
                 <button.btn.btn-danger>
-                  link {click} set(true) -> @delete_confirm
-                  "Delete This Group"
-                <button.btn.btn-default>
-                  link {click} toggle(@show_api) -> @show_api
-                  <span.caret>
-              if @show_api:
-                <div>
-                  sample("Delete Group Via API", delete_call, system_status)
+                  link {click} execute(delete_call) -> @actions
+                  `Yes, delete group "${ gname }" `
+                  `of role "${ role_name }" for me`
+                  show_action_progress("delete_group", @actions)
+            else:
+              <p align="right">
+                store @show_api = bool | init(false)
+                <div.btn-group>
+                  <button.btn.btn-danger>
+                    link {click} set(true) -> @delete_confirm
+                    "Delete This Group"
+                  <button.btn.btn-default>
+                    link {click} toggle(@show_api) -> @show_api
+                    <span.caret>
+                if @show_api:
+                  <div>
+                    sample("Delete Group Via API", delete_call, system_status)
