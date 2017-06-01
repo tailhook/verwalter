@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::process::exit;
 use std::sync::{Mutex, Arc};
-use std::time::{SystemTime, Instant, Duration, UNIX_EPOCH};
+use std::time::{SystemTime, Instant, Duration};
 
 use abstract_ns::{self, Resolver};
 use futures::{Async, Future};
@@ -13,8 +13,8 @@ use tk_easyloop::{handle, spawn, timeout_at};
 
 use cell::Cell;
 use elect::action::Action;
-use elect::{Election, Info};
-use elect::{machine, encode};
+use elect::{Info};
+use elect::{encode};
 use elect::machine::{Epoch, Machine};
 use elect::settings::MAX_PACKET_SIZE;
 use elect::state::ElectionState;
@@ -49,169 +49,6 @@ lazy_static! {
     static ref LOG_TRACKER: Mutex<LogTracker> = Mutex::new(LogTracker::Nothing);
 }
 
-/*
-impl Election {
-    pub fn new(id: Id, hostname: String, name: String, addr: &SocketAddr,
-        debug_force_leader: bool, state: SharedState)
-        -> Response<Election, Void>
-    {
-        let mach = machine::Machine::new(scope.now());
-        let dline = mach.current_deadline();
-        let sock = match UdpSocket::bound(addr) {
-            Ok(x) => x,
-            Err(e) => return Response::error(Box::new(e)),
-        };
-        scope.register(&sock, EventSet::readable() | EventSet::writable(),
-            PollOpt::edge()).expect("register socket");
-        Response::ok(Election {
-            id: id,
-            addr: addr.clone(),
-            hostname: hostname,
-            name: name,
-            state: state,
-            last_schedule_sent: String::new(),
-            cantal: cantal,
-            machine: mach,
-            socket: sock,
-            debug_force_leader: debug_force_leader,
-        }).deadline(dline)
-    }
-}
-
-
-
-impl Machine for Election {
-    type Context = Context;
-    type Seed = Void;
-    fn create(seed: Self::Seed, _scope: &mut Scope<Context>)
-        -> Response<Self, Void>
-    {
-        unreachable(seed)
-    }
-    fn ready(mut self, events: EventSet, scope: &mut Scope<Context>)
-        -> Response<Self, Self::Seed>
-    {
-        let mut me = self.machine;
-        {
-            let peers_opt = self.state.peers();
-            let empty_map = HashMap::new();
-            let peers = peers_opt.as_ref().map(|x| &x.1).unwrap_or(&empty_map);
-            let ref info = Info {
-                id: &self.id,
-                hosts_timestamp: peers_opt.as_ref().map(|x| x.0),
-                all_hosts: &peers,
-                debug_force_leader: self.debug_force_leader,
-            };
-            let ref socket = self.socket;
-            let ref state = self.state;
-            let ref mut hash = self.last_schedule_sent;
-            if events.is_readable() {
-                let mut buf = [0u8; MAX_PACKET_SIZE];
-                while let Ok(Some((n, _))) = self.socket.recv_from(&mut buf) {
-                    // TODO(tailhook) check address?
-                    match encode::read_packet(&buf[..n]) {
-                        Ok(msg) => {
-                            if &msg.source == info.id {
-                                info!("Message from myself {:?}", msg);
-                                continue;
-                            }
-                            let src = msg.source;
-                            let (m, act) = me.message(info,
-                                (src.clone(), msg.epoch, msg.message),
-                                scope.now());
-                            me = m;
-                            act.action.map(|x| execute_action(x, &info,
-                                me.current_epoch(), &socket, state, hash));
-                            state.update_election(
-                                ElectionState::from(&me, scope),
-                                msg.schedule.map(|x| (src, x)));
-                        }
-                        Err(e) => {
-                            info!("Error parsing packet {:?}", e);
-                        }
-                    }
-                }
-            }
-        }
-        let dline = me.current_deadline();
-        Response::ok(Election { machine: me, ..self }).deadline(dline)
-    }
-    fn spawned(self, _scope: &mut Scope<Context>) -> Response<Self, Self::Seed>
-    {
-        unreachable!();
-    }
-    fn timeout(mut self, scope: &mut Scope<Context>)
-        -> Response<Self, Self::Seed>
-    {
-        let (me, wakeup) = {
-        };
-        let elect = ElectionState::from(&me, scope);
-        scope.state.update_election(elect, None);
-        Response::ok(Election { machine: me, ..self})
-        .deadline(wakeup)
-    }
-    fn wakeup(self, scope: &mut Scope<Context>)
-        -> Response<Self, Self::Seed>
-    {
-        let oldp = self.state.peers();
-        let oldpr = oldp.as_ref();
-        // TODO(tailhook) optimize peer copy when unneeded
-        let (recv, new_hosts) = if let Some(peers) = self.cantal.get_peers()
-        {
-            let mut map = peers.peers.iter()
-                .filter_map(|p| {
-                    p.id.parse()
-                    .map_err(|e| error!("Error parsing node id {:?}: {}",
-                                        p.id, e)).ok()
-                    .map(|x| (x, p))
-                })
-                // Cantal has a bug (or a feature) of adding itself to peers
-                .filter(|&(ref id, _)| id != &self.id)
-                .map(|(id, p)| (id, Peer {
-                    addr: p.primary_addr.as_ref()
-                        .and_then(|x| x.parse().ok())
-                        // TODO(tailhook) allow to override port
-                        .map(|x: SocketAddr| SocketAddr::new(x.ip(), 8379)),
-                    last_report: p.last_report_direct.map(|x| {
-                        Timespec { sec: (x/1000) as i64,
-                                   nsec: ((x % 1000)*1_000_000) as i32 }
-                    }),
-                    hostname: p.hostname.clone(),
-                    name: p.name.clone(),
-                })).collect::<HashMap<_, _>>();
-            // We skip host there and add it here, to make sure
-            // we have correct host info in the list
-            map.insert(self.id.clone(), Peer {
-                addr: Some(self.addr),
-                last_report: Some(get_time()),
-                hostname: self.hostname.clone(),
-                name: self.name.clone(),
-            }).map(|_| unreachable!());
-            if oldpr.map(|x| x.1.len() != map.len()).unwrap_or(true) {
-                info!("Peer number changed {} -> {}",
-                    oldpr.map(|x| x.1.len()).unwrap_or(0), map.len());
-            }
-            (peers.received, map)
-        } else {
-            // Note we just return here, because the (owned) schedule can't be
-            // changed while there is no peers yet
-            let dline = self.machine.current_deadline();
-            return Response::ok(self).deadline(dline);
-        };
-        self.state.set_peers(to_system_time(scope.estimate_timespec(recv)),
-                             new_hosts);
-
-        let dline = self.machine.current_deadline();
-        Response::ok(self).deadline(dline)
-    }
-}
-
-fn to_system_time(time: Timespec) -> SystemTime {
-    UNIX_EPOCH + Duration::new(time.sec as u64, time.nsec as u32)
-}
-
-*/
-
 fn sockets_send(sockets: &[UdpSocket], msg: &[u8], addr: &SocketAddr)
     -> Result<(), ()>
 {
@@ -236,8 +73,8 @@ fn send_all(msg: &[u8], info: &Info, sockets: &[UdpSocket]) {
         if let Some(ref addr) = peer.addr {
             debug!("Sending Ping to {} ({})", addr, id);
             sockets_send(sockets, &msg, addr)
-                .map(|_| BROADCASTS_SENT.incr(1))
-                .map_err(|e| BROADCASTS_ERRORED.incr(1))
+                .map(|()| BROADCASTS_SENT.incr(1))
+                .map_err(|()| BROADCASTS_ERRORED.incr(1))
                 .ok();
         } else {
             debug!("Can't send to {:?}, no address", id);
@@ -308,8 +145,8 @@ fn execute_action(action: Action, info: &Info, epoch: Epoch,
             if let Some(ref addr) = dest {
                 debug!("Sending pong to {} ({:?})", addr, id);
                 sockets_send(sockets, &msg, addr)
-                    .map(|_| PONGS_SENT.incr(1))
-                    .map_err(|e| PONGS_ERRORED.incr(1))
+                    .map(|()| PONGS_SENT.incr(1))
+                    .map_err(|()| PONGS_ERRORED.incr(1))
                     .ok();
                 LAST_PONG.set(now.to_msec() as i64);
             } else {

@@ -1,4 +1,3 @@
-use std::net::SocketAddr;
 use std::time::SystemTime;
 use std::collections::{HashMap};
 
@@ -9,9 +8,6 @@ pub use self::settings::peers_refresh;
 pub use self::state::ElectionState;
 use id::Id;
 use peer::Peer;
-/*
-use shared::{Id, Peer, SharedState};
-*/
 
 mod action;
 mod info;
@@ -27,18 +23,6 @@ mod encode;
 #[cfg(test)] mod test_util;
 #[cfg(test)] mod test_split_brain;
 
-pub struct Election {
-    id: Id,
-    addr: SocketAddr,
-    hostname: String,
-    name: String,
-    //state: SharedState,
-    last_schedule_sent: String,
-    //machine: machine::Machine,
-    //cantal: Cantal,
-    //socket: UdpSocket,
-    debug_force_leader: bool,
-}
 
 #[derive(Debug)]
 pub struct ScheduleStamp {
