@@ -254,8 +254,6 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
             Ok(reply(move |e| {
                 Box::new(respond(e, format, &*state.election()))
             }))
-
-            //respond(res, format, &scope.state.election())
         }
         PendingActions => {
             serve_error_page(NotImplemented)
