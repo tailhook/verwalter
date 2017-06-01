@@ -16,13 +16,8 @@ pub struct Peer {
 
 impl ToJson for Peer {
     fn to_json(&self) -> Json {
-         unimplemented!();
-         /*
-            Json::Object(vec![
-                ("hostname".to_string(), self.hostname.to_json()),
-                ("timestamp".to_string(),
-                    self.last_report.map(|x| x.to_msec()).to_json()),
-            ].into_iter().collect())
-        */
+        Json::Object(vec![
+            ("hostname".to_string(), self.hostname.to_json()),
+        ].into_iter().collect())
     }
 }

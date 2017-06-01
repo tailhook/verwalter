@@ -161,12 +161,24 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                 let peers = state.peers();
                 let election = state.election();
                 let schedule = state.schedule();
-                let leader_id = if election.is_leader {
-                    Some(state.id())
+                let leader = if election.is_leader {
+                    Some(LeaderInfo {
+                        id: state.id(),
+                        name: &state.name,
+                        hostname: &state.hostname,
+                        // TODO(tailhook) resolve listening address and show
+                        addr: None,
+                    })
                 } else {
                     election.leader.as_ref()
+                    .and_then(|id| peers.1.get(id).map(|p| (id, p)))
+                    .map(|(id, peer)| LeaderInfo {
+                        id: id,
+                        name: &peer.name,
+                        hostname: &peer.hostname,
+                        addr: peer.addr.map(|x| x.to_string()),
+                    })
                 };
-                let leader = leader_id.and_then(|id| peers.1.get(id));
                 let errors = state.errors();
                 let failed_roles = state.failed_roles();
                 //let (me, thr) = {
@@ -183,12 +195,7 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                     hostname: &state.hostname,
                     peers: peers.1.len(),
                     peers_timestamp: Some(peers.0),
-                    leader: leader.map(|peer| LeaderInfo {
-                        id: leader_id.unwrap(),
-                        name: &peer.name,
-                        hostname: &peer.hostname,
-                        addr: peer.addr.map(|x| x.to_string()),
-                    }),
+                    leader: leader,
                     roles: schedule.map(|x| x.num_roles).unwrap_or(0),
                     scheduler_state: state.scheduler_state().describe(),
                     election_epoch: election.epoch,
@@ -244,7 +251,10 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
             //respond_text(res, &scope.state.scheduler_debug_info().1)
         }
         Election => {
-            serve_error_page(NotImplemented)
+            Ok(reply(move |e| {
+                Box::new(respond(e, format, &*state.election()))
+            }))
+
             //respond(res, format, &scope.state.election())
         }
         PendingActions => {
