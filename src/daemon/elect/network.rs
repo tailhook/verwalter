@@ -202,10 +202,7 @@ impl Future for ElectionMachine {
                 }
             }
         }
-        // TODO(tailhook) update the election
-        //state.update_election(
-        //    ElectionState::from(&me, scope),
-        //    msg.schedule.map(|x| (src, x)));
+        self.shared.update_election(ElectionState::from(&me), None);
         self.machine = Some(me);
         Ok(Async::NotReady)
     }
@@ -237,6 +234,9 @@ impl ElectionMachine {
                         act.action.map(|x| execute_action(x, &info,
                             me.current_epoch(), &sockets,
                             shared, hash));
+                        shared.update_election(
+                            ElectionState::from(&me),
+                            msg.schedule.map(|x| (src, x)));
                     }
                     Err(e) => {
                         info!("Error parsing packet {:?}", e);
