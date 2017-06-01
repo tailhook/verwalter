@@ -16,7 +16,7 @@ style:
     margin-bottom: 16px
 
 
-view main(role, role_name, {role_state, schedule, system_status}):
+view main(role, role_name, {role_state, schedule, system_status, expert_mode}):
   <div>
     store @actions = pending_actions | refresher
       | json('/v1/pending_actions')
@@ -28,10 +28,11 @@ view main(role, role_name, {role_state, schedule, system_status}):
 
 
     current_groups(role, role_name, role_state, -> @actions,
-      {system_status: system_status, servers: server_list})
+      {system_status: system_status, servers: server_list,
+       expert_mode: expert_mode})
 
     <div.btn-group.actions>
-      if is_leader(system_status):
+      if expert_mode and is_leader(system_status):
         <div.btn.btn-default>
           link {click} toggle(@show_new_group) -> @show_new_group
           "New Group"

@@ -27,7 +27,7 @@ style:
     color: red
     font-weight: bold
 
-view _navbar(status, frontend_version, @expand):
+view _navbar(status, frontend_version, @expert_mode):
   <nav.navbar.navbar-default>
     <div.container-fluid>
       <div.navbar-header>
@@ -81,6 +81,15 @@ view _navbar(status, frontend_version, @expand):
               if @self_meter:
                  <div.dropdown-menu>
                   self_meter.big(status.self_report, status.threads_report)
+
+          <li>
+            let on = @expert_mode
+            <label>
+              <input.ios-switch.bigswitch.blue?(on)
+                type="checkbox" value='ok' checked=on title="Expert mode">
+                link {click} toggle(on) -> @expert_mode
+              <div>
+                <div>
 
           store @log_visible = bool | init(false)
 
@@ -136,15 +145,16 @@ view _navbar(status, frontend_version, @expand):
 view main(version):
   <div>
     store @status = json_store | refresher | fast_refresh_json('/v1/status')
-    _navbar(@status or {}, version)
+    store @expert_mode = bool | init(false)
+    _navbar(@status or {}, version, -> @expert_mode)
     <div class="container-fluid">
       if @router.path[0] == 'roles' or @router.path[0] == 'role':
-        roles(@status)
+        roles(@status, @expert_mode)
       elif @router.path[0] == 'api_links':
-        api_links(@status)
+        api_links(@status, @expert_mode)
       elif @router.path[0] == 'peers':
-        peers(@status)
+        peers(@status, @expert_mode)
       elif @router.path[0] == 'services':
-        services(@status)
+        services(@status, @expert_mode)
       elif @router.path[0] == 'logs':
-        logs(@status)
+        logs(@status, @expert_mode)

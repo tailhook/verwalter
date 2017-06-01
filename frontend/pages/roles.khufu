@@ -45,7 +45,7 @@ view _leftmenu(schedule):
         link {click} action('force_render_all') -> @preloader
         "Rerender all roles"
 
-view main(status):
+view main(status, expert_mode):
   <div.canvas>
     store @schedule = json_store | refresher | json('/v1/schedule')
     _leftmenu(@schedule and @schedule.data)
@@ -71,25 +71,29 @@ view main(status):
               example(role, role_name, {
                 role_state: role_state,
                 schedule: @schedule.data,
-                system_status: status
+                system_status: status,
+                expert_mode: expert_mode,
               })
           elif frontend == 'version':
               version(role, role_name, {
                 role_state: role_state,
                 schedule: @schedule.data,
-                system_status: status
+                system_status: status,
+                expert_mode: expert_mode,
               })
           elif frontend == 'migration':
               migration(role, role_name, {
                 role_state: role_state,
                 schedule: @schedule.data,
-                system_status: status
+                system_status: status,
+                expert_mode: expert_mode,
               })
           elif frontend == 'api':
               api(role, role_name, {
                 role_state: role_state,
                 schedule: @schedule.data,
-                system_status: status
+                system_status: status,
+                expert_mode: expert_mode,
               })
           else:
             <div.panel.panel-warning>
