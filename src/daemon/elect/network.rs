@@ -176,7 +176,6 @@ impl Future for ElectionMachine {
             all_hosts: &peers.1,
             debug_force_leader: self.shared.debug_force_leader(),
         };
-        println!("PEers {:?}", peers);
         let mut me = self.machine.take().expect("machine is always here");
         let dline = me.current_deadline();
         loop {
