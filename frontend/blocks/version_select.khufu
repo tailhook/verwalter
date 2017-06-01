@@ -4,31 +4,8 @@ import {filter_versions} from '../util/version'
 
 view main(role, @version):
   <div>
-    store @trunc = value | init('')
-    store @filter = value | init('')
-    store @show_filters = bool | init(false)
-    if @show_filters:
-      <div.input-group.panel>
-        <div.input-group-btn>
-          <button.btn.btn-default.active?(@trunc == 'no')>
-            link {click} set(@trunc == 'no' ? '' : 'no') -> @trunc
-            "Show All"
-        <input.form-control placeholder=`Filter Versions` value=@filter>
-          link {input} set(this.value) -> @filter
-        if @filter:
-          <div.input-group-btn>
-            <button.btn.btn-default>
-              link {click} set('') -> @filter
-              <span.glyphicon.glyphicon-remove>
-
-    <div.versions>
-      let all = filter_versions(role.versions or [], @filter)
-      let shown = @trunc == 'no' and all or all.slice(0, 20)
-
-      <button.btn.btn-default.btn-xs.active?(@show_filters)>
-        link {click} toggle(@show_filters) -> @show_filters
-        <span.glyphicon.glyphicon-filter>
-      for ver of shown:
-        <button.btn.btn-default.btn-xs.active?(@version == ver)>
+    <div.btn-group>
+      for ver of role.versions or []:
+        <button.btn.btn-default.active?(@version == ver)>
           link {click} set(ver) -> @version
-          ver
+          <div.version> ver
