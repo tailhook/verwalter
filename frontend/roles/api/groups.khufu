@@ -13,16 +13,15 @@ import {is_leader} from '../../util/status'
 
 style:
 
-  .version
+  .version, .auto, .number
     cursor: pointer
-    color: gray
     font-size: 75%
     margin-left: 8px
 
+  .version, .auto
+    color: gray
+
   .number
-    cursor: pointer
-    margin-left: 8px
-    font-size: 75%
     color: #337ab7
 
 
@@ -169,7 +168,11 @@ view main(role, role_name, role_state, @actions,
                       else:
                         repr(value)
           if is_leader(system_status):
-            <h3> "Update"
+            <h3>
+              "Update"
+              if group.auto_update:
+                <span.auto>
+                  "auto"
             if not group.auto_update:
               let start_call = {"button": {
                 role: role_name,
