@@ -1,7 +1,8 @@
-extern crate yaml_rust;
-extern crate scan_dir;
 extern crate quire;
 extern crate rustc_serialize;
+extern crate scan_dir;
+extern crate serde_json;
+extern crate yaml_rust;
 #[macro_use] extern crate log;
 #[macro_use] extern crate quick_error;
 
@@ -9,13 +10,11 @@ use std::io;
 use std::num::ParseFloatError;
 use std::path::{Path, PathBuf};
 
-use rustc_serialize::json::Json;
-use yaml_rust::Yaml;
-use rustc_serialize::json::BuilderError as JsonError;
+use serde_json::{Value, Error as JsonError};
 use yaml_rust::scanner::ScanError as YamlError;
+use yaml_rust::Yaml;
 
 mod meta;
-mod tojson;
 mod sandbox;
 
 pub use self::sandbox::Sandbox;
@@ -47,6 +46,10 @@ quick_error! {
             cause(err)
             display("error parsing float in {:?}: {}", path, err)
         }
+        NanOrInfinity(path: PathBuf) {
+            description("error parsing float: nan or infinity")
+            display("error parsing float in {:?}: nan or infinity", path)
+        }
         /// Some valid yaml keys can't be json keys
         BadYamlKey(key: Yaml, path: PathBuf) {
             display("bad key in yaml {:?}, key: {:?}", path, key)
@@ -67,6 +70,7 @@ impl MetadataError {
             JsonParse(..) => "JsonParse",
             YamlParse(..) => "YamlParse",
             Float(..) => "Float",
+            NanOrInfinity(..) => "NanOrInfinity",
             BadYamlKey(..) => "BadYamlKey",
             BadYamlValue(..) => "BadYamlValue",
         }
@@ -81,6 +85,7 @@ impl MetadataError {
             JsonParse(_, ref p) => p,
             YamlParse(_, ref p) => p,
             Float(_, ref p) => p,
+            NanOrInfinity(ref p) => p,
             BadYamlKey(_, ref p) => p,
             BadYamlValue(_, ref p) => p,
         };
@@ -91,7 +96,7 @@ impl MetadataError {
 
 #[derive(Debug)]
 pub struct Runtime {
-    pub data: Json,
+    pub data: Value,
     pub errors: Vec<MetadataError>,
 }
 
