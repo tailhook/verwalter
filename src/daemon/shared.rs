@@ -13,7 +13,7 @@ use time::{SteadyTime, Timespec, Duration as Dur, get_time};
 use cbor::{Encoder, EncodeResult, Decoder, DecodeResult};
 use rustc_serialize::hex::{FromHex, ToHex, FromHexError};
 use rustc_serialize::{Encodable, Encoder as RustcEncoder};
-use rustc_serialize::json::{Json, ToJson};
+use serde_json::Value as Json;
 
 use cell;
 use id::Id;

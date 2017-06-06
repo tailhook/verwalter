@@ -4,7 +4,7 @@ use std::thread::sleep;
 use std::process::exit;
 use std::collections::{HashMap, BTreeMap};
 
-
+use serde_json;
 use inotify::INotify;
 use inotify::ffi::{IN_MODIFY, IN_ATTRIB, IN_CLOSE_WRITE, IN_MOVED_FROM};
 use inotify::ffi::{IN_MOVED_TO, IN_CREATE, IN_DELETE, IN_DELETE_SELF};
@@ -13,6 +13,7 @@ use scan_dir::ScanDir;
 use lua::GcOption;
 //use rotor_cantal::{Dataset, Key, Value, Chunk};
 use libcantal::{Counter, Integer};
+use frontend::serialize::{serialize_opt_timestamp, serialize_timestamp};
 
 use config;
 use time_util::ToMsec;
@@ -252,28 +253,36 @@ pub fn main(state: SharedState, settings: Settings) -> !
             let instant = Instant::now();
             let _alarm = watchdog::Alarm::new(Duration::new(1, 0));
 
-            let input = Json::Object(vec![
-                ("now".to_string(), timestamp.to_msec().to_json()),
-                ("current_host".to_string(), scheduler.hostname.to_json()),
-                ("current_id".to_string(), scheduler.id.to_string().to_json()),
-                ("parents".to_string(), Json::Array(
-                    cookie.parent_schedules.iter()
-                        .map(|s| s.data.clone()).collect()
-                    )),
-                ("actions".to_string(), Json::Object(
-                    cookie.actions.iter()
-                        .map(|(id, value)| (id.to_string(), value.to_json()))
-                        .collect()
-                    )),
-                ("runtime".to_string(), runtime.data.to_json()),
+            #[derive(Serialize)]
+            struct Input<'a> {
+                #[serde(serialize_with="serialize_timestamp")]
+                now: SystemTime,
+                current_host: &'a str,
+                current_id: Id,
+                //parents: Vec<&'a str>,
+                actions: HashMap<Id, serde_json::Value>,
+                runtime: serde_json::Value,
+                peers: HashMap<Id, serde_json::Value>,
+                metrics: HashMap<(), ()>,  // TODO(tailhook)
+            }
+
+            let input = Input {
+                now: timestamp,
+                current_host: &scheduler.hostname,
+                current_id: scheduler.id,
+                //parents: cookie.parent_schedules.iter()
+                //        .map(|s| s.data.clone()).collect(),
+                actions: cookie.actions.into_iter()
+                        .map(|(id, value)| (id, value))
+                        .collect(),
+                runtime: runtime.data,
                 // TODO(tailhook) show runtime errors
                 //("runtime_err".to_string(), runtime.errors.to_json()),
-                ("peers".to_string(), Json::Object(
-                    peers.1.iter()
-                        .map(|(id, peer)| (id.to_string(), peer.to_json()))
-                        .collect())),
-                ("metrics".to_string(), Json::Object(Default::default()))
-                /*
+                peers: peers.1.iter()
+                       .map(|(id, peer)| (id.to_string(), peer.to_json()))
+                       .collect(),
+                metrics: HashMap::new(),
+                /* TODO(tailhook)
                     state.metrics()
                     .map(|x| Json::Object(x.items.iter()
                         .map(|(host, data)| (host.to_string(),
@@ -281,8 +290,7 @@ pub fn main(state: SharedState, settings: Settings) -> !
                         .collect()))
                     .unwrap_or(Json::Null)),
                 */
-            ].into_iter().collect());
-
+            };
 
             let (result, dbg) = scheduler.execute(&input);
             SCHEDULING_TIME.set((Instant::now() - instant).to_msec() as i64);

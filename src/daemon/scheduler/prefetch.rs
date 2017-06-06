@@ -1,9 +1,7 @@
 use std::sync::Arc;
+use std::time::Instant;
 use std::collections::{HashSet, HashMap};
 use std::collections::hash_map::Entry::{Vacant, Occupied};
-
-use time::{SteadyTime};
-use rustc_serialize::{Encodable, Encoder};
 
 use id::{Id};
 use elect::ScheduleStamp;
@@ -11,10 +9,10 @@ use scheduler::{Schedule, Hash};
 use time_util::ToMsec;
 
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct Fetching {
     /// A timestamp when we started to download the data at.
-    pub time: Option<SteadyTime>,
+    pub time: Option<Instant>,
     /// If downloading from some host is too slow or not started yet, we get
     /// first item from a HashSet and try again. Two hosts sending same
     /// response is fine.
@@ -24,7 +22,7 @@ pub struct Fetching {
 }
 
 
-#[derive(Clone, Debug, RustcEncodable)]
+#[derive(Clone, Debug, Serialize)]
 pub struct PrefetchInfo {
     /// This structure holds hashes that needs to be downloaded
     pub fetching: HashMap<Hash, Fetching>,
@@ -119,20 +117,5 @@ impl Fetching {
             time: None,
             sources: HashSet::new(),
         }
-    }
-}
-
-impl Encodable for Fetching {
-    fn encode<E: Encoder>(&self, e: &mut E) -> Result<(), E::Error> {
-        e.emit_struct("Fetching", 2, |e| {
-            try!(e.emit_struct_field("time", 0, |e| {
-                // in milliseconds for javascript
-                self.time.map(|x| x.to_msec()).encode(e)
-            }));
-            try!(e.emit_struct_field("sources", 1, |e| {
-                self.sources.encode(e)
-            }));
-            Ok(())
-        })
     }
 }

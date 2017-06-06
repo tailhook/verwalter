@@ -1,4 +1,4 @@
-use std::time::{SystemTime, Duration, UNIX_EPOCH};
+use std::time::{SystemTime, Duration, Instant, UNIX_EPOCH};
 
 use serde::Serializer;
 
@@ -7,6 +7,10 @@ fn tstamp_to_ms(tm: SystemTime) -> u64 {
     let ts = tm.duration_since(UNIX_EPOCH)
         .expect("timestamp is always after unix epoch");
     return ts.as_secs()*1000 + (ts.subsec_nanos() / 1000000) as u64;
+}
+
+fn instant_to_ms(tm: Instant) -> u64 {
+    unimplemented!();
 }
 
 fn duration_to_ms(dur: Duration) -> u64 {
@@ -20,6 +24,13 @@ pub fn serialize_timestamp<S>(tm: &SystemTime, ser: S)
     ser.serialize_u64(tstamp_to_ms(*tm))
 }
 
+pub fn serialize_instant<S>(tm: &Instant, ser: S)
+    -> Result<S::Ok, S::Error>
+    where S: Serializer
+{
+    ser.serialize_u64(instant_to_ms(*tm))
+}
+
 pub fn serialize_opt_timestamp<S>(tm: &Option<SystemTime>, ser: S)
     -> Result<S::Ok, S::Error>
     where S: Serializer
@@ -27,6 +38,20 @@ pub fn serialize_opt_timestamp<S>(tm: &Option<SystemTime>, ser: S)
     match *tm {
         Some(ts) => {
             ser.serialize_some(&tstamp_to_ms(ts))
+        }
+        None => {
+            ser.serialize_none()
+        }
+    }
+}
+
+pub fn serialize_opt_instant<S>(tm: &Option<Instant>, ser: S)
+    -> Result<S::Ok, S::Error>
+    where S: Serializer
+{
+    match *tm {
+        Some(ts) => {
+            ser.serialize_some(&instant_to_ms(ts))
         }
         None => {
             ser.serialize_none()

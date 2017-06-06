@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use rustc_serialize::json::Json;
+use serde_json::Value as Json;
 use rustc_serialize::{Encodable, Encoder};
 use time::SteadyTime;
 
@@ -11,7 +11,7 @@ use time_util::ToMsec;
 use itertools::Itertools;
 
 
-#[derive(Clone, Debug, RustcEncodable)]
+#[derive(Clone, Debug, Serialize)]
 pub struct Schedule {
     pub timestamp: u64,
     pub hash: String,
@@ -20,7 +20,7 @@ pub struct Schedule {
     pub num_roles: usize,
 }
 
-#[derive(Clone, Debug, RustcEncodable)]
+#[derive(Clone, Debug, Serialize)]
 pub enum FollowerState {
     Waiting,
     Fetching(String),

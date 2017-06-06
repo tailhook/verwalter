@@ -3,12 +3,11 @@ use std::time::Duration;
 use std::sync::Arc;
 use std::borrow::Cow;
 use std::process::{Command, ExitStatus};
-use std::collections::{BTreeMap};
 
 use time::now_utc;
 use rand::{thread_rng, Rng};
 use itertools::Itertools;
-use rustc_serialize::json::{Json};
+use serde_json::{Map, Value as Json};
 use indexed_log::Index;
 
 use fs_util::write_file;
@@ -25,7 +24,7 @@ pub struct Settings {
     pub schedule_file: PathBuf,
 }
 
-fn merge_vars<'x, I, J>(iter: I) -> BTreeMap<String, Json>
+fn merge_vars<'x, I, J>(iter: I) -> Map<String, Json>
     where I: Iterator<Item=J>, J: Iterator<Item=(&'x String, &'x Json)>
 {
 
@@ -116,7 +115,7 @@ fn apply_schedule(hash: &String, is_new: bool,
                 .and_then(|y| y.as_array())
                 .map(|lst| {
                     for line in lst {
-                        line.as_string().map(|val| {
+                        line.as_str().map(|val| {
                             changes.add_line(val);
                         });
                     }
@@ -124,7 +123,7 @@ fn apply_schedule(hash: &String, is_new: bool,
         }).map_err(|e| error!("Can't create changes log: {}", e)).ok();
     }
 
-    let empty = BTreeMap::new();
+    let empty = Map::new();
     let roles = scheduler_result.as_object()
         .and_then(|x| x.get("roles"))
         .and_then(|y| y.as_object())
