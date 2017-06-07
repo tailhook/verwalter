@@ -76,8 +76,6 @@ mod watchdog;
 mod frontend;
 mod cell;
 /*
-mod net;
-mod info;
 mod fetch;
 */
 
