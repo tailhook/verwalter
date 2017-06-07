@@ -11,6 +11,7 @@ use serde_json::{Map, Value as Json};
 use indexed_log::Index;
 
 use fs_util::write_file;
+use scheduler::SchedulerInput;
 use shared::{SharedState};
 use watchdog;
 
@@ -98,15 +99,15 @@ fn decode_render_error(s: ExitStatus) -> Cow<'static, str> {
 
 fn apply_schedule(hash: &String, is_new: bool,
     scheduler_result: &Json, settings: &Settings,
-    debug_info: Arc<(Json, String)>, state: &SharedState)
+    debug_info: Arc<Option<(SchedulerInput, String)>>, state: &SharedState)
 {
     let id: String = thread_rng().gen_ascii_chars().take(24).collect();
     let mut index = Index::new(&settings.log_dir, settings.dry_run);
     let mut dlog = index.deployment(&id, true);
     dlog.string("schedule-hash", &hash);
     if is_new {
-        if debug_info.1 != "" {
-            dlog.text("scheduler-debug", &debug_info.1);
+        if let Some((_, ref log)) = *debug_info {
+            dlog.text("scheduler-debug", log);
         }
 
         dlog.changes(&hash[..8]).map(|mut changes| {

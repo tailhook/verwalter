@@ -7,11 +7,13 @@ use id::{Id};
 use elect::ScheduleStamp;
 use scheduler::{Schedule, Hash};
 use time_util::ToMsec;
+use frontend::serialize::serialize_opt_instant;
 
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Fetching {
     /// A timestamp when we started to download the data at.
+    #[serde(serialize_with="serialize_opt_instant")]
     pub time: Option<Instant>,
     /// If downloading from some host is too slow or not started yet, we get
     /// first item from a HashSet and try again. Two hosts sending same

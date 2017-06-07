@@ -6,14 +6,13 @@ use lua::ffi::{lua_upvalueindex};
 use id::Id;
 
 mod execute;
-mod lua_json;
 mod prefetch;
 mod state;
 pub mod main;  // pub for making counters visible
 
 pub use self::state::{Schedule, State, LeaderState, FollowerState, from_json};
 pub use self::prefetch::PrefetchInfo;
-pub use self::main::{main as run, Settings};
+pub use self::main::{main as run, Settings, SchedulerInput};
 
 
 pub type Hash = String;

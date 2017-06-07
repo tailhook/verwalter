@@ -9,6 +9,7 @@ extern crate yaml_rust;
 use std::io;
 use std::num::ParseFloatError;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use serde_json::{Value, Error as JsonError};
 use yaml_rust::scanner::ScanError as YamlError;
@@ -96,7 +97,7 @@ impl MetadataError {
 
 #[derive(Debug)]
 pub struct Runtime {
-    pub data: Value,
+    pub data: Arc<Value>,
     pub errors: Vec<MetadataError>,
 }
 
@@ -104,7 +105,7 @@ pub fn read_runtime(dir: &Path) -> Runtime
 {
     let (data, err) = meta::read_dir(dir);
     Runtime {
-        data: data,
+        data: Arc::new(data),
         errors: err,
     }
 }

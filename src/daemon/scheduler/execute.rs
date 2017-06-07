@@ -1,12 +1,12 @@
-use lua::{ThreadStatus, Type};
-use rustc_serialize::json::Json;
+use lua::{ThreadStatus, Type, Serde};
+use serde::Serialize;
+use serde_json::{Value as Json, from_str};
 
 use scheduler::{Scheduler, Error};
-use scheduler::lua_json::push_json;
 
 
 impl Scheduler {
-    pub fn execute(&mut self, input: &Json)
+    pub fn execute<S: Serialize>(&mut self, input: &S)
         -> (Result<Json, Error>, String)
     {
         self.lua.get_global("debug");
@@ -22,7 +22,7 @@ impl Scheduler {
                     String::from("Scheduler function not found"));
             }
         }
-        push_json(&mut self.lua, input);
+        self.lua.push(Serde(input));
         match self.lua.pcall(1, 2, error_handler) {
             ThreadStatus::Ok => {}
             ThreadStatus::Yield => {
@@ -43,7 +43,7 @@ impl Scheduler {
                             String::from("Debug info is of wrong type")),
         };
         let result = match self.lua.to_type::<String>(top-1) {
-            Some(ref x) => Json::from_str(x).map_err(|_| Error::Conversion),
+            Some(ref x) => from_str(x).map_err(|_| Error::Conversion),
             None => Err(Error::Conversion),
         };
         self.lua.pop(7);

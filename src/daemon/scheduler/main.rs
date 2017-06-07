@@ -1,10 +1,11 @@
-use std::path::{PathBuf, Path};
-use std::time::{Duration, SystemTime, Instant};
-use std::thread::sleep;
-use std::process::exit;
 use std::collections::{HashMap, BTreeMap};
+use std::path::{PathBuf, Path};
+use std::process::exit;
+use std::sync::Arc;
+use std::thread::sleep;
+use std::time::{Duration, SystemTime, Instant};
 
-use serde_json;
+use serde_json::{Value as Json};
 use inotify::INotify;
 use inotify::ffi::{IN_MODIFY, IN_ATTRIB, IN_CLOSE_WRITE, IN_MOVED_FROM};
 use inotify::ffi::{IN_MOVED_TO, IN_CREATE, IN_DELETE, IN_DELETE_SELF};
@@ -23,13 +24,26 @@ use id::Id;
 use shared::{SharedState};
 use scheduler::Schedule;
 use scheduler::state::num_roles;
-use rustc_serialize::json::{Json, ToJson};
+use peer::Peer;
 
 
 lazy_static! {
     pub static ref SCHEDULING_TIME: Integer = Integer::new();
     pub static ref SCHEDULER_SUCCEEDED: Counter = Counter::new();
     pub static ref SCHEDULER_FAILED: Counter = Counter::new();
+}
+
+#[derive(Serialize, Debug)]
+pub struct SchedulerInput {
+    #[serde(serialize_with="serialize_timestamp")]
+    now: SystemTime,
+    current_host: String,
+    current_id: Id,
+    //parents: Vec<&'a str>,
+    actions: BTreeMap<u64, Arc<Json>>,
+    runtime: Arc<Json>,
+    peers: HashMap<Id, Peer>,
+    metrics: HashMap<(), ()>,  // TODO(tailhook)
 }
 
 
@@ -253,34 +267,17 @@ pub fn main(state: SharedState, settings: Settings) -> !
             let instant = Instant::now();
             let _alarm = watchdog::Alarm::new(Duration::new(1, 0));
 
-            #[derive(Serialize)]
-            struct Input<'a> {
-                #[serde(serialize_with="serialize_timestamp")]
-                now: SystemTime,
-                current_host: &'a str,
-                current_id: Id,
-                //parents: Vec<&'a str>,
-                actions: HashMap<Id, serde_json::Value>,
-                runtime: serde_json::Value,
-                peers: HashMap<Id, serde_json::Value>,
-                metrics: HashMap<(), ()>,  // TODO(tailhook)
-            }
-
-            let input = Input {
+            let input = SchedulerInput {
                 now: timestamp,
-                current_host: &scheduler.hostname,
-                current_id: scheduler.id,
+                current_host: scheduler.hostname.clone(),
+                current_id: scheduler.id.clone(),
                 //parents: cookie.parent_schedules.iter()
                 //        .map(|s| s.data.clone()).collect(),
-                actions: cookie.actions.into_iter()
-                        .map(|(id, value)| (id, value))
-                        .collect(),
-                runtime: runtime.data,
+                actions: cookie.actions.clone(),
+                runtime: runtime.data.clone(),
                 // TODO(tailhook) show runtime errors
                 //("runtime_err".to_string(), runtime.errors.to_json()),
-                peers: peers.1.iter()
-                       .map(|(id, peer)| (id.to_string(), peer.to_json()))
-                       .collect(),
+                peers: peers.1.clone(),
                 metrics: HashMap::new(),
                 /* TODO(tailhook)
                     state.metrics()

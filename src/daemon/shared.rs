@@ -5,7 +5,7 @@ use std::net::SocketAddr;
 use std::sync::{Arc, Mutex, Condvar, MutexGuard};
 use std::sync::atomic::Ordering::SeqCst;
 use std::sync::atomic::AtomicBool;
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, SystemTime, Instant};
 use std::collections::{HashMap, BTreeMap, HashSet};
 use std::collections::btree_map::Entry::{Occupied, Vacant};
 
@@ -20,7 +20,7 @@ use id::Id;
 use peer::Peer;
 use time_util::ToMsec;
 use elect::{ElectionState, ScheduleStamp, Epoch};
-use scheduler::{self, Schedule, PrefetchInfo, MAX_PREFETCH_TIME};
+use scheduler::{self, Schedule, PrefetchInfo, MAX_PREFETCH_TIME, SchedulerInput};
 
 
 /// Things that are shared across the application threads
@@ -70,7 +70,7 @@ struct State {
     last_known_schedule: Option<Arc<Schedule>>,
     // TODO(tailhook) rename schedule -> scheduleR
     schedule: Arc<scheduler::State>,
-    last_scheduler_debug_info: Arc<(Json, String)>,
+    last_scheduler_debug_info: Arc<Option<(SchedulerInput, String)>>,
     election: Arc<ElectionState>,
     actions: BTreeMap<u64, Arc<Json>>,
     //cantal: Option<Cantal>,
@@ -134,7 +134,7 @@ impl SharedState {
             Arc::new(Mutex::new(State {
                 schedule: Arc::new(scheduler::State::Unstable),
                 last_known_schedule: old_schedule.map(Arc::new),
-                last_scheduler_debug_info: Arc::new((Json::Null, String::new())),
+                last_scheduler_debug_info: Arc::new(None),
                 election: Arc::new(ElectionState::blank()),
                 actions: BTreeMap::new(),
                 // cantal: None,
@@ -168,7 +168,8 @@ impl SharedState {
     pub fn schedule(&self) -> Option<Arc<Schedule>> {
         self.lock().last_known_schedule.clone()
     }
-    pub fn scheduler_debug_info(&self) -> Arc<(Json, String)> {
+    pub fn scheduler_debug_info(&self) -> Arc<Option<(SchedulerInput, String)>>
+    {
         self.lock().last_scheduler_debug_info.clone()
     }
     pub fn scheduler_state(&self) -> Arc<scheduler::State> {
@@ -231,12 +232,13 @@ impl SharedState {
         //
         // self.0.notifiers.run_scheduler.notify_all();
     }
-    pub fn set_schedule_debug_info(&self, json: Json, debug: String)
+    pub fn set_schedule_debug_info(&self, input: SchedulerInput, debug: String)
     {
-        self.lock().last_scheduler_debug_info = Arc::new((json, debug));
+        self.lock().last_scheduler_debug_info =
+            Arc::new(Some((input, debug)));
     }
     pub fn set_schedule_by_leader(&self, cookie: LeaderCookie,
-        val: Schedule, input: Json, debug: String)
+        val: Schedule, input: SchedulerInput, debug: String)
     {
         use scheduler::State::{Leading};
         use scheduler::LeaderState::{Stable, Calculating};
@@ -254,7 +256,8 @@ impl SharedState {
                 let sched = Arc::new(val);
                 guard.schedule = Arc::new(Leading(Stable(sched.clone())));
                 guard.last_known_schedule = Some(sched);
-                guard.last_scheduler_debug_info = Arc::new((input, debug));
+                guard.last_scheduler_debug_info =
+                    Arc::new(Some((input, debug)));
                 for (aid, _) in cookie.actions {
                     guard.actions.remove(&aid);
                 }
@@ -294,7 +297,7 @@ impl SharedState {
                         initial.peer_report(id, stamp)
                     });
                     guard.schedule = Arc::new(
-                        Leading(Prefetching(SteadyTime::now(),
+                        Leading(Prefetching(Instant::now(),
                                             Mutex::new(initial))));
                     fetch_schedule(&mut guard);
                 }
@@ -365,6 +368,8 @@ impl SharedState {
     pub fn wait_schedule_update(&self, max_interval: Duration)
         -> LeaderCookie
     {
+        unimplemented!();
+        /*
         use scheduler::State::*;
         use scheduler::LeaderState::*;
         let mut guard = self.lock();
@@ -376,9 +381,9 @@ impl SharedState {
                 .0;
             wait_time = match *guard.schedule.clone() {
                 Leading(Prefetching(time, ref mutex)) => {
-                    let time_left = time + Dur::milliseconds(MAX_PREFETCH_TIME)
-                        - SteadyTime::now();
-                    if time_left <= Dur::zero() ||
+                    let time_left = time + Duration::from_millis(MAX_PREFETCH_TIME)
+                        - Instant::now();
+                    if time.elapsed() >  ||
                         mutex.lock().expect("prefetch lock").done()
                     {
                         guard.schedule = Arc::new(Leading(Calculating));
@@ -390,8 +395,7 @@ impl SharedState {
                             actions: guard.actions.clone(),
                         };
                     } else {
-                        Duration::from_millis(
-                            time_left.num_milliseconds() as u64)
+                        time_left
                     }
                 }
                 Leading(Stable(ref x)) => {
@@ -406,6 +410,7 @@ impl SharedState {
                 _ => max_interval,
             };
         }
+        */
     }
     pub fn refresh_cookie(&self, cookie: &mut LeaderCookie) -> bool {
         let guard = self.lock();
@@ -451,11 +456,8 @@ impl SharedState {
             Following(ref id, Fetching(ref hash)) if &schedule.hash == hash
             => {
                 let sched = Arc::new(schedule);
-                if guard.last_scheduler_debug_info.0 != Json::Null ||
-                   guard.last_scheduler_debug_info.1 != ""
-                {
-                    guard.last_scheduler_debug_info =
-                        Arc::new((Json::Null, String::new()));
+                if guard.last_scheduler_debug_info.is_some() {
+                    guard.last_scheduler_debug_info = Arc::new(None);
                 }
                 guard.schedule = Arc::new(
                     Following(id.clone(), Stable(sched.clone())));

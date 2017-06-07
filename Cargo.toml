@@ -15,7 +15,7 @@ rotor = "0.6.3"
 rotor-http = "0.7.0"
 rotor-tools = "0.3.2"
 rotor-cantal = { rev="080ffac", git="git://github.com/tailhook/rotor-cantal" }
-lua = { rev="4762ab6", git="git://github.com/tailhook/rust-lua53" }
+lua = { rev="90d38a8", git="git://github.com/tailhook/rust-lua53" }
 argparse = "0.2"
 handlebars = { version="0.26.1" }
 log = "0.3.2"
@@ -43,7 +43,7 @@ quick-error = "1.1.0"
 libcantal = { git="git://github.com/tailhook/cantal-rs", rev="bbe360a" }
 tera = "0.10.5"
 error-chain = "0.10.0"  # for tera
-serde = "1.0.0"
+serde = {version="1.0.0", features=["rc"]}
 serde_derive = "1.0.0"
 serde_json = "1.0.0"
 

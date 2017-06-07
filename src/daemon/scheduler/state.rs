@@ -1,8 +1,8 @@
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use serde_json::Value as Json;
-use rustc_serialize::{Encodable, Encoder};
-use time::SteadyTime;
+use serde::{Serialize, Serializer};
 
 use hash::hash;
 use id::Id;
@@ -27,6 +27,7 @@ pub enum FollowerState {
     Stable(Arc<Schedule>),
 }
 
+// TODO(tailhook) better serialize
 #[derive(Debug)]
 pub enum LeaderState {
     /// This is mutexed prefetch info to not to copy that large structure
@@ -34,18 +35,20 @@ pub enum LeaderState {
     /// WARNING: this lock is a subject of Global Lock Ordering.
     /// Which means: if you want to lock this one and shared::SharedState
     /// you must lock SharedState first! And this one second!
-    Prefetching(SteadyTime, Mutex<PrefetchInfo>),
+    Prefetching(Instant, Mutex<PrefetchInfo>),
 
     Calculating,
     Stable(Arc<Schedule>),
 }
 
 
-#[derive(Debug, RustcEncodable)]
+// TODO(tailhook) better serialize
+#[derive(Debug, Serialize)]
 pub enum State {
     Unstable,
     // Follower states
     Following(Id, FollowerState),
+    // TODO(tailhook)
     Leading(LeaderState),
 }
 
@@ -66,6 +69,15 @@ impl State {
     }
 }
 
+impl Serialize for LeaderState {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where S: Serializer
+    {
+        unimplemented!();
+    }
+}
+
+/*
 impl Encodable for LeaderState {
      fn encode<E: Encoder>(&self, e: &mut E) -> Result<(), E::Error> {
         use self::LeaderState::*;
@@ -96,17 +108,18 @@ impl Encodable for LeaderState {
         })
      }
 }
+*/
 
 pub fn num_roles(json: &Json) -> usize {
     (
-        json.find("roles")
+        json.get("roles")
         .and_then(|x| x.as_object())
         .map(|x| x.keys())
     ).into_iter().chain(
-        json.find("nodes")
+        json.get("nodes")
         .and_then(|x| x.as_object())
         .map(|x| x.values().filter_map(|x|
-            x.find("roles")
+            x.get("roles")
              .and_then(|x| x.as_object())
              .map(|x| x.keys())))
         .into_iter().flat_map(|x| x)
@@ -122,7 +135,7 @@ pub fn from_json(json: Json) -> Result<Schedule, String> {
     };
     let hashvalue = j.remove("hash");
     let origin = j.remove("origin")
-        .and_then(|x| x.as_string().and_then(|x| x.parse().ok()));
+        .and_then(|x| x.as_str().and_then(|x| x.parse().ok()));
     let timestamp = j.remove("timestamp").and_then(|x| x.as_u64());
     let data = j.remove("data");
     match (hashvalue, timestamp, data, origin) {
