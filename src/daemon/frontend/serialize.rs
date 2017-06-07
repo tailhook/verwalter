@@ -10,7 +10,13 @@ fn tstamp_to_ms(tm: SystemTime) -> u64 {
 }
 
 fn instant_to_ms(tm: Instant) -> u64 {
-    unimplemented!();
+    let st = SystemTime::now();
+    let inst = Instant::now();
+    if tm > inst {
+        return tstamp_to_ms(st + (tm - inst));
+    } else {
+        return tstamp_to_ms(st - (inst - tm));
+    }
 }
 
 fn duration_to_ms(dur: Duration) -> u64 {
