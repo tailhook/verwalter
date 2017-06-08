@@ -1,6 +1,11 @@
 import {value, bool, set, init, toggle} from '../stores/simple'
 import {filter_versions} from '../util/version'
+import {from_ms, short_time} from '../util/time'
 
+style:
+  .timestamp
+    color: gray
+    font-size: x-small
 
 view main(role, @version):
   <div>
@@ -8,4 +13,9 @@ view main(role, @version):
       for ver of role.versions or []:
         <button.btn.btn-default.active?(@version == ver)>
           link {click} set(ver) -> @version
+          let vi = role.version_info[ver]
+          let ts = vi and vi.timestamp
           <div.version> ver
+          if ts:
+            <div.timestamp>
+              short_time(from_ms(ts*1000))

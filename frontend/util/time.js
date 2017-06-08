@@ -22,6 +22,10 @@ export function format_datetime(dt) {
            + `:${_two(dt.getSeconds())}`)
 }
 
+export function format_date(dt) {
+    return `${dt.getFullYear()}-${_two(dt.getMonth())}-${_two(dt.getDate())}`
+}
+
 export function format_time(dt) {
     return `${_two(dt.getHours())}:${_two(dt.getMinutes())}`
 }
@@ -52,4 +56,18 @@ export function format_diff(ms) {
     } else {
         return `${(ms/86400000)|0}d${((ms/3600000) % 24)|0}h`
     }
+}
+
+export function short_time(dt) {
+    let delta = till_now_ms(dt);
+    if(delta < 2000) {
+        return 'just now'
+    }
+    if(delta < 60000) {
+        return (delta/1000).toFixed(0) + ' seconds ago'
+    }
+    if(delta < 43200) {
+        return format_time(dt);
+    }
+    return format_date(dt);
 }
