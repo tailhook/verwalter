@@ -1,0 +1,39 @@
+import {pretty_json} from '../../util/object'
+import {value, bool, set, init, toggle, disable} from '../../stores/simple'
+
+
+style:
+  .pipeline
+    width: 100%
+    display: flex
+    flex-direction: row
+  .stage
+    border: solid rgb(173, 173, 173) 1px
+    border-right-width: 0px
+    padding: 4px 8px
+  .stage.start
+    border-radius: 4px 0 0 4px
+  .stage.done
+    border-radius: 0 4px 4px 0
+    border-right-width: 1px
+  .title
+    font-weight: bold
+
+
+view main(pipeline):
+  <p.pipeline>
+    <div.stage.start>
+      <div.title> "Start"
+    for stage of pipeline:
+      <div.stage>
+        store @show_repr = bool | init(false)
+        <div.title>
+          stage.name
+          <button.btn.btn-xs.btn-default>
+            link {click} toggle(@show_repr) -> @show_repr
+            <span.caret>
+        if @show_repr:
+          <pre>
+            pretty_json(stage)
+    <div.stage.done>
+      <div.title> "Done"

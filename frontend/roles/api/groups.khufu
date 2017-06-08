@@ -9,6 +9,7 @@ import {uniqueset, toggleunique} from '../../stores/simple'
 import {count_instances} from '../../util/groups'
 import {parse_int} from '../../util/parse'
 import {is_leader} from '../../util/status'
+import {main as pipeline} from './pipeline.khufu'
 
 
 style:
@@ -188,13 +189,18 @@ view main(role, role_name, role_state, @actions,
               }}
               <p>
                 versions(role, -> @version)
+              let update_pipeline = (role.group_pipelines and
+                                     role.group_pipelines[gname])
+              if @version and update_pipeline:
+                pipeline(update_pipeline)
               <p>
                 store @show_api = bool | init(false)
                 <div.btn-group>
-                  <button.btn.btn-success disabled=(@version ? null : "1")>
-                    link {click} execute(start_call) -> @actions
-                    "Start Update"
-                    show_action_progress("start_update", @actions)
+                  if update_pipeline:
+                    <button.btn.btn-success disabled=(@version ? null : "1")>
+                      link {click} execute(start_call) -> @actions
+                      "Start Update"
+                      show_action_progress("start_update", @actions)
                   <button.btn.btn-danger disabled=(@version ? null : "1")>
                     link {click} execute(force_call) -> @actions
                     "Force Version"
