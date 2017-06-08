@@ -20,7 +20,9 @@ use id::Id;
 use peer::Peer;
 use time_util::ToMsec;
 use elect::{ElectionState, ScheduleStamp, Epoch};
+use config::Sandbox;
 use scheduler::{self, Schedule, PrefetchInfo, MAX_PREFETCH_TIME, SchedulerInput};
+use {Options};
 
 
 /// Things that are shared across the application threads
@@ -50,6 +52,8 @@ pub struct SharedData {
     pub id: Id,
     pub name: String,
     pub hostname: String,
+    pub options: Options,
+    pub sandbox: Sandbox,
     notifiers: Notifiers,
     peers: cell::Sender<Arc<(SystemTime, HashMap<Id, Peer>)>>,
 }
@@ -74,7 +78,6 @@ struct State {
     election: Arc<ElectionState>,
     actions: BTreeMap<u64, Arc<Json>>,
     //cantal: Option<Cantal>,
-    debug_force_leader: bool,
     /// Fetch update notifier
     //external_schedule_update: Option<Notifier>,
     errors: Arc<HashMap<&'static str, String>>,
@@ -114,7 +117,8 @@ impl Deref for SharedState {
 }
 
 impl SharedState {
-    pub fn new(id: &Id, name: &str, hostname: &str, debug_force_leader: bool,
+    pub fn new(id: &Id, name: &str, hostname: &str,
+               options: Options, sandbox: Sandbox,
                old_schedule: Option<Schedule>)
         -> SharedState
     {
@@ -123,6 +127,8 @@ impl SharedState {
                 id: id.clone(),
                 name: name.to_string(),
                 hostname: hostname.to_string(),
+                options: options,
+                sandbox: sandbox,
                 notifiers: Notifiers {
                     force_render: AtomicBool::new(false),
                     apply_schedule: Condvar::new(),
@@ -138,7 +144,6 @@ impl SharedState {
                 election: Arc::new(ElectionState::blank()),
                 actions: BTreeMap::new(),
                 // cantal: None,
-                debug_force_leader: debug_force_leader,
                 // external_schedule_update: None, //unfortunately
                 errors: Arc::new(HashMap::new()),
                 failed_roles: Arc::new(HashSet::new()),
@@ -153,8 +158,7 @@ impl SharedState {
         &self.id
     }
     pub fn debug_force_leader(&self) -> bool {
-        // -- TODO(tailhook) move this flag out of mutex
-        self.lock().debug_force_leader
+        self.options.debug_force_leader
     }
     pub fn peers(&self) -> Arc<(SystemTime, HashMap<Id, Peer>)> {
         self.peers.get()

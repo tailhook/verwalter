@@ -69,6 +69,7 @@ mod id;
 mod info;
 mod name;
 mod peer;
+mod routing_util;
 mod scheduler;
 mod shared;
 mod time_util;
@@ -82,6 +83,7 @@ mod fetch;
 use argparse::{ArgumentParser, Parse, ParseOption, StoreOption, StoreTrue};
 use argparse::{Print};
 
+#[derive(Clone)]
 pub struct Options {
     config_dir: PathBuf,
     storage_dir: PathBuf,
@@ -246,17 +248,17 @@ fn main() {
         }
     };
 
-    let hostname = options.hostname
+    let hostname = options.hostname.clone()
                    .unwrap_or_else(|| info::hostname().expect("gethostname"));
     // TODO(tailhook) resolve FQDN
-    let name = options.name.unwrap_or_else(|| hostname.clone());
+    let name = options.name.clone().unwrap_or_else(|| hostname.clone());
     let listen_addr = format!("{}:{}",
         options.listen_host, options.listen_port);
     // note this port is expected to be the same across cluster
     let udp_port = options.listen_port;
 
     let state = SharedState::new(&id, &name, &hostname,
-        options.debug_force_leader, old_schedule);
+        options.clone(), sandbox, old_schedule);
 
     let scheduler_settings = scheduler::Settings {
         id: id.clone(),
