@@ -45,9 +45,11 @@ view main(role, role_name, {role_state, schedule, system_status, expert_mode}):
 
     if @show_json:
       <pre>
+        "Role: "
         pretty_json(role)
 
       <pre>
+        "State: "
         pretty_json(role_state)
 
     if is_leader(system_status):
