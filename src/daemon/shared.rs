@@ -366,8 +366,6 @@ impl SharedState {
     pub fn wait_schedule_update(&self, max_interval: Duration)
         -> LeaderCookie
     {
-        unimplemented!();
-        /*
         use scheduler::State::*;
         use scheduler::LeaderState::*;
         let mut guard = self.lock();
@@ -379,9 +377,9 @@ impl SharedState {
                 .0;
             wait_time = match *guard.schedule.clone() {
                 Leading(Prefetching(time, ref mutex)) => {
-                    let time_left = time + Duration::from_millis(MAX_PREFETCH_TIME)
-                        - Instant::now();
-                    if time.elapsed() >  ||
+                    let pref = Duration::from_millis(MAX_PREFETCH_TIME);
+                    let elapsed = time.elapsed();
+                    if elapsed > pref ||
                         mutex.lock().expect("prefetch lock").done()
                     {
                         guard.schedule = Arc::new(Leading(Calculating));
@@ -393,7 +391,7 @@ impl SharedState {
                             actions: guard.actions.clone(),
                         };
                     } else {
-                        time_left
+                        pref - elapsed
                     }
                 }
                 Leading(Stable(ref x)) => {
@@ -408,7 +406,6 @@ impl SharedState {
                 _ => max_interval,
             };
         }
-        */
     }
     pub fn refresh_cookie(&self, cookie: &mut LeaderCookie) -> bool {
         let guard = self.lock();

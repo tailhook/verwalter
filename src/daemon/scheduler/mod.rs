@@ -26,7 +26,7 @@ pub type Hash = String;
 /// network. So some network issues are assumed when we have just elected.
 /// And it means there is quite a high chance that some data was just lost,
 /// and we will wait for this timeout.
-pub const MAX_PREFETCH_TIME: i64 = 10000;
+pub const MAX_PREFETCH_TIME: u64 = 10000;
 
 pub struct Scheduler {
     id: Id,
