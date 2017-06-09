@@ -54,7 +54,9 @@ pub struct SharedData {
     pub hostname: String,
     pub options: Options,
     pub sandbox: Sandbox,
-    notifiers: Notifiers,
+    force_render: AtomicBool,
+    apply_schedule: Condvar,
+    run_scheduler: Condvar,
     peers: cell::Sender<Arc<(SystemTime, HashMap<Id, Peer>)>>,
 }
 
@@ -82,12 +84,6 @@ struct State {
     //external_schedule_update: Option<Notifier>,
     errors: Arc<HashMap<&'static str, String>>,
     failed_roles: Arc<HashSet<String>>,
-}
-
-struct Notifiers {
-    force_render: AtomicBool,
-    apply_schedule: Condvar,
-    run_scheduler: Condvar,
 }
 
 fn stable_schedule(guard: &mut MutexGuard<State>) -> Option<Arc<Schedule>> {
@@ -129,11 +125,9 @@ impl SharedState {
                 hostname: hostname.to_string(),
                 options: options,
                 sandbox: sandbox,
-                notifiers: Notifiers {
-                    force_render: AtomicBool::new(false),
-                    apply_schedule: Condvar::new(),
-                    run_scheduler: Condvar::new(),
-                },
+                force_render: AtomicBool::new(false),
+                apply_schedule: Condvar::new(),
+                run_scheduler: Condvar::new(),
                 peers: cell::Sender::new(
                     Arc::new((SystemTime::now(), HashMap::new()))),
             }),
@@ -234,7 +228,7 @@ impl SharedState {
         // **UPDATE** don't rerun scheduler on updated peers, scheduler will
         // notice it on next normal wakeup of ~5 seconds
         //
-        // self.0.notifiers.run_scheduler.notify_all();
+        // self.0.run_scheduler.notify_all();
     }
     pub fn set_schedule_debug_info(&self, input: SchedulerInput, debug: String)
     {
@@ -265,7 +259,7 @@ impl SharedState {
                 for (aid, _) in cookie.actions {
                     guard.actions.remove(&aid);
                 }
-                self.0.notifiers.apply_schedule.notify_all();
+                self.apply_schedule.notify_all();
             }
             _ => {
                 debug!("Calculated a schedule when not a leader already");
@@ -379,7 +373,7 @@ impl SharedState {
         let mut guard = self.lock();
         let mut wait_time = max_interval;
         loop {
-            guard = self.0.notifiers.run_scheduler
+            guard = self.run_scheduler
                 .wait_timeout(guard, wait_time)
                 .expect("shared state lock")
                 .0;
@@ -434,8 +428,7 @@ impl SharedState {
         loop {
             match stable_schedule(&mut guard) {
                 Some(schedule) => {
-                    if self.0.notifiers.force_render
-                            .swap(false, SeqCst) ||  // if forced
+                    if self.force_render.swap(false, SeqCst) ||  // if forced
                         &schedule.hash != &hash  // or not up to date
                     {
                         return schedule;
@@ -443,13 +436,13 @@ impl SharedState {
                 }
                 None => {}
             };
-            guard = self.0.notifiers.apply_schedule.wait(guard)
+            guard = self.apply_schedule.wait(guard)
                 .expect("shared state lock");
         }
     }
     pub fn force_render(&self) {
-        self.0.notifiers.force_render.store(true, SeqCst);
-        self.0.notifiers.apply_schedule.notify_all();
+        self.force_render.store(true, SeqCst);
+        self.apply_schedule.notify_all();
     }
     pub fn fetched_schedule(&self, schedule: Schedule) {
         use scheduler::State::{Following, Leading};
@@ -466,13 +459,13 @@ impl SharedState {
                 guard.schedule = Arc::new(
                     Following(id.clone(), Stable(sched.clone())));
                 guard.last_known_schedule = Some(sched);
-                self.0.notifiers.apply_schedule.notify_all();
+                self.apply_schedule.notify_all();
             }
             Leading(Prefetching(_, ref mutex)) => {
                 let mut lock = mutex.lock().expect("prefetch lock");
                 lock.add_schedule(Arc::new(schedule));
                 if lock.done() {
-                    self.0.notifiers.run_scheduler.notify_all();
+                    self.run_scheduler.notify_all();
                 }
             }
             _ => {
