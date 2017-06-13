@@ -1,23 +1,25 @@
 use std::io::BufWriter;
+use std::str::from_utf8;
 use std::collections::{HashMap, HashSet};
 use std::time::SystemTime;
 
 use futures::future::{FutureResult, ok, Future};
 use gron::json_to_gron;
 use serde::Serialize;
-use serde_json::{Value, to_writer, to_writer_pretty, to_value};
-use tk_http::Status::{self, NotImplemented};
+use serde_json::{Value, to_writer, to_writer_pretty, to_value, from_str};
+use tk_http::Status::{self, NotImplemented, BadRequest};
+use tk_http::Status::{TooManyRequests, ServiceUnavailable};
 use tk_http::server::{Codec as CodecTrait, Dispatcher as DispatcherTrait};
 use tk_http::server::{Head, Encoder, EncoderDone, RecvMode, Error};
 
 use id::Id;
 use elect::Epoch;
-use shared::SharedState;
-use frontend::reply;
+use shared::{SharedState, PushActionError};
+use frontend::{reply, read_json};
 use frontend::to_json::ToJson;
 use frontend::routing::{ApiRoute, Format};
 use frontend::serialize::serialize_opt_timestamp;
-use frontend::error_page::serve_error_page;
+use frontend::error_page::{serve_error_page, error_page};
 
 
 pub type Request<S> = Box<CodecTrait<S, ResponseFuture=Reply<S>>>;
@@ -116,6 +118,19 @@ pub fn respond<D: Serialize, S>(mut e: Encoder<S>, format: Format, data: D)
                     .expect("data is always serializable");
             }
         };
+    }
+    ok(e.done())
+}
+
+pub fn respond_text<S>(mut e: Encoder<S>, data: &str)
+    -> FutureResult<EncoderDone<S>, Error>
+{
+    e.status(Status::Ok);
+    e.add_chunked().unwrap();
+    e.add_header("Content-Type",
+                 "text/plain; charset=utf-8".as_bytes()).unwrap();
+    if e.done_headers().unwrap() {
+        e.write_body(data.as_bytes());
     }
     ok(e.done())
 }
@@ -242,16 +257,25 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
             }
         }
         Scheduler => {
-            serve_error_page(NotImplemented)
-            //respond(res, format, &scope.state.scheduler_state())
+            Ok(reply(move |e| {
+                    Box::new(respond(e, format,
+                        &state.scheduler_state()))
+            }))
         }
         SchedulerInput => {
-            serve_error_page(NotImplemented)
-            //respond(res, format, &scope.state.scheduler_debug_info().0)
+            let info = state.scheduler_debug_info();
+            Ok(reply(move |e| {
+                    Box::new(respond(e, format,
+                        &(*info).as_ref().map(|x| &x.0)))
+            }))
         }
         SchedulerDebugInfo => {
-            serve_error_page(NotImplemented)
-            //respond_text(res, &scope.state.scheduler_debug_info().1)
+            let info = state.scheduler_debug_info();
+            Ok(reply(move |e| {
+                    Box::new(respond_text(e, &(*info).as_ref()
+                        .map(|x| &x.1[..])
+                        .unwrap_or("")))
+            }))
         }
         Election => {
             Ok(reply(move |e| {
@@ -259,51 +283,49 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
             }))
         }
         PendingActions => {
-            serve_error_page(NotImplemented)
-            //respond(res, format, &scope.state.pending_actions())
+            Ok(reply(move |e| {
+                Box::new(respond(e, format, &state.pending_actions()))
+            }))
         }
         ForceRenderAll => {
-            serve_error_page(NotImplemented)
-            //scope.state.force_render();
-            //respond(res, format, "ok")
+            state.force_render();
+            Ok(reply(move |e| {
+                Box::new(respond(e, format, "ok"))
+            }))
         }
         PushAction => {
-            serve_error_page(NotImplemented)
-            //let jdata = from_utf8(data).ok()
-            //    .and_then(|x| Json::from_str(x).ok());
-            //match jdata {
-            //    Some(x) => {
-            //        match scope.state.push_action(x) {
-            //            Ok(id) => {
-            //                respond(res, format, {
-            //                    let mut h = HashMap::new();
-            //                    h.insert("registered", id);
-            //                    h
-            //                })
-            //            }
-            //            Err(PushActionError::TooManyRequests) => {
-            //                serve_error_page(429, res);
-            //                Ok(())
-            //            }
-            //            Err(PushActionError::NotALeader) => {
-            //                serve_error_page(421, res);
-            //                Ok(())
-            //            }
-            //        }
-            //    }
-            //    None => {
-            //        serve_error_page(400, res);
-            //        Ok(())
-            //    }
-            //}
+            Ok(read_json(move |input: Value, e| {
+                match state.push_action(input) {
+                    Ok(id) => {
+                        #[derive(Serialize)]
+                        struct Registered {
+                            registered: u64,
+                        }
+                        Box::new(respond(e, format, &Registered {
+                            registered: id,
+                        }))
+
+                    }
+                    Err(PushActionError::TooManyRequests) => {
+                        Box::new(error_page(TooManyRequests, e))
+                    }
+                    Err(PushActionError::NotALeader) => {
+                        // Fix again to 'misdirected request' ?
+                        Box::new(error_page(ServiceUnavailable, e))
+                    }
+                }
+            }))
         }
         ActionIsPending(id) => {
-            serve_error_page(NotImplemented)
-            //respond(res, format, {
-            //    let mut h = HashMap::new();
-            //    h.insert("pending", scope.state.check_action(id));
-            //    h
-            //})
+            Ok(reply(move |e| {
+                #[derive(Serialize)]
+                struct Registered {
+                    pending: bool,
+                }
+                Box::new(respond(e, format, &Registered {
+                    pending: state.check_action(id),
+                }))
+            }))
         }
     }
 }

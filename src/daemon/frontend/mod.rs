@@ -31,7 +31,7 @@ mod to_json;
 
 use frontend::to_json::ToJson;
 use frontend::routing::{route, Route};
-pub use frontend::quick_reply::reply;
+pub use frontend::quick_reply::{reply, read_json};
 pub use frontend::error_page::serve_error_page;
 
 
