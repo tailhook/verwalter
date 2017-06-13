@@ -255,11 +255,12 @@ pub fn run(state: SharedState, settings: Settings) -> ! {
 
 #[cfg(test)]
 mod tests {
-    use rustc_serialize::json::Json;
+    use serde_json::Value as Json;
+    use serde_json::from_str;
     use super::merge_vars;
 
     fn parse_str(s: &str) -> Json {
-        Json::from_str(s).unwrap()
+        from_str(s).unwrap()
     }
 
     #[test]
