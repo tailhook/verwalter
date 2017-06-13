@@ -230,13 +230,16 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
             }))
         }
         Schedule => {
-            serve_error_page(NotImplemented)
-            //if let Some(schedule) = scope.state.schedule() {
-            //    respond(res, format, &schedule)
-            //} else {
-            //    // TODO(tailhook) Should we return error code instead ?
-            //    respond(res, format, Json::Null)
-            //}
+            if let Some(schedule) = state.schedule() {
+                Ok(reply(move |e| {
+                    Box::new(respond(e, format, schedule))
+                }))
+            } else {
+                // TODO(tailhook) Should we return error code instead ?
+                Ok(reply(move |e| {
+                    Box::new(respond(e, format, Value::Null))
+                }))
+            }
         }
         Scheduler => {
             serve_error_page(NotImplemented)
