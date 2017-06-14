@@ -257,31 +257,31 @@ fn main() {
     // note this port is expected to be the same across cluster
     let udp_port = options.listen_port;
 
-    let state = SharedState::new(&id, &name, &hostname,
-        options.clone(), sandbox, old_schedule);
 
-    let scheduler_settings = scheduler::Settings {
-        id: id.clone(),
-        hostname: hostname.clone(),
-        config_dir: options.config_dir.clone(),
-    };
 
-    let apply_settings = apply::Settings {
-        dry_run: options.dry_run,
-        use_sudo: options.use_sudo,
-        hostname: hostname.clone(),
-        log_dir: options.log_dir.clone(),
-        config_dir: options.config_dir.clone(),
-        schedule_file: schedule_file,
-    };
-    let apply_state = state.clone();
-    let m1 = meter.clone();
-    thread::Builder::new().name(String::from("apply")).spawn(move || {
-        m1.track_current_thread_by_name();
-        apply::run(apply_state, apply_settings);
-    }).expect("apply thread starts");
 
     run_forever(move || -> Result<(), Box<::std::error::Error>> {
+
+
+        let state = SharedState::new(&id, &name, &hostname,
+            options.clone(), sandbox, old_schedule,
+            tk_easyloop::handle().remote());
+
+        let apply_settings = apply::Settings {
+            dry_run: options.dry_run,
+            use_sudo: options.use_sudo,
+            hostname: hostname.clone(),
+            log_dir: options.log_dir.clone(),
+            config_dir: options.config_dir.clone(),
+            schedule_file: schedule_file,
+        };
+        let apply_state = state.clone();
+        let m1 = meter.clone();
+        thread::Builder::new().name(String::from("apply")).spawn(move || {
+            m1.track_current_thread_by_name();
+            apply::run(apply_state, apply_settings);
+        }).expect("apply thread starts");
+
         watchdog::init();
 
         let ns = name::init(&meter);
@@ -289,6 +289,12 @@ fn main() {
         http::spawn_listener(&ns, &listen_addr, &state)?;
         cantal::spawn_fetcher(&state, udp_port)?;
         elect::spawn_election(&ns, &listen_addr, &state)?;
+
+        let scheduler_settings = scheduler::Settings {
+            id: id.clone(),
+            hostname: hostname.clone(),
+            config_dir: options.config_dir.clone(),
+        };
 
         let m1 = meter.clone();
         let s1 = state.clone();

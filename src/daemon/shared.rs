@@ -9,6 +9,7 @@ use std::time::{Duration, SystemTime, Instant};
 use std::collections::{HashMap, BTreeMap, HashSet};
 use std::collections::btree_map::Entry::{Occupied, Vacant};
 
+use tokio_core::reactor::Remote;
 use time::{SteadyTime, Timespec, Duration as Dur, get_time};
 use cbor::{Encoder, EncodeResult, Decoder, DecodeResult};
 use rustc_serialize::hex::{FromHex, ToHex, FromHexError};
@@ -58,6 +59,7 @@ pub struct SharedData {
     apply_schedule: Condvar,
     run_scheduler: Condvar,
     peers: cell::Sender<Arc<(SystemTime, HashMap<Id, Peer>)>>,
+    mainloop: Remote,
 }
 
 pub struct LeaderCookie {
@@ -79,9 +81,6 @@ struct State {
     last_scheduler_debug_info: Arc<Option<(SchedulerInput, String)>>,
     election: Arc<ElectionState>,
     actions: BTreeMap<u64, Arc<Json>>,
-    //cantal: Option<Cantal>,
-    /// Fetch update notifier
-    //external_schedule_update: Option<Notifier>,
     errors: Arc<HashMap<&'static str, String>>,
     failed_roles: Arc<HashSet<String>>,
 }
@@ -115,7 +114,7 @@ impl Deref for SharedState {
 impl SharedState {
     pub fn new(id: &Id, name: &str, hostname: &str,
                options: Options, sandbox: Sandbox,
-               old_schedule: Option<Schedule>)
+               old_schedule: Option<Schedule>, mainloop: &Remote)
         -> SharedState
     {
         SharedState(
@@ -123,13 +122,14 @@ impl SharedState {
                 id: id.clone(),
                 name: name.to_string(),
                 hostname: hostname.to_string(),
-                options: options,
-                sandbox: sandbox,
+                options,
+                sandbox,
                 force_render: AtomicBool::new(false),
                 apply_schedule: Condvar::new(),
                 run_scheduler: Condvar::new(),
                 peers: cell::Sender::new(
                     Arc::new((SystemTime::now(), HashMap::new()))),
+                mainloop: mainloop.clone(),
             }),
             Arc::new(Mutex::new(State {
                 schedule: Arc::new(scheduler::State::Unstable),
@@ -137,8 +137,6 @@ impl SharedState {
                 last_scheduler_debug_info: Arc::new(None),
                 election: Arc::new(ElectionState::blank()),
                 actions: BTreeMap::new(),
-                // cantal: None,
-                // external_schedule_update: None, //unfortunately
                 errors: Arc::new(HashMap::new()),
                 failed_roles: Arc::new(HashSet::new()),
             })),
