@@ -9,6 +9,7 @@ use std::time::{Duration, SystemTime, Instant};
 use std::collections::{HashMap, BTreeMap, HashSet};
 use std::collections::btree_map::Entry::{Occupied, Vacant};
 
+use futures::sync::oneshot;
 use tokio_core::reactor::Remote;
 use time::{SteadyTime, Timespec, Duration as Dur, get_time};
 use cbor::{Encoder, EncodeResult, Decoder, DecodeResult};
@@ -55,11 +56,11 @@ pub struct SharedData {
     pub hostname: String,
     pub options: Options,
     pub sandbox: Sandbox,
+    pub mainloop: Remote,
     force_render: AtomicBool,
     apply_schedule: Condvar,
     run_scheduler: Condvar,
     peers: cell::Sender<Arc<(SystemTime, HashMap<Id, Peer>)>>,
-    mainloop: Remote,
 }
 
 pub struct LeaderCookie {
@@ -83,6 +84,7 @@ struct State {
     actions: BTreeMap<u64, Arc<Json>>,
     errors: Arc<HashMap<&'static str, String>>,
     failed_roles: Arc<HashSet<String>>,
+    replica_shutter: Option<oneshot::Sender<()>>,
 }
 
 fn stable_schedule(guard: &mut MutexGuard<State>) -> Option<Arc<Schedule>> {
@@ -94,14 +96,6 @@ fn stable_schedule(guard: &mut MutexGuard<State>) -> Option<Arc<Schedule>> {
         Leading(L::Stable(ref x)) => Some(x.clone()),
         _ => None,
     }
-}
-
-fn fetch_schedule(guard: &mut MutexGuard<State>) {
-    unimplemented!();
-    /*
-    guard.external_schedule_update.as_ref()
-        .map(|x| x.wakeup().expect("send fetch schedule notification"));
-    */
 }
 
 impl Deref for SharedState {
@@ -139,6 +133,7 @@ impl SharedState {
                 actions: BTreeMap::new(),
                 errors: Arc::new(HashMap::new()),
                 failed_roles: Arc::new(HashSet::new()),
+                replica_shutter: None,
             })),
         )
     }
@@ -280,10 +275,12 @@ impl SharedState {
         let mut guard = self.lock();
         if !elect.is_stable {
             guard.actions.clear();
+            guard.replica_shutter.take(); // destroys/stops shutter if exists
             if !matches!(*guard.schedule, Unstable) {
                 guard.schedule = Arc::new(Unstable);
             }
         } else if elect.is_leader {
+            guard.replica_shutter.take(); // destroys/stops shutter if exists
             match *guard.schedule.clone() {
                 Unstable | Following(..) => {
                     let mut initial = PrefetchInfo::new(
@@ -295,13 +292,15 @@ impl SharedState {
                     guard.schedule = Arc::new(
                         Leading(Prefetching(Instant::now(),
                                             Mutex::new(initial))));
-                    fetch_schedule(&mut guard);
+                    //fetch_schedule(&mut guard);
+                    unimplemented!();
                 }
                 Leading(Prefetching(_, ref pref)) => {
                     peer_schedule.map(|(id, stamp)| {
                         let mut p = pref.lock().expect("prefetching lock");
                         if p.peer_report(id, stamp) {
-                            fetch_schedule(&mut guard);
+                            //fetch_schedule(&mut guard);
+                            unimplemented!();
                         }
                     });
                 }
@@ -325,7 +324,8 @@ impl SharedState {
                                     guard.schedule = Arc::new(Following(
                                         id.clone(),
                                         Fetching(tstamp.hash)));
-                                    fetch_schedule(&mut guard);
+                                    //fetch_schedule(&mut guard);
+                                    unimplemented!();
                                 }
                             }
                         }
@@ -342,7 +342,8 @@ impl SharedState {
                             }
                             None => Waiting,
                         }));
-                    fetch_schedule(&mut guard);
+                    //fetch_schedule(&mut guard);
+                    unimplemented!();
                 }
             }
 
