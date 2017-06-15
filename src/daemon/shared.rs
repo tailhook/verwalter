@@ -9,6 +9,7 @@ use std::time::{Duration, SystemTime, Instant};
 use std::collections::{HashMap, BTreeMap, HashSet};
 use std::collections::btree_map::Entry::{Occupied, Vacant};
 
+use futures::Future;
 use futures::sync::oneshot;
 use tokio_core::reactor::Remote;
 use time::{SteadyTime, Timespec, Duration as Dur, get_time};
@@ -18,13 +19,15 @@ use rustc_serialize::{Encodable, Encoder as RustcEncoder};
 use serde_json::Value as Json;
 
 use cell;
-use id::Id;
-use peer::Peer;
-use time_util::ToMsec;
-use elect::{ElectionState, ScheduleStamp, Epoch};
 use config::Sandbox;
-use scheduler::{self, Schedule, PrefetchInfo, MAX_PREFETCH_TIME, SchedulerInput};
+use elect::{ElectionState, ScheduleStamp, Epoch};
+use id::Id;
 use {Options};
+use peer::Peer;
+use prefetch::Prefetch;
+use replica::Replica;
+use scheduler::{self, Schedule, PrefetchInfo, MAX_PREFETCH_TIME, SchedulerInput};
+use time_util::ToMsec;
 
 
 /// Things that are shared across the application threads
@@ -85,6 +88,7 @@ struct State {
     errors: Arc<HashMap<&'static str, String>>,
     failed_roles: Arc<HashSet<String>>,
     replica_shutter: Option<oneshot::Sender<()>>,
+    prefetch_shutter: Option<oneshot::Sender<()>>,
 }
 
 fn stable_schedule(guard: &mut MutexGuard<State>) -> Option<Arc<Schedule>> {
@@ -134,6 +138,7 @@ impl SharedState {
                 errors: Arc::new(HashMap::new()),
                 failed_roles: Arc::new(HashSet::new()),
                 replica_shutter: None,
+                prefetch_shutter: None,
             })),
         )
     }
@@ -292,8 +297,17 @@ impl SharedState {
                     guard.schedule = Arc::new(
                         Leading(Prefetching(Instant::now(),
                                             Mutex::new(initial))));
-                    //fetch_schedule(&mut guard);
-                    unimplemented!();
+                    let (tx, rx) = oneshot::channel();
+                    let shared = self.clone();
+                    self.mainloop.spawn(move |_handle| {
+                        Prefetch::new(&shared)
+                        .join(rx.then(|_| Ok(())))
+                        .then(|_| {
+                            debug!("Prefetch loop exit");
+                            Ok(())
+                        })
+                    });
+                    guard.prefetch_shutter = Some(tx);
                 }
                 Leading(Prefetching(_, ref pref)) => {
                     peer_schedule.map(|(id, stamp)| {
@@ -308,6 +322,7 @@ impl SharedState {
             }
         } else { // is a follower
             guard.actions.clear();
+            guard.prefetch_shutter.take();
             match *guard.schedule.clone() {
                 Following(ref id, ref status)
                 if Some(id) == elect.leader.as_ref()
