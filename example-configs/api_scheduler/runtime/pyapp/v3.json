@@ -6,7 +6,11 @@
       "cpu_shares": 1024,
       "memory_limit": 1073741824,
       "config": "/config/prod/lithos-site.yaml",
-      "image": "pyapp-prod.45f2331b"
+      "image": "pyapp-prod.45f2331b",
+      "update": {
+        "restart": "smooth",
+        "substeps": 100
+      }
     }
   },
   "ports": ["10000-20000"],

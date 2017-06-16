@@ -18,9 +18,31 @@ style:
     border-right-width: 1px
   .title
     font-weight: bold
+  button
+    margin-left: 4px
 
 
-view main(pipeline):
+view preview(pipeline):
+  <p.pipeline>
+    <div.stage.start>
+      <div.title> "Start"
+    for stage of pipeline:
+      <div.stage>
+        store @show_repr = bool | init(false)
+        <div.title>
+          stage.name
+          <button.btn.btn-xs.btn-default>
+            link {click} toggle(@show_repr) -> @show_repr
+            <span.caret>
+        if @show_repr:
+          <pre>
+            pretty_json(stage)
+    <div.stage.done>
+      <div.title> "Done"
+
+
+view progress(update):
+  let pipeline = update.pipeline
   <p.pipeline>
     <div.stage.start>
       <div.title> "Start"

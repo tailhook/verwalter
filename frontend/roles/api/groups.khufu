@@ -9,7 +9,8 @@ import {uniqueset, toggleunique} from '../../stores/simple'
 import {count_instances} from '../../util/groups'
 import {parse_int} from '../../util/parse'
 import {is_leader} from '../../util/status'
-import {main as pipeline} from './pipeline.khufu'
+import {preview as pipeline} from './pipeline.khufu'
+import * as update from './update.khufu'
 
 
 style:
@@ -125,6 +126,54 @@ view edit_number(role_name, group_name, service_name, service, old_value,
           <span.glyphicon.glyphicon-edit>
           link {click} toggle(@edit) -> @edit
 
+view update_section({group, gname, role, role_name, system_status},
+                    @actions):
+  <div>
+    store @version = value | init('')
+    <h3>
+      "Update"
+      if group.auto_update:
+        <span.auto>
+          "auto"
+    if not group.auto_update:
+      let start_call = {"button": {
+        role: role_name,
+        group: gname,
+        action: "start_update",
+        to_version: @version,
+      }}
+      let force_call = {"button": {
+        role: role_name,
+        group: gname,
+        action: "force_version",
+        to_version: @version,
+      }}
+      <p>
+        versions(role, -> @version)
+      let update_pipeline = (role.group_pipelines and
+                             role.group_pipelines[gname])
+      if @version and update_pipeline:
+        pipeline(update_pipeline)
+      <p>
+        store @show_api = bool | init(false)
+        <div.btn-group>
+          if update_pipeline:
+            <button.btn.btn-success disabled=(@version ? null : "1")>
+              link {click} execute(start_call) -> @actions
+              "Start Update"
+              show_action_progress("start_update", @actions)
+          <button.btn.btn-danger disabled=(@version ? null : "1")>
+            link {click} execute(force_call) -> @actions
+            "Force Version"
+            show_action_progress("force_version", @actions)
+          <button.btn.btn-default>
+            link {click} toggle(@show_api) -> @show_api
+            <span.caret>
+        if @show_api:
+          <p>
+            sample("Start Update Via API", start_call, system_status)
+            sample("Force Version Via API", force_call, system_status)
+
 
 view main(role, role_name, role_state, @actions,
           {servers, system_status, expert_mode}):
@@ -132,15 +181,17 @@ view main(role, role_name, role_state, @actions,
     section():
       title:
         gname
-        <span.version
-          title="Version this group is currently running">
-          group.version
+        if group.update:
+          update.show_title(group)
+        else:
+          <span.version
+            title="Version this group is currently running">
+            group.version
         <span.number
           title="Total number of all daemon scheduled on all servers">
           `${ count_instances(group) }p`
       body:
         <div>
-          store @version = value | init('')
           store @delete_confirm = value | init(false)
           <h3> "Services"
           for [sname, service] of entries_sorted(group.services) key sname:
@@ -169,49 +220,14 @@ view main(role, role_name, role_state, @actions,
                       else:
                         repr(value)
           if is_leader(system_status):
-            <h3>
-              "Update"
-              if group.auto_update:
-                <span.auto>
-                  "auto"
-            if not group.auto_update:
-              let start_call = {"button": {
-                role: role_name,
-                group: gname,
-                action: "start_update",
-                to_version: @version,
-              }}
-              let force_call = {"button": {
-                role: role_name,
-                group: gname,
-                action: "force_version",
-                to_version: @version,
-              }}
-              <p>
-                versions(role, -> @version)
-              let update_pipeline = (role.group_pipelines and
-                                     role.group_pipelines[gname])
-              if @version and update_pipeline:
-                pipeline(update_pipeline)
-              <p>
-                store @show_api = bool | init(false)
-                <div.btn-group>
-                  if update_pipeline:
-                    <button.btn.btn-success disabled=(@version ? null : "1")>
-                      link {click} execute(start_call) -> @actions
-                      "Start Update"
-                      show_action_progress("start_update", @actions)
-                  <button.btn.btn-danger disabled=(@version ? null : "1")>
-                    link {click} execute(force_call) -> @actions
-                    "Force Version"
-                    show_action_progress("force_version", @actions)
-                  <button.btn.btn-default>
-                    link {click} toggle(@show_api) -> @show_api
-                    <span.caret>
-                if @show_api:
-                  <p>
-                    sample("Start Update Via API", start_call, system_status)
-                    sample("Force Version Via API", force_call, system_status)
+            if group.update:
+              update.show_update({group: group, gname: gname,
+                                  role: role, role_name: role_name,
+                                  system_status: system_status}, -> @actions)
+            else:
+              update_section({group: group, gname: gname,
+                              role: role, role_name: role_name,
+                              system_status: system_status}, -> @actions)
 
             if expert_mode:
               <p align="right">

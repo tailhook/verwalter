@@ -1,0 +1,61 @@
+import {progress} from './pipeline.khufu'
+import {step_and_index} from '../../util/update'
+import {repr, pretty_json} from '../../util/object'
+import {value, bool, set, init, toggle, disable} from '../../stores/simple'
+
+style:
+  .title-addon
+    cursor: pointer
+    font-size: 50%
+    margin-left: 8px
+    color: gray
+    display: inline-flex
+    flex-direction: column
+    align-items: center
+  .step-name
+    white-space: nowrap
+  .substep
+    margin-left: 4px
+
+
+view show_update({group, gname, role, role_name, system_status},
+                  @actions):
+  let up = group.update
+  <div>
+    store @show_repr = bool | init(false)
+    <h3>
+      "Update in progress "
+      <span>
+        "["
+        up.source_ver
+        " → "
+        up.target_ver
+        "]"
+
+    progress(up)
+
+    <button.btn.btn-xs.btn-default>
+      link {click} toggle(@show_repr) -> @show_repr
+      <span.caret>
+    if @show_repr:
+      <pre>
+        pretty_json(up)
+
+
+view show_title(group):
+  let up = group.update
+  let [step, step_idx] = step_and_index(up.pipeline, up.step)
+  <div.title-addon>
+    <div.versions>
+      "["
+      up.source_ver
+      " → "
+      up.target_ver
+      "]"
+    <div.step-name>
+      up.step
+      if up.smooth_step:
+        <span.substep>
+          up.smooth_step
+          " / "
+          step.substeps
