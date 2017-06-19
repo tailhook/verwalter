@@ -1,4 +1,5 @@
 import {entries} from '../util/object'
+import {compare_action} from '../util/action'
 
 
 style:
@@ -13,5 +14,12 @@ view show_action_progress(aname, actions):
   for [id, act] of entries(actions) key id:
     let abut = act.button
     if abut and abut.action == aname:
+      " "
+      <span.glyphicon.glyphicon-refresh.rotate>
+
+
+view show_progress(actions, rule):
+  for [id, act] of entries(actions) key id:
+    if compare_action(act, rule):
       " "
       <span.glyphicon.glyphicon-refresh.rotate>
