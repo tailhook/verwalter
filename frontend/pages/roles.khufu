@@ -26,6 +26,8 @@ style:
     padding-bottom: 8px
   .canvas
     display: flex
+  .wide
+    width: 100%
 
 view _leftmenu(schedule):
   <ul.nav.nav-pills.nav-stacked.col-lg-2>
@@ -50,7 +52,7 @@ view main(status, expert_mode):
     store @schedule = json_store | refresher | json('/v1/schedule')
     _leftmenu(@schedule and @schedule.data)
 
-    <div.col-lg-10>
+    <div.wide>
       if not @schedule or not @schedule.data:
         <div.panel.panel-default>
           <div.panel-body>

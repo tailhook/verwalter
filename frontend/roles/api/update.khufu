@@ -16,12 +16,14 @@ style:
     white-space: nowrap
   .substep
     margin-left: 4px
+  .wide
+    width: 100%
 
 
 view show_update({group, gname, role, role_name, system_status},
                   @actions):
   let up = group.update
-  <div>
+  <div.wide>
     store @show_repr = bool | init(false)
     <h3>
       "Update in progress "
