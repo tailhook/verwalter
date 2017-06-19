@@ -24,7 +24,7 @@ use elect::{ElectionState, ScheduleStamp, Epoch};
 use id::Id;
 use {Options};
 use peer::Peer;
-use prefetch::Prefetch;
+use prefetch::PrefetchStatus;
 use replica::Replica;
 use scheduler::{self, Schedule, PrefetchInfo, MAX_PREFETCH_TIME, SchedulerInput};
 use time_util::ToMsec;
@@ -88,7 +88,7 @@ struct State {
     errors: Arc<HashMap<&'static str, String>>,
     failed_roles: Arc<HashSet<String>>,
     replica_shutter: Option<oneshot::Sender<()>>,
-    prefetch_shutter: Option<oneshot::Sender<()>>,
+    prefetch_status: Option<PrefetchStatus>,
 }
 
 fn stable_schedule(guard: &mut MutexGuard<State>) -> Option<Arc<Schedule>> {
@@ -138,7 +138,7 @@ impl SharedState {
                 errors: Arc::new(HashMap::new()),
                 failed_roles: Arc::new(HashSet::new()),
                 replica_shutter: None,
-                prefetch_shutter: None,
+                prefetch_status: None, // TODO(tailhook) move to state
             })),
         )
     }
@@ -297,17 +297,7 @@ impl SharedState {
                     guard.schedule = Arc::new(
                         Leading(Prefetching(Instant::now(),
                                             Mutex::new(initial))));
-                    let (tx, rx) = oneshot::channel();
-                    let shared = self.clone();
-                    self.mainloop.spawn(move |_handle| {
-                        Prefetch::new(&shared)
-                        .join(rx.then(|_| Ok(())))
-                        .then(|_| {
-                            debug!("Prefetch loop exit");
-                            Ok(())
-                        })
-                    });
-                    guard.prefetch_shutter = Some(tx);
+                    guard.prefetch_status = Some(PrefetchStatus::new(self));
                 }
                 Leading(Prefetching(_, ref pref)) => {
                     peer_schedule.map(|(id, stamp)| {
@@ -322,7 +312,7 @@ impl SharedState {
             }
         } else { // is a follower
             guard.actions.clear();
-            guard.prefetch_shutter.take();
+            guard.prefetch_status.take(); // destroys/stops prefetch
             match *guard.schedule.clone() {
                 Following(ref id, ref status)
                 if Some(id) == elect.leader.as_ref()
