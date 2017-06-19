@@ -297,7 +297,12 @@ impl SharedState {
                     guard.schedule = Arc::new(
                         Leading(Prefetching(Instant::now(),
                                             Mutex::new(initial))));
-                    guard.prefetch_status = Some(PrefetchStatus::new(self));
+                    let mut pre = PrefetchStatus::new(self,
+                        &guard.last_known_schedule);
+                    for (ref id, ref peer) in &self.0.peers.get().1 {
+                        pre.peer_report(id, peer);
+                    }
+                    guard.prefetch_status = Some(pre);
                 }
                 Leading(Prefetching(_, ref pref)) => {
                     peer_schedule.map(|(id, stamp)| {
