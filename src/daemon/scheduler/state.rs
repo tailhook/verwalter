@@ -6,9 +6,9 @@ use serde::{Serialize, Serializer};
 
 use hash::hash;
 use id::Id;
-use super::prefetch::PrefetchInfo;
 use time_util::ToMsec;
 use itertools::Itertools;
+use prefetch::PrefetchStatus;
 
 
 #[derive(Clone, Debug, Serialize)]
@@ -35,8 +35,7 @@ pub enum LeaderState {
     /// WARNING: this lock is a subject of Global Lock Ordering.
     /// Which means: if you want to lock this one and shared::SharedState
     /// you must lock SharedState first! And this one second!
-    Prefetching(Instant, Mutex<PrefetchInfo>),
-
+    Prefetching,
     Calculating,
     Stable(Arc<Schedule>),
 }
@@ -62,7 +61,7 @@ impl State {
             Following(_, F::Waiting) => "follower:waiting",
             Following(_, F::Fetching(..)) => "follower:fetching",
             Following(_, F::Stable(..)) => "follower:stable",
-            Leading(L::Prefetching(..)) => "leader:prefetching",
+            Leading(L::Prefetching) => "leader:prefetching",
             Leading(L::Calculating) => "leader:calculating",
             Leading(L::Stable(..)) => "leader:stable",
         }

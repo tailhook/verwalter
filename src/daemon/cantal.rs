@@ -27,6 +27,7 @@ pub fn spawn_fetcher(state: &SharedState, port: u16)
             let time = SystemTime::now();
             conn.get_peers()
             .and_then(move |peers| {
+                // TODO(tailhook) check existing peers!
                 state.set_peers(peers.requested, peers.peers.into_iter()
                     .filter_map(|p| {
                         let id = Id::from_str(&p.id);
@@ -36,6 +37,7 @@ pub fn spawn_fetcher(state: &SharedState, port: u16)
                                 .map(|x| SocketAddr::new(x.ip(), port)),
                             name: p.name,
                             hostname: p.hostname,
+                            schedule: None,
                             // last_report: None, // TODO(tailhook)
                         }))
                     }).collect());

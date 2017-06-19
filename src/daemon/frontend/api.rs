@@ -146,8 +146,8 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                 #[derive(Serialize)]
                 struct LeaderInfo<'a> {
                     id: &'a Id,
-                    name: &'a str,
-                    hostname: &'a str,
+                    name: String,
+                    hostname: String,
                     addr: Option<String>,
                 }
                 #[derive(Serialize)]
@@ -179,19 +179,22 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                 let leader = if election.is_leader {
                     Some(LeaderInfo {
                         id: state.id(),
-                        name: &state.name,
-                        hostname: &state.hostname,
+                        name: state.name.clone(),
+                        hostname: state.hostname.clone(),
                         // TODO(tailhook) resolve listening address and show
                         addr: None,
                     })
                 } else {
                     election.leader.as_ref()
-                    .and_then(|id| peers.1.get(id).map(|p| (id, p)))
-                    .map(|(id, peer)| LeaderInfo {
-                        id: id,
-                        name: &peer.name,
-                        hostname: &peer.hostname,
-                        addr: peer.addr.map(|x| x.to_string()),
+                    .and_then(|id| peers.peers.get(id).map(|p| (id, p)))
+                    .map(|(id, peer)| {
+                        let p = peer.get();
+                        LeaderInfo {
+                            id: id,
+                            name: p.name.clone(),
+                            hostname: p.hostname.clone(),
+                            addr: p.addr.map(|x| x.to_string()),
+                        }
                     })
                 };
                 let errors = state.errors();
@@ -208,8 +211,8 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                     id: &state.id,
                     name: &state.name,
                     hostname: &state.hostname,
-                    peers: peers.1.len(),
-                    peers_timestamp: Some(peers.0),
+                    peers: peers.peers.len(),
+                    peers_timestamp: Some(peers.timestamp),
                     leader: leader,
                     roles: schedule.map(|x| x.num_roles).unwrap_or(0),
                     scheduler_state: state.scheduler_state().describe(),
@@ -230,16 +233,19 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
             struct Peer<'a> {
                 id: &'a Id,
                 primary_addr: Option<String>,
-                name: &'a String,
-                hostname: &'a String,
+                name: String,
+                hostname: String,
             }
             Ok(reply(move |e| {
                 Box::new(respond(e, format,
-                    &state.peers().1.iter().map(|(id, peer)| Peer {
-                        id: id,
-                        name: &peer.name,
-                        hostname: &peer.hostname,
-                        primary_addr: peer.addr.map(|x| x.to_string()),
+                    &state.peers().peers.iter().map(|(id, peer)| {
+                        let peer = peer.get();
+                        Peer {
+                            id: id,
+                            name: peer.name.clone(),
+                            hostname: peer.hostname.clone(),
+                            primary_addr: peer.addr.map(|x| x.to_string()),
+                        }
                     }).collect::<Vec<_>>()
                 ))
             }))

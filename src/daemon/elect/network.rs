@@ -70,6 +70,7 @@ fn send_all(msg: &[u8], info: &Info, sockets: &[UdpSocket]) {
             // Don't send anything to myself
             continue;
         }
+        let peer = peer.get();
         if let Some(ref addr) = peer.addr {
             debug!("Sending Ping to {} ({})", addr, id);
             sockets_send(sockets, &msg, addr)
@@ -119,7 +120,7 @@ fn execute_action(action: Action, info: &Info, epoch: Epoch,
         ConfirmVote(id) => {
             info!("[{}] Confirm vote {}", epoch, id);
             let msg = encode::vote(&info.id, epoch, &id, &state.schedule());
-            let dest = info.all_hosts.get(&id).and_then(|x| x.addr);
+            let dest = info.all_hosts.get(&id).and_then(|p| p.get().addr);
             if let Some(ref addr) = dest {
                 debug!("Sending (confirm) vote to {} ({:?})", addr, id);
                 sockets_send(sockets, &msg, addr).ok();
@@ -141,7 +142,7 @@ fn execute_action(action: Action, info: &Info, epoch: Epoch,
                 }
             }
             let msg = encode::pong(&info.id, epoch, &state.schedule());
-            let dest = info.all_hosts.get(&id).and_then(|x| x.addr);
+            let dest = info.all_hosts.get(&id).and_then(|p| p.get().addr);
             if let Some(ref addr) = dest {
                 debug!("Sending pong to {} ({:?})", addr, id);
                 sockets_send(sockets, &msg, addr)
@@ -158,7 +159,6 @@ fn execute_action(action: Action, info: &Info, epoch: Epoch,
 
 struct ElectionMachine {
     sockets: Vec<UdpSocket>,
-    peers: Cell<Arc<(SystemTime, HashMap<Id, Peer>)>>,
     shared: SharedState,
     machine: Option<Machine>,
     last_schedule_sent: String,
@@ -169,11 +169,11 @@ impl Future for ElectionMachine {
     type Item = ();
     type Error = ();
     fn poll(&mut self) -> Result<Async<()>, ()> {
-        let peers = self.peers.get();
+        let peers = self.shared.peers();
         let ref info = Info {
             id: &self.shared.id.clone(),
-            hosts_timestamp: Some(peers.0),
-            all_hosts: &peers.1,
+            hosts_timestamp: Some(peers.timestamp),
+            all_hosts: &peers.peers,
             debug_force_leader: self.shared.debug_force_leader(),
         };
         let mut me = self.machine.take().expect("machine is always here");
@@ -263,7 +263,6 @@ pub fn spawn_election(ns: &abstract_ns::Router, addr: &str,
             }).collect();
         spawn(ElectionMachine {
             machine: Some(Machine::new(Instant::now())),
-            peers: state.peer_cell(),
             sockets: socks,
             shared: state,
             last_schedule_sent: String::new(),

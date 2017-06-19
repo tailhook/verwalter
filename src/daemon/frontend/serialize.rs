@@ -1,6 +1,7 @@
 use std::time::{SystemTime, Duration, Instant, UNIX_EPOCH};
 
 use serde::Serializer;
+use serde::de::{self, Deserialize, Deserializer};
 
 
 fn tstamp_to_ms(tm: SystemTime) -> u64 {
@@ -23,11 +24,21 @@ fn duration_to_ms(dur: Duration) -> u64 {
     return dur.as_secs()*1000 + (dur.subsec_nanos() / 1000000) as u64;
 }
 
+pub fn ms_to_system_time(ms: u64) -> SystemTime {
+    UNIX_EPOCH + Duration::from_millis(ms)
+}
+
 pub fn serialize_timestamp<S>(tm: &SystemTime, ser: S)
     -> Result<S::Ok, S::Error>
     where S: Serializer
 {
     ser.serialize_u64(tstamp_to_ms(*tm))
+}
+
+pub fn deserialize_timestamp<'de, D>(de: D) -> Result<SystemTime, D::Error>
+    where D: Deserializer<'de>
+{
+    u64::deserialize(de).map(ms_to_system_time)
 }
 
 pub fn serialize_instant<S>(tm: &Instant, ser: S)

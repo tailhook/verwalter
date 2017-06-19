@@ -17,16 +17,17 @@ use cbor::{Encoder, EncodeResult, Decoder, DecodeResult};
 use rustc_serialize::hex::{FromHex, ToHex, FromHexError};
 use rustc_serialize::{Encodable, Encoder as RustcEncoder};
 use serde_json::Value as Json;
+use crossbeam::sync::ArcCell;
 
 use cell;
 use config::Sandbox;
 use elect::{ElectionState, ScheduleStamp, Epoch};
 use id::Id;
 use {Options};
-use peer::Peer;
+use peer::{Peer, Peers};
 use prefetch::PrefetchStatus;
 use replica::Replica;
-use scheduler::{self, Schedule, PrefetchInfo, MAX_PREFETCH_TIME, SchedulerInput};
+use scheduler::{self, Schedule, MAX_PREFETCH_TIME, SchedulerInput};
 use time_util::ToMsec;
 
 
@@ -63,7 +64,7 @@ pub struct SharedData {
     force_render: AtomicBool,
     apply_schedule: Condvar,
     run_scheduler: Condvar,
-    peers: cell::Sender<Arc<(SystemTime, HashMap<Id, Peer>)>>,
+    peers: ArcCell<Peers>,
 }
 
 pub struct LeaderCookie {
@@ -125,8 +126,7 @@ impl SharedState {
                 force_render: AtomicBool::new(false),
                 apply_schedule: Condvar::new(),
                 run_scheduler: Condvar::new(),
-                peers: cell::Sender::new(
-                    Arc::new((SystemTime::now(), HashMap::new()))),
+                peers: ArcCell::new(Arc::new(Peers::new())),
                 mainloop: mainloop.clone(),
             }),
             Arc::new(Mutex::new(State {
@@ -152,13 +152,8 @@ impl SharedState {
     pub fn debug_force_leader(&self) -> bool {
         self.options.debug_force_leader
     }
-    pub fn peers(&self) -> Arc<(SystemTime, HashMap<Id, Peer>)> {
+    pub fn peers(&self) -> Arc<Peers> {
         self.peers.get()
-    }
-    pub fn peer_cell(&self)
-        -> cell::Cell<Arc<(SystemTime, HashMap<Id, Peer>)>>
-    {
-        self.peers.cell()
     }
     /// Returns last known schedule
     pub fn schedule(&self) -> Option<Arc<Schedule>> {
@@ -209,24 +204,49 @@ impl SharedState {
     */
     // Setters
     pub fn set_peers(&self, time: SystemTime, peers: HashMap<Id, Peer>) {
-        self.peers.set(Arc::new((time, peers)));
-
-        // TODO(tailhook) should we bother to run it every time?
-        //
-        // Maybe either:
-        //
-        // 1. Notify when first data available
-        // 2. Notify when anything changed
-        //
-        // Note: while comparison is definitely cheaper than a new scheduling
-        // but we should compare smartly. I.e. peers are always changed (i.e.
-        // ping timestamps and similar things). We should check for meaningful
-        // changes.
-        //
-        // **UPDATE** don't rerun scheduler on updated peers, scheduler will
-        // notice it on next normal wakeup of ~5 seconds
-        //
-        // self.0.run_scheduler.notify_all();
+        let old_peers = self.peers.get();
+        let mut to_insert = Vec::new();
+        for (id, peer) in &peers {
+            if let Some(ref mut old) = old_peers.peers.get(&id) {
+                let oldp = old.get();
+                if oldp.addr != peer.addr ||
+                   oldp.name != peer.name ||
+                   oldp.hostname != peer.hostname
+                {
+                    let new = Peer {
+                        schedule: oldp.schedule.clone(),
+                        .. peer.clone()
+                    };
+                    old.set(Arc::new(new));
+                }
+            } else {
+                to_insert.push((id, peer));
+            }
+        }
+        let mut needs_mutation = to_insert.len() > 0;
+        if !needs_mutation {
+            for (id, _) in &old_peers.peers {
+                if !peers.contains_key(id) {
+                    needs_mutation = true;
+                }
+            }
+        }
+        if !needs_mutation {
+            return;
+        }
+        let mut new_peers = HashMap::new();
+        for (id, peer) in &old_peers.peers {
+            if peers.contains_key(id) {
+                new_peers.insert(id.clone(), ArcCell::new(peer.get()));
+            }
+        }
+        for (id, peer) in to_insert {
+            new_peers.insert(id.clone(), ArcCell::new(Arc::new(peer.clone())));
+        }
+        self.peers.set(Arc::new(Peers {
+            timestamp: time,
+            peers: new_peers,
+        }));
     }
     pub fn set_schedule_debug_info(&self, input: SchedulerInput, debug: String)
     {
@@ -288,23 +308,17 @@ impl SharedState {
             guard.replica_shutter.take(); // destroys/stops shutter if exists
             match *guard.schedule.clone() {
                 Unstable | Following(..) => {
-                    let mut initial = PrefetchInfo::new(
-                        self.0.peers.get().1.keys().cloned(),
-                        guard.last_known_schedule.clone());
-                    peer_schedule.map(|(id, stamp)| {
-                        initial.peer_report(id, stamp)
-                    });
-                    guard.schedule = Arc::new(
-                        Leading(Prefetching(Instant::now(),
-                                            Mutex::new(initial))));
                     let mut pre = PrefetchStatus::new(self,
                         &guard.last_known_schedule);
-                    for (ref id, ref peer) in &self.0.peers.get().1 {
-                        pre.peer_report(id, peer);
+                    for (ref id, ref peer) in &self.0.peers.get().peers {
+                        pre.peer_report(id, &*peer.get());
                     }
+                    guard.schedule = Arc::new(Leading(Prefetching));
                     guard.prefetch_status = Some(pre);
                 }
-                Leading(Prefetching(_, ref pref)) => {
+                Leading(Prefetching) => {
+                    unimplemented!();
+                    /*
                     peer_schedule.map(|(id, stamp)| {
                         let mut p = pref.lock().expect("prefetching lock");
                         if p.peer_report(id, stamp) {
@@ -312,6 +326,7 @@ impl SharedState {
                             unimplemented!();
                         }
                     });
+                    */
                 }
                 Leading(..) => { }
             }
@@ -385,7 +400,9 @@ impl SharedState {
                 .expect("shared state lock")
                 .0;
             wait_time = match *guard.schedule.clone() {
-                Leading(Prefetching(time, ref mutex)) => {
+                Leading(Prefetching) => {
+                    unimplemented!();
+                    /*
                     let pref = Duration::from_millis(MAX_PREFETCH_TIME);
                     let elapsed = time.elapsed();
                     if elapsed > pref ||
@@ -402,6 +419,7 @@ impl SharedState {
                     } else {
                         pref - elapsed
                     }
+                    */
                 }
                 Leading(Stable(ref x)) => {
                     guard.schedule = Arc::new(Leading(Calculating));
@@ -450,6 +468,7 @@ impl SharedState {
         self.force_render.store(true, SeqCst);
         self.apply_schedule.notify_all();
     }
+    /*
     pub fn fetched_schedule(&self, schedule: Schedule) {
         use scheduler::State::{Following, Leading};
         use scheduler::FollowerState::{Fetching, Stable};
@@ -479,6 +498,7 @@ impl SharedState {
             }
         }
     }
+    */
     // late initializers
     /*
     pub fn set_update_notifier(&self, notifier: Notifier) {

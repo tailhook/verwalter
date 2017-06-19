@@ -1,8 +1,10 @@
+use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
 use std::net;
 use std::time::{Duration, SystemTime, Instant};
 use std::collections::HashMap;
 
+use crossbeam::sync::ArcCell;
 use super::{Info};
 use id::Id;
 use peer::Peer;
@@ -12,7 +14,7 @@ static NODE_COUNTER: AtomicUsize = ATOMIC_USIZE_INIT;
 
 pub struct Environ {
     pub id: Id,
-    all_hosts: HashMap<Id, Peer>,
+    all_hosts: HashMap<Id, ArcCell<Peer>>,
     now: Instant,  // TODO(tailhook) should `now` and `tspec` be unified?
     tspec: Instant,
 }
@@ -21,14 +23,15 @@ impl Environ {
     pub fn new(id: &str) -> Environ {
         Environ {
             id: id.parse().unwrap(),
-            all_hosts: vec![(id.parse().unwrap(), Peer {
+            all_hosts: vec![(id.parse().unwrap(), ArcCell::new(Arc::new(Peer {
                 addr: Some(net::SocketAddr::V4(net::SocketAddrV4::new(
                     net::Ipv4Addr::new(127, 0, 0, 1),
                     12345))),
                 hostname: format!("{}", id),
                 name: format!("{}", id),
+                schedule: None,
                 //last_report: Some(Instant::now()),
-            })].into_iter().collect(),
+            })))].into_iter().collect(),
             now: Instant::now(),
             tspec: Instant::now(),
         }
@@ -56,14 +59,15 @@ impl Environ {
     pub fn add_node(&mut self) -> Id {
         let n = NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
         let id: Id = format!("e0beef{:02x}", n).parse().unwrap();
-        self.all_hosts.insert(id.clone(), Peer {
+        self.all_hosts.insert(id.clone(), ArcCell::new(Arc::new(Peer {
             addr: Some(net::SocketAddr::V4(net::SocketAddrV4::new(
                 net::Ipv4Addr::new(127, 0, (n >> 8) as u8, (n & 0xFF) as u8),
                 12345))),
             hostname: format!("{}", id),
             name: format!("{}", id),
+            schedule: None,
             // last_report: Some(self.tspec),
-        });
+        })));
         id
     }
 }

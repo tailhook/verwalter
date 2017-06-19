@@ -1,6 +1,7 @@
 extern crate abstract_ns;
 extern crate argparse;
 extern crate cbor;
+extern crate crossbeam;
 extern crate env_logger;
 extern crate futures;
 extern crate futures_cpupool;

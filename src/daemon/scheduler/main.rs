@@ -42,7 +42,7 @@ pub struct SchedulerInput {
     //parents: Vec<&'a str>,
     actions: BTreeMap<u64, Arc<Json>>,
     runtime: Arc<Json>,
-    peers: HashMap<Id, Peer>,
+    peers: HashMap<Id, Arc<Peer>>,
     metrics: HashMap<(), ()>,  // TODO(tailhook)
 }
 
@@ -277,7 +277,9 @@ pub fn main(state: SharedState, settings: Settings) -> !
                 runtime: runtime.data.clone(),
                 // TODO(tailhook) show runtime errors
                 //("runtime_err".to_string(), runtime.errors.to_json()),
-                peers: peers.1.clone(),
+                peers: peers.peers.iter()
+                    .map(|(id, p)| (id.clone(), p.get()))
+                    .collect(),
                 metrics: HashMap::new(),
                 /* TODO(tailhook)
                     state.metrics()

@@ -1,6 +1,7 @@
 use std::time::SystemTime;
 use std::collections::{HashMap};
 
+use crossbeam::sync::ArcCell;
 
 pub use self::machine::Epoch;
 pub use self::network::spawn_election;
@@ -8,6 +9,7 @@ pub use self::settings::peers_refresh;
 pub use self::state::ElectionState;
 use id::Id;
 use peer::Peer;
+use frontend::serialize::{serialize_timestamp, deserialize_timestamp};
 
 mod action;
 mod info;
@@ -24,9 +26,11 @@ mod encode;
 #[cfg(test)] mod test_split_brain;
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ScheduleStamp {
-    pub timestamp: u64,
+    #[serde(serialize_with="serialize_timestamp",
+            deserialize_with="deserialize_timestamp")]
+    pub timestamp: SystemTime,
     pub hash: String,
     pub origin: Id,
 }
@@ -57,7 +61,7 @@ pub struct Info<'a> {
     /// This is used to find out whether hosts are actually valid
     hosts_timestamp: Option<SystemTime>,
     /// State machine of the leader election
-    all_hosts: &'a HashMap<Id, Peer>,
+    all_hosts: &'a HashMap<Id, ArcCell<Peer>>,
     /// Forces this node to be a leader, this is only for debugging purposes
     debug_force_leader: bool,
 }
