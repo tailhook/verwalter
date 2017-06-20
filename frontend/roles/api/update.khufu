@@ -25,14 +25,15 @@ style:
     font-size: 120%
     margin: 4px
 
-view action_button(action, icon, color, @actions, {group_name, role_name}):
+view action_button(action, icon, color, title,
+                   @actions, {group_name, role_name}):
   let req = {button: {
     action: 'update_action',
     role: role_name,
     group: group_name,
     update_action: action,
   }}
-  <button.btn class=`btn-${color}`>
+  <button.btn class=`btn-${color}` title=title>
     <span.glyphicon class=`glyphicon-${icon}`>
     link {click} execute(req) -> @actions
     show_progress(@actions, req.button)
@@ -47,20 +48,43 @@ view update_buttons(up, @actions, kw):
         if is_leader(kw.system_status):
           if up.direction == 'forward':
             if step.forward_mode == 'time' or step.forward_mode == 'smooth':
-              action_button('pause', 'pause', 'default', -> @actions, kw)
+              action_button('pause', 'pause', 'default',
+                "Temporarily pause update process",
+                -> @actions, kw)
             elif step.forward_mode == 'manual':
-              action_button('forward', 'forward', 'default', -> @actions, kw)
+              action_button('forward', 'forward', 'default',
+                "Continue update process",
+                -> @actions, kw)
             elif step.forward_mode == 'ack':
-              action_button('revert', 'backward', 'default', -> @actions, kw)
+              action_button('revert', 'backward', 'danger',
+                "Revert the update",
+                -> @actions, kw)
           elif up.direction == 'backward':
             if step.backward_mode == 'time' or step.forward_mode == 'smooth':
-              action_button('pause', 'pause', 'default', -> @actions, kw)
+              action_button('pause', 'pause', 'default',
+                "Pause revert process",
+                -> @actions, kw)
             elif step.backward_mode == 'manual':
-              action_button('revert', 'backward', 'default', -> @actions, kw)
+              action_button('revert', 'backward', 'default',
+                "Continue revert process",
+                -> @actions, kw)
+          elif up.direction == 'error':
+            action_button('revert', 'backward', 'danger',
+              "Revert the update",
+              -> @actions, kw)
+            action_button('skip', 'forward', 'danger',
+              "Skip this step and continue",
+              -> @actions, kw)
           else:
-            action_button('revert', 'backward', 'danger', -> @actions, kw)
-            action_button('resume', 'play', 'default', -> @actions, kw)
-            action_button('skip', 'forward', 'danger', -> @actions, kw)
+            action_button('revert', 'backward', 'danger',
+              "Revert the update",
+              -> @actions, kw)
+            action_button('resume', 'play', 'default',
+              "Continue update process",
+              -> @actions, kw)
+            action_button('skip', 'forward', 'danger',
+              "Skip this step and continue",
+              -> @actions, kw)
 
         <button.btn.btn-default>
           link {click} toggle(@show_repr) -> @show_repr
@@ -75,6 +99,15 @@ view update_buttons(up, @actions, kw):
           update_action: action,
         }}
         sample(`Action ${ action }`, action_req, kw.system_status)
+
+      let action_req = {button: {
+        action: 'update_action',
+        role: kw.role_name,
+        group: kw.group_name,
+        update_action: 'error',
+        error_message: "Some error message",
+      }}
+      sample(`Action error`, action_req, kw.system_status)
 
       <div>
         repr("Update Info", up)
