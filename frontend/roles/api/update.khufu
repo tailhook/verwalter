@@ -45,7 +45,11 @@ style:
     font-weight: bold
   span.error-message
     padding-left: 8px
-  .glyphicon-hourglass
+  .glyphicon.title
+    position: relative
+    top: 0.2ex
+    margin-left: 0.2ex
+    margin-right: 0.2ex
   .force-version-on-update
     margin: 16px
 
@@ -170,14 +174,18 @@ view show_update({group, gname, role, role_name, system_status},
           "Revert "
         <span.glyphicon.glyphicon-fire>
         " in progress "
+      elif up.auto:
+        "Auto-update in progress "
       else:
         "Update in progress "
       <span>
-        "["
+        <span.glyphicon.glyphicon-menu-left.title>
         up.source_ver
-        " → "
+        " "
+        <span.glyphicon.glyphicon-arrow-right.title>
+        " "
         up.target_ver
-        "]"
+        <span.glyphicon.glyphicon-menu-right.title>
 
     progress(up)
 
@@ -220,11 +228,17 @@ view show_title(group):
   <div.title-addon>
     <div.stack>
       <div.versions>
-        "["
+        <span.glyphicon.glyphicon-menu-left.title>
         up.source_ver
-        " → "
+        " "
+        if up.auto:
+          <span.glyphicon.glyphicon-forward.title>
+        else:
+          <span.glyphicon.glyphicon-arrow-right.title>
+        " "
         up.target_ver
-        "] "
+        <span.glyphicon.glyphicon-menu-right.title>
+        " "
         if up.direction != 'forward':
           <span.paused>
             <span.glyphicon.glyphicon-exclamation-sign>
