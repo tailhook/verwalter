@@ -10,10 +10,13 @@ import {show_progress} from '../../blocks/action.khufu'
 style:
   .title-addon
     cursor: pointer
+    display: inline-flex
+    flex-direction: row
+    color: gray
+  .stack
     font-size: 50%
     margin-left: 8px
-    color: gray
-    display: inline-flex
+    display: flex
     flex-direction: column
     align-items: center
   .step-name
@@ -40,6 +43,7 @@ style:
     font-weight: bold
   span.error-message
     padding-left: 8px
+  .glyphicon-hourglass
 
 view action_button(action, icon, color, title,
                    @actions, {group_name, role_name}):
@@ -68,7 +72,10 @@ view update_buttons(up, @actions, kw):
                 "Temporarily pause update process",
                 -> @actions, kw)
             elif step.forward_mode == 'manual':
-              action_button('forward', 'forward', 'default',
+              action_button('revert', 'backward', 'danger',
+                "Continue update process",
+                -> @actions, kw)
+              action_button('proceed', 'play', 'success',
                 "Continue update process",
                 -> @actions, kw)
             elif step.forward_mode == 'ack':
@@ -121,7 +128,7 @@ view update_buttons(up, @actions, kw):
           format_diff(till_now_ms(from_ms(up.change_ts)))
 
     if @show_repr:
-      for action of ["pause", "revert", "resume", "skip", "ack"]:
+      for action of ["pause", "revert", "resume", "skip", "ack", "proceed"]:
         let action_req = {button: {
           action: 'update_action',
           role: kw.role_name,
@@ -178,21 +185,25 @@ view show_title(group):
   let up = group.update
   let [step, step_idx] = step_and_index(up.pipeline, up.step)
   <div.title-addon>
-    <div.versions>
-      "["
-      up.source_ver
-      " → "
-      up.target_ver
-      "] "
-      if up.direction != 'forward':
-        <spah.paused>
-          <span.glyphicon.glyphicon-exclamation-sign>
-          " "
-          up.direction
-    <div.step-name>
-      up.step
-      if up.smooth_step:
-        <span.substep>
-          up.smooth_step
-          " / "
-          step.substeps
+    <div.stack>
+      <div.versions>
+        "["
+        up.source_ver
+        " → "
+        up.target_ver
+        "] "
+        if up.direction != 'forward':
+          <span.paused>
+            <span.glyphicon.glyphicon-exclamation-sign>
+            " "
+            up.direction
+      <div.step-name>
+        up.step
+        if up.smooth_step:
+          <span.substep>
+            up.smooth_step
+            " / "
+            step.substeps
+    if up.direction == 'forward':
+      if step.forward_mode == 'manual':
+        <span.glyphicon.glyphicon-hourglass>

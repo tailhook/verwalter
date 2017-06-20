@@ -36,6 +36,6 @@ export function pretty_json(x) {
 
 export function* enumerate(lst) {
     for(var i = 0; i < lst.length; ++i) {
-        yield [i, lst[i]];
+        yield [i, lst[i]]
     }
 }
