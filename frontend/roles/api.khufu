@@ -53,12 +53,13 @@ view main(role, role_name, {role_state, schedule, system_status, expert_mode}):
         pretty_json(role_state)
 
     if is_leader(system_status):
-      if @show_new_group:
-        new_group(role, role_name, role_state, -> @actions,
-          {system_status: system_status, servers: server_list})
-      if @show_new_process:
-        new_process(role, role_name, role_state, -> @actions,
-          {system_status: system_status, servers: server_list})
+      if expert_mode:
+        if @show_new_group:
+          new_group(role, role_name, role_state, -> @actions,
+            {system_status: system_status, servers: server_list})
+        if @show_new_process:
+          new_process(role, role_name, role_state, -> @actions,
+            {system_status: system_status, servers: server_list})
     else:
       show_leaders(
         "Actions are Only Available on Leader",
