@@ -6,6 +6,8 @@ import {sample, repr} from './sample.khufu'
 import {execute} from '../../util/action'
 import {from_ms, till_now_ms, format_diff} from '../../util/time'
 import {show_progress} from '../../blocks/action.khufu'
+import {main as versions} from '../../blocks/version_select.khufu'
+
 
 style:
   .title-addon
@@ -44,6 +46,8 @@ style:
   span.error-message
     padding-left: 8px
   .glyphicon-hourglass
+  .force-version-on-update
+    margin: 16px
 
 view action_button(action, icon, color, title,
                    @actions, {group_name, role_name}):
@@ -62,6 +66,7 @@ view update_buttons(up, @actions, kw):
   <div>
     let [step, step_idx] = step_and_index(up.pipeline, up.step)
     store @show_repr = bool | init(false)
+    store @show_force_update = bool | init(false)
     <div>
       <div.btn-group>
 
@@ -109,6 +114,9 @@ view update_buttons(up, @actions, kw):
               "Skip this step and continue",
               -> @actions, kw)
 
+        <button.btn.btn-info title="Push this if something is terribly wrong">
+          link {click} toggle(@show_force_update) -> @show_force_update
+          <span.glyphicon.glyphicon-fire>
         <button.btn.btn-default>
           link {click} toggle(@show_repr) -> @show_repr
           <span.caret>
@@ -126,6 +134,9 @@ view update_buttons(up, @actions, kw):
           "Changed:"
         <span.timer-value>
           format_diff(till_now_ms(from_ms(up.change_ts)))
+
+    if @show_force_update:
+      show_force_update_buttons(->@actions, kw)
 
     if @show_repr:
       for action of ["pause", "revert", "resume", "skip", "ack", "proceed"]:
@@ -178,7 +189,29 @@ view show_update({group, gname, role, role_name, system_status},
           up.error_message
 
     update_buttons(up, -> @actions,
-      {system_status: system_status, group_name: gname, role_name: role_name})
+      {system_status: system_status, group_name: gname, role_name: role_name,
+       role: role})
+
+
+view show_force_update_buttons(@actions, {role, role_name, group_name}):
+  <div.force-version-on-update.alert.alert-warning>
+    store @version = value | init('')
+    let force_call = {"button": {
+      role: role_name,
+      group: group_name,
+      action: "force_version",
+      to_version: @version,
+    }}
+    <p.title>
+      "Okay, if you thing something is terribly wrong you can revert to a"
+      " safe version at any time. But be careful, this revert is not smooth"
+    <p>
+      versions(role, -> @version)
+    <p>
+      <button.btn.btn-danger disabled=(@version ? null : "1")>
+        link {click} execute(force_call) -> @actions
+        "Force Version"
+        show_progress(@actions, force_call.button)
 
 
 view show_title(group):

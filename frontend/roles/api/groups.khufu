@@ -126,8 +126,9 @@ view edit_number(role_name, group_name, service_name, service, old_value,
           <span.glyphicon.glyphicon-edit>
           link {click} toggle(@edit) -> @edit
 
-view update_section({group, gname, role, role_name, system_status},
-                    @actions):
+view update_section(
+    {group, gname, role, role_name, system_status, expert_mode},
+    @actions):
   <div>
     store @version = value | init('')
     <h3>
@@ -162,10 +163,11 @@ view update_section({group, gname, role, role_name, system_status},
               link {click} execute(start_call) -> @actions
               "Start Update"
               show_action_progress("start_update", @actions)
-          <button.btn.btn-danger disabled=(@version ? null : "1")>
-            link {click} execute(force_call) -> @actions
-            "Force Version"
-            show_action_progress("force_version", @actions)
+          if expert_mode:
+            <button.btn.btn-danger disabled=(@version ? null : "1")>
+              link {click} execute(force_call) -> @actions
+              "Force Version"
+              show_action_progress("force_version", @actions)
           <button.btn.btn-default>
             link {click} toggle(@show_api) -> @show_api
             <span.caret>
@@ -227,7 +229,8 @@ view main(role, role_name, role_state, @actions,
             else:
               update_section({group: group, gname: gname,
                               role: role, role_name: role_name,
-                              system_status: system_status}, -> @actions)
+                              system_status: system_status,
+                              expert_mode: expert_mode}, -> @actions)
 
             if expert_mode:
               <p align="right">
