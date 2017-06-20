@@ -4,6 +4,7 @@ import {is_leader} from '../../util/status'
 import {value, bool, set, init, toggle, disable} from '../../stores/simple'
 import {sample, repr} from './sample.khufu'
 import {execute} from '../../util/action'
+import {from_ms, till_now_ms, format_diff} from '../../util/time'
 import {show_progress} from '../../blocks/action.khufu'
 
 style:
@@ -24,6 +25,21 @@ style:
     font-weight: bold
     font-size: 120%
     margin: 4px
+  .timers
+  .timer-name
+    margin: 2px 2px 2px 12px
+    color: gray
+  .timer-value
+    margin: 2px 2px 2px 2px
+  div.error
+    font-size: 120%
+    font-family: monospace
+    margin: 24px
+  span.error
+    color: red
+    font-weight: bold
+  span.error-message
+    padding-left: 8px
 
 view action_button(action, icon, color, title,
                    @actions, {group_name, role_name}):
@@ -90,6 +106,20 @@ view update_buttons(up, @actions, kw):
           link {click} toggle(@show_repr) -> @show_repr
           <span.caret>
 
+      <span.timers>
+        <span.timer-name>
+          "Started:"
+        <span.timer-value>
+          format_diff(till_now_ms(from_ms(up.start_ts)))
+        <span.timer-name>
+          "Step:"
+        <span.timer-value>
+          format_diff(till_now_ms(from_ms(up.step_ts)))
+        <span.timer-name>
+          "Changed:"
+        <span.timer-value>
+          format_diff(till_now_ms(from_ms(up.change_ts)))
+
     if @show_repr:
       for action of ["pause", "revert", "resume", "skip", "ack"]:
         let action_req = {button: {
@@ -117,7 +147,13 @@ view show_update({group, gname, role, role_name, system_status},
   let up = group.update
   <div>
     <h3>
-      "Update in progress "
+      if up.direction == 'backward':
+        <b>
+          "Revert "
+        <span.glyphicon.glyphicon-fire>
+        " in progress "
+      else:
+        "Update in progress "
       <span>
         "["
         up.source_ver
@@ -126,6 +162,13 @@ view show_update({group, gname, role, role_name, system_status},
         "]"
 
     progress(up)
+
+    if up.error_message:
+      <div.error>
+        <span.error>
+          "Error:"
+        <span.error-message>
+          up.error_message
 
     update_buttons(up, -> @actions,
       {system_status: system_status, group_name: gname, role_name: role_name})
@@ -140,9 +183,11 @@ view show_title(group):
       up.source_ver
       " → "
       up.target_ver
-      "]"
+      "] "
       if up.direction != 'forward':
         <spah.paused>
+          <span.glyphicon.glyphicon-exclamation-sign>
+          " "
           up.direction
     <div.step-name>
       up.step
