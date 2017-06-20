@@ -114,9 +114,6 @@ view new_process(role, role_name, role_state, @actions,
               <div.input-group.panel>
                 <input.form-control.short>
                   link {input} set_var(varname, this.value) -> @variables
-                if varname == 'nginx_port':
-                  <label.input-group-addon> "alternate port: "
-                  <input.form-control.short>
               if meta.ports:
                 `Allowed ranges: ${meta.ports.join(', ')}`
             elif vartype.type == 'Choice':
