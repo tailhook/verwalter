@@ -201,7 +201,7 @@ impl Future for ElectionMachine {
                 }
             }
         }
-        self.shared.update_election(ElectionState::from(&me), None);
+        self.shared.update_election(ElectionState::from(&me));
         self.machine = Some(me);
         Ok(Async::NotReady)
     }
@@ -233,9 +233,14 @@ impl ElectionMachine {
                         act.action.map(|x| execute_action(x, &info,
                             me.current_epoch(), &sockets,
                             shared, hash));
-                        shared.update_election(
-                            ElectionState::from(&me),
-                            msg.schedule.map(|x| (src, x)));
+                        if let Some(peer) = shared.peers().peers.get(info.id) {
+                            if peer.get().schedule != msg.schedule {
+                                peer.set(Arc::new(Peer {
+                                    schedule: msg.schedule,
+                                    .. (*peer.get()).clone()
+                                }));
+                            }
+                        }
                     }
                     Err(e) => {
                         info!("Error parsing packet {:?}", e);

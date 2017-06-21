@@ -291,9 +291,7 @@ impl SharedState {
         Arc::make_mut(&mut self.lock().errors).remove(domain);
     }
     // TODO(tailhook) this method does too much, refactor it
-    pub fn update_election(&self, elect: ElectionState,
-                            peer_schedule: Option<(Id, ScheduleStamp)>)
-    {
+    pub fn update_election(&self, elect: ElectionState) {
         use scheduler::State::*;
         use scheduler::LeaderState::Prefetching;
         use scheduler::FollowerState::*;
@@ -317,16 +315,8 @@ impl SharedState {
                     guard.prefetch_status = Some(pre);
                 }
                 Leading(Prefetching) => {
+                    // TODO(tailhook) nothing to do?
                     unimplemented!();
-                    /*
-                    peer_schedule.map(|(id, stamp)| {
-                        let mut p = pref.lock().expect("prefetching lock");
-                        if p.peer_report(id, stamp) {
-                            //fetch_schedule(&mut guard);
-                            unimplemented!();
-                        }
-                    });
-                    */
                 }
                 Leading(..) => { }
             }
@@ -337,37 +327,11 @@ impl SharedState {
                 Following(ref id, ref status)
                 if Some(id) == elect.leader.as_ref()
                 => {
-                    if let Some((schid, tstamp)) = peer_schedule {
-                        if id == &schid {
-                            match *status {
-                                Stable(ref schedule)
-                                if schedule.hash == tstamp.hash
-                                => {}  // up to date
-                                Fetching(ref hash) if hash == &tstamp.hash
-                                => {}  // already fetching
-                                _ => {
-                                    guard.schedule = Arc::new(Following(
-                                        id.clone(),
-                                        Fetching(tstamp.hash)));
-                                    //fetch_schedule(&mut guard);
-                                    unimplemented!();
-                                }
-                            }
-                        }
-                    }
+                    // TODO(tailhook) update current schedule
+                    unimplemented!();
                 }
                 _ => {
-                    guard.schedule = Arc::new(Following(
-                        elect.leader.clone().unwrap(),
-                        match peer_schedule {
-                            Some((schid, x)) => {
-                                debug_assert!(elect.leader.as_ref() ==
-                                              Some(&schid));
-                                Fetching(x.hash)
-                            }
-                            None => Waiting,
-                        }));
-                    //fetch_schedule(&mut guard);
+                    // TODO(tailhook) update leader id
                     unimplemented!();
                 }
             }

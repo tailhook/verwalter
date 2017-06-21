@@ -26,7 +26,7 @@ mod encode;
 #[cfg(test)] mod test_split_brain;
 
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct ScheduleStamp {
     #[serde(serialize_with="serialize_timestamp",
             deserialize_with="deserialize_timestamp")]
