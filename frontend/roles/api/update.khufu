@@ -54,12 +54,13 @@ style:
     margin: 16px
 
 view action_button(action, icon, color, title,
-                   @actions, {group_name, role_name}):
+                   @actions, {group_name, role_name, update}):
   let req = {button: {
     action: 'update_action',
     role: role_name,
     group: group_name,
     update_action: action,
+    step: action == 'proceed' or action == 'skip' ? update.step : null,
   }}
   <button.btn class=`btn-${color}` title=title>
     <span.glyphicon class=`glyphicon-${icon}`>
@@ -149,6 +150,7 @@ view update_buttons(up, @actions, kw):
           role: kw.role_name,
           group: kw.group_name,
           update_action: action,
+          step: up.step,
         }}
         sample(`Action ${ action }`, action_req, kw.system_status)
 
@@ -157,6 +159,7 @@ view update_buttons(up, @actions, kw):
         role: kw.role_name,
         group: kw.group_name,
         update_action: 'error',
+        step: up.step,
         error_message: "Some error message",
       }}
       sample(`Action error`, action_req, kw.system_status)
@@ -198,7 +201,7 @@ view show_update({group, gname, role, role_name, system_status},
 
     update_buttons(up, -> @actions,
       {system_status: system_status, group_name: gname, role_name: role_name,
-       role: role})
+       role: role, update: up})
 
 
 view show_force_update_buttons(@actions, {role, role_name, group_name}):
