@@ -52,6 +52,7 @@ use std::thread;
 
 use abstract_ns::Resolver;
 use futures::Future;
+use futures::sync::mpsc::unbounded;
 use time::now_utc;
 use tk_easyloop::{run_forever, spawn, handle};
 use tk_listen::ListenExt;
@@ -72,16 +73,12 @@ mod id;
 mod info;
 mod name;
 mod peer;
-mod prefetch;
-mod replica;
 mod routing_util;
 mod scheduler;
 mod shared;
 mod time_util;
 mod watchdog;
-/*
 mod fetch;
-*/
 
 use argparse::{ArgumentParser, Parse, ParseOption, StoreOption, StoreTrue};
 use argparse::{Print};
@@ -288,10 +285,12 @@ fn main() {
         watchdog::init();
 
         let ns = name::init(&meter);
+        let (fetch_tx, fetch_rx) = unbounded();
 
         http::spawn_listener(&ns, &listen_addr, &state)?;
+        fetch::spawn_fetcher(&ns, &state, fetch_rx)?;
         cantal::spawn_fetcher(&state, udp_port)?;
-        elect::spawn_election(&ns, &listen_addr, &state)?;
+        elect::spawn_election(&ns, &listen_addr, &state, fetch_tx)?;
 
         let scheduler_settings = scheduler::Settings {
             id: id.clone(),

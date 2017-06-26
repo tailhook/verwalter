@@ -25,8 +25,6 @@ use elect::{ElectionState, ScheduleStamp, Epoch};
 use id::Id;
 use {Options};
 use peer::{Peer, Peers};
-use prefetch::PrefetchStatus;
-use replica::Replica;
 use scheduler::{self, Schedule, MAX_PREFETCH_TIME, SchedulerInput};
 use time_util::ToMsec;
 
@@ -82,25 +80,11 @@ pub enum PushActionError {
 struct State {
     last_known_schedule: Option<Arc<Schedule>>,
     // TODO(tailhook) rename schedule -> scheduleR
-    schedule: Arc<scheduler::State>,
     last_scheduler_debug_info: Arc<Option<(SchedulerInput, String)>>,
     election: Arc<ElectionState>,
     actions: BTreeMap<u64, Arc<Json>>,
     errors: Arc<HashMap<&'static str, String>>,
     failed_roles: Arc<HashSet<String>>,
-    replica_shutter: Option<oneshot::Sender<()>>,
-    prefetch_status: Option<PrefetchStatus>,
-}
-
-fn stable_schedule(guard: &mut MutexGuard<State>) -> Option<Arc<Schedule>> {
-    use scheduler::State::{Following, Leading};
-    use scheduler::FollowerState as F;
-    use scheduler::LeaderState as L;
-    match *guard.schedule {
-        Following(_, F::Stable(ref x)) => Some(x.clone()),
-        Leading(L::Stable(ref x)) => Some(x.clone()),
-        _ => None,
-    }
 }
 
 impl Deref for SharedState {
@@ -130,15 +114,12 @@ impl SharedState {
                 mainloop: mainloop.clone(),
             }),
             Arc::new(Mutex::new(State {
-                schedule: Arc::new(scheduler::State::Unstable),
                 last_known_schedule: old_schedule.map(Arc::new),
                 last_scheduler_debug_info: Arc::new(None),
                 election: Arc::new(ElectionState::blank()),
                 actions: BTreeMap::new(),
                 errors: Arc::new(HashMap::new()),
                 failed_roles: Arc::new(HashSet::new()),
-                replica_shutter: None,
-                prefetch_status: None, // TODO(tailhook) move to state
             })),
         )
     }
@@ -163,30 +144,14 @@ impl SharedState {
     {
         self.lock().last_scheduler_debug_info.clone()
     }
-    pub fn scheduler_state(&self) -> Arc<scheduler::State> {
-        self.lock().schedule.clone()
-    }
-    pub fn stable_schedule(&self) -> Option<Arc<Schedule>> {
-        stable_schedule(&mut self.lock())
-    }
-    pub fn owned_schedule(&self) -> Option<Arc<Schedule>> {
-        use scheduler::State::Leading;
-        use scheduler::LeaderState::Stable;
-        match *self.lock().schedule {
-            Leading(Stable(ref x)) => Some(x.clone()),
-            _ => None,
-        }
-    }
     pub fn election(&self) -> Arc<ElectionState> {
         self.lock().election.clone()
     }
-    pub fn should_schedule_update(&self) -> bool {
-        use scheduler::State::{Following};
-        use scheduler::FollowerState::Fetching;
-        match *self.lock().schedule {
-            Following(_, Fetching(..)) => true,
-            _ => false,
-        }
+    pub fn stable_schedule(&self) -> Option<Arc<Schedule>> {
+        unimplemented!();
+    }
+    pub fn owned_schedule(&self) -> Option<Arc<Schedule>> {
+        unimplemented!();
     }
     pub fn pending_actions(&self) -> BTreeMap<u64, Arc<Json>> {
         self.lock().actions.clone()
@@ -256,6 +221,8 @@ impl SharedState {
     pub fn set_schedule_by_leader(&self, cookie: LeaderCookie,
         val: Schedule, input: SchedulerInput, debug: String)
     {
+        unimplemented!();
+        /*
         use scheduler::State::{Leading};
         use scheduler::LeaderState::{Stable, Calculating};
         let mut guard = self.lock();
@@ -283,6 +250,7 @@ impl SharedState {
                 debug!("Calculated a schedule when not a leader already");
             }
         }
+        */
     }
     pub fn set_error(&self, domain: &'static str, value: String) {
         Arc::make_mut(&mut self.lock().errors).insert(domain, value);
@@ -291,69 +259,28 @@ impl SharedState {
         Arc::make_mut(&mut self.lock().errors).remove(domain);
     }
     // TODO(tailhook) this method does too much, refactor it
-    pub fn update_election(&self, elect: ElectionState) {
-        use scheduler::State::*;
-        use scheduler::LeaderState::Prefetching;
-        use scheduler::FollowerState::*;
+    pub fn update_election(&self, mut elect: ElectionState) {
         let mut guard = self.lock();
-        if !elect.is_stable {
-            guard.actions.clear();
-            guard.replica_shutter.take(); // destroys/stops shutter if exists
-            if !matches!(*guard.schedule, Unstable) {
-                guard.schedule = Arc::new(Unstable);
-            }
-        } else if elect.is_leader {
-            guard.replica_shutter.take(); // destroys/stops shutter if exists
-            match *guard.schedule.clone() {
-                Unstable | Following(..) => {
-                    let mut pre = PrefetchStatus::new(self,
-                        &guard.last_known_schedule);
-                    for (ref id, ref peer) in &self.0.peers.get().peers {
-                        pre.peer_report(id, &*peer.get());
-                    }
-                    guard.schedule = Arc::new(Leading(Prefetching));
-                    guard.prefetch_status = Some(pre);
-                }
-                Leading(Prefetching) => {
-                    // TODO(tailhook) nothing to do?
-                    unimplemented!();
-                }
-                Leading(..) => { }
-            }
-        } else { // is a follower
-            guard.actions.clear();
-            guard.prefetch_status.take(); // destroys/stops prefetch
-            match *guard.schedule.clone() {
-                Following(ref id, ref status)
-                if Some(id) == elect.leader.as_ref()
-                => {
-                    // TODO(tailhook) update current schedule
-                    unimplemented!();
-                }
-                _ => {
-                    // TODO(tailhook) update leader id
-                    unimplemented!();
-                }
-            }
-
-        }
         if !elect.is_leader {
-            //guard.cantal.as_ref().unwrap().clear_remote_query();
+            guard.actions.clear();
             let errors = Arc::make_mut(&mut guard.errors);
             errors.remove("reload_configs");
             errors.remove("scheduler_load");
             errors.remove("scheduler");
         }
-        let mut elect = elect;
-        elect.last_stable_timestamp = elect.last_stable_timestamp
-            .or(guard.election.last_stable_timestamp);
-        guard.election = Arc::new(elect);
+        let mut dest_elect = Arc::make_mut(&mut guard.election);
+        let tstamp = elect.last_stable_timestamp
+            .or(dest_elect.last_stable_timestamp);
+        *dest_elect = elect;
+        dest_elect.last_stable_timestamp = tstamp;
     }
     // Utility
 
     pub fn wait_schedule_update(&self, max_interval: Duration)
         -> LeaderCookie
     {
+        unimplemented!();
+        /*
         use scheduler::State::*;
         use scheduler::LeaderState::*;
         let mut guard = self.lock();
@@ -397,6 +324,7 @@ impl SharedState {
                 _ => max_interval,
             };
         }
+        */
     }
     pub fn refresh_cookie(&self, cookie: &mut LeaderCookie) -> bool {
         let guard = self.lock();
@@ -412,6 +340,8 @@ impl SharedState {
     /// This is waited on in apply/render code
     pub fn wait_new_schedule(&self, hash: &str) -> Arc<Schedule>
     {
+        unimplemented!();
+        /*
         let mut guard = self.lock();
         loop {
             match stable_schedule(&mut guard) {
@@ -427,6 +357,7 @@ impl SharedState {
             guard = self.apply_schedule.wait(guard)
                 .expect("shared state lock");
         }
+        */
     }
     pub fn force_render(&self) {
         self.force_render.store(true, SeqCst);
@@ -475,6 +406,8 @@ impl SharedState {
     }
     */
     pub fn push_action(&self, data: Json) -> Result<u64, PushActionError> {
+        unimplemented!();
+        /*
         use scheduler::State::{Following, Leading, Unstable};
         let mut guard = self.lock();
 
@@ -500,6 +433,7 @@ impl SharedState {
             }
         }
         return Err(PushActionError::TooManyRequests);
+        */
     }
     pub fn check_action(&self, action: u64) -> bool {
         self.lock().actions.get(&action).is_some()

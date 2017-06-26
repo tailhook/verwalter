@@ -160,7 +160,7 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                     #[serde(serialize_with="serialize_opt_timestamp")]
                     peers_timestamp: Option<SystemTime>,
                     leader: Option<LeaderInfo<'a>>,
-                    scheduler_state: &'static str,
+                    //scheduler_state: &'static str,
                     roles: usize,
                     election_epoch: Epoch,
                     #[serde(serialize_with="serialize_opt_timestamp")]
@@ -215,7 +215,7 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                     peers_timestamp: Some(peers.timestamp),
                     leader: leader,
                     roles: schedule.map(|x| x.num_roles).unwrap_or(0),
-                    scheduler_state: state.scheduler_state().describe(),
+                    //scheduler_state: state.scheduler_state().describe(),
                     election_epoch: election.epoch,
                     last_stable_timestamp: election.last_stable_timestamp,
                     num_errors: errors.len() + failed_roles.len(),
@@ -264,8 +264,7 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
         }
         Scheduler => {
             Ok(reply(move |e| {
-                    Box::new(respond(e, format,
-                        &state.scheduler_state()))
+                    Box::new(error_page(NotImplemented, e))
             }))
         }
         SchedulerInput => {

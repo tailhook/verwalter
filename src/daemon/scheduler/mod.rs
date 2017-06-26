@@ -6,11 +6,10 @@ use lua::ffi::{lua_upvalueindex};
 use id::Id;
 
 mod execute;
-//mod prefetch;
 mod state;
 pub mod main;  // pub for making counters visible
 
-pub use self::state::{Schedule, State, LeaderState, FollowerState, from_json};
+pub use self::state::{Schedule, from_json};
 pub use self::main::{main as run, Settings, SchedulerInput};
 
 

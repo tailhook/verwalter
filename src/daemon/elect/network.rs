@@ -6,6 +6,7 @@ use std::time::{SystemTime, Instant, Duration};
 
 use abstract_ns::{self, Resolver};
 use futures::{Async, Future};
+use futures::sync::mpsc::UnboundedSender;
 use tokio_core::net::UdpSocket;
 use tokio_core::reactor::Timeout;
 use libcantal::{Counter, Integer};
@@ -18,6 +19,7 @@ use elect::{encode};
 use elect::machine::{Epoch, Machine};
 use elect::settings::MAX_PACKET_SIZE;
 use elect::state::ElectionState;
+use fetch;
 use id::Id;
 use peer::Peer;
 use shared::{SharedState};
@@ -163,12 +165,15 @@ struct ElectionMachine {
     machine: Option<Machine>,
     last_schedule_sent: String,
     timer: Timeout,
+    fetcher: UnboundedSender<fetch::Message>,
 }
 
 impl Future for ElectionMachine {
     type Item = ();
     type Error = ();
     fn poll(&mut self) -> Result<Async<()>, ()> {
+        use elect::machine::Machine::*;
+
         let peers = self.shared.peers();
         let ref info = Info {
             id: &self.shared.id.clone(),
@@ -202,6 +207,17 @@ impl Future for ElectionMachine {
             }
         }
         self.shared.update_election(ElectionState::from(&me));
+        match me {
+            Leader { .. } => {
+                self.fetcher.send(fetch::Message::Leader)
+            }
+            Follower { ref leader, .. } => {
+                self.fetcher.send(fetch::Message::Follower(leader.clone()))
+            }
+            Voted { .. } | Starting { .. } | Electing { .. } => {
+                self.fetcher.send(fetch::Message::Unstable)
+            }
+        }.expect("fetcher always work");
         self.machine = Some(me);
         Ok(Async::NotReady)
     }
@@ -235,6 +251,12 @@ impl ElectionMachine {
                             shared, hash));
                         if let Some(peer) = shared.peers().peers.get(info.id) {
                             if peer.get().schedule != msg.schedule {
+                                if let Some(ref stamp) = msg.schedule {
+                                    self.fetcher.send(
+                                        fetch::Message::PeerSchedule(
+                                            info.id.clone(), stamp.clone(),
+                                        )).expect("fetcher always work");
+                                }
                                 peer.set(Arc::new(Peer {
                                     schedule: msg.schedule,
                                     .. (*peer.get()).clone()
@@ -253,7 +275,7 @@ impl ElectionMachine {
 }
 
 pub fn spawn_election(ns: &abstract_ns::Router, addr: &str,
-    state: &SharedState)
+    state: &SharedState, fetcher_tx: UnboundedSender<fetch::Message>)
     -> Result<(), Box<::std::error::Error>>
 {
     let str_addr = addr.to_string();
@@ -272,6 +294,7 @@ pub fn spawn_election(ns: &abstract_ns::Router, addr: &str,
             shared: state,
             last_schedule_sent: String::new(),
             timer: timeout_at(Instant::now()),
+            fetcher: fetcher_tx,
         });
     }).map_err(move |e| {
         error!("Can't bind address {}: {}", str_addr, e);
