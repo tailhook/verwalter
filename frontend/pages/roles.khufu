@@ -33,14 +33,15 @@ view _leftmenu(schedule):
   <ul.nav.nav-pills.nav-stacked.col-lg-2>
     if schedule and schedule.roles:
       for [name, role] of entries(schedule.roles) key name:
-        <li.active?(@router.path[1] == name) role="presentation">
-          <a href=`/role/${name}`>
-            link {click} go(event) -> @router
-            name
-            " "
-            if role and role.badge:
-              <span.badge>
-                role.badge
+        if role.frontend:
+          <li.active?(@router.path[1] == name) role="presentation">
+            <a href=`/role/${name}`>
+              link {click} go(event) -> @router
+              name
+              " "
+              if role and role.badge:
+                <span.badge>
+                  role.badge
     <li.bottom-button>
       <button.btn.btn-danger.rerender>
         store @preloader = preloader
