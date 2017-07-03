@@ -189,7 +189,8 @@ view update_section(
 
 view main(role, role_name, role_state, @actions,
           {servers, system_status, expert_mode}):
-  for [gname, group] of entries_sorted(role_state.groups) key gname:
+  let groups = role_state and role_state.groups or {}
+  for [gname, group] of entries_sorted(groups) key gname:
     section():
       title:
         gname
