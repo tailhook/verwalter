@@ -17,13 +17,13 @@ function _two(n) {
 }
 
 export function format_datetime(dt) {
-    return ( `${dt.getFullYear()}-${_two(dt.getMonth())}-${_two(dt.getDate())}`
+    return ( `${dt.getFullYear()}-${_two(dt.getMonth()+1)}-${_two(dt.getDate())}`
            + ` ${_two(dt.getHours())}:${_two(dt.getMinutes())}`
            + `:${_two(dt.getSeconds())}`)
 }
 
 export function format_date(dt) {
-    return `${dt.getFullYear()}-${_two(dt.getMonth())}-${_two(dt.getDate())}`
+    return `${dt.getFullYear()}-${_two(dt.getMonth()+1)}-${_two(dt.getDate())}`
 }
 
 export function format_time(dt) {
@@ -66,7 +66,7 @@ export function short_time(dt) {
     if(delta < 60000) {
         return (delta/1000).toFixed(0) + ' seconds ago'
     }
-    if(delta < 43200) {
+    if(delta < 43200000) {
         return format_time(dt);
     }
     return format_date(dt);
