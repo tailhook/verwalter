@@ -9,6 +9,8 @@ use rand::{thread_rng, Rng};
 use itertools::Itertools;
 use serde_json::{Map, Value as Json};
 use indexed_log::Index;
+use futures::sync::mpsc::UnboundedReceiver;
+use futures::Stream;
 
 use fs_util::write_file;
 use scheduler::SchedulerInput;
@@ -230,19 +232,22 @@ fn apply_schedule(hash: &String, is_new: bool,
     }
 }
 
-pub fn run(state: SharedState, settings: Settings) -> ! {
+pub fn run(state: SharedState, settings: Settings,
+    schedules: UnboundedReceiver<()>)
+    -> !
+{
     let _guard = watchdog::ExitOnReturn(93);
     let mut prev_schedule = String::new();
-    if let Some(schedule) = state.stable_schedule() {
-        let _alarm = watchdog::Alarm::new(Duration::new(180, 0));
-        write_file(&settings.schedule_file, &*schedule)
-            .map_err(|e| error!("Writing schedule failed: {:?}", e)).ok();
-        apply_schedule(&schedule.hash, true, &schedule.data, &settings,
-            state.scheduler_debug_info(), &state);
-        prev_schedule = schedule.hash.clone();
-    }
-    loop {
-        let schedule = state.wait_new_schedule(&prev_schedule);
+    for _ in schedules.wait() {
+        let schedule = if let Some(schedule) = state.stable_schedule() {
+            if schedule.hash != prev_schedule {
+                schedule
+            } else {
+                continue;
+            }
+        } else {
+            continue;
+        };
         let _alarm = watchdog::Alarm::new(Duration::new(180, 0));
         write_file(&settings.schedule_file, &*schedule)
             .map_err(|e| error!("Writing schedule failed: {:?}", e)).ok();
@@ -251,6 +256,7 @@ pub fn run(state: SharedState, settings: Settings) -> ! {
             state.scheduler_debug_info(), &state);
         prev_schedule = schedule.hash.clone();
     }
+    unreachable!();
 }
 
 #[cfg(test)]

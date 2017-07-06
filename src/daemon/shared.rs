@@ -11,6 +11,7 @@ use std::collections::btree_map::Entry::{Occupied, Vacant};
 
 use futures::Future;
 use futures::sync::oneshot;
+use futures::sync::mpsc::UnboundedSender;
 use tokio_core::reactor::Remote;
 use time::{SteadyTime, Timespec, Duration as Dur, get_time};
 use cbor::{Encoder, EncodeResult, Decoder, DecodeResult};
@@ -65,6 +66,7 @@ pub struct SharedData {
     apply_schedule: Condvar,
     run_scheduler: Condvar,
     peers: ArcCell<Peers>,
+    schedule_channel: UnboundedSender<()>,
 }
 
 pub struct LeaderCookie {
@@ -81,6 +83,8 @@ pub enum PushActionError {
 #[derive(Debug)]
 struct State {
     last_known_schedule: Option<Arc<Schedule>>,
+    stable_schedule: Option<Arc<Schedule>>,
+    owned_schedule: Option<Arc<Schedule>>,
     // TODO(tailhook) rename schedule -> scheduleR
     last_scheduler_debug_info: Arc<Option<(SchedulerInput, String)>>,
     election: Arc<ElectionState>,
@@ -99,7 +103,9 @@ impl Deref for SharedState {
 impl SharedState {
     pub fn new(id: &Id, name: &str, hostname: &str,
                options: Options, sandbox: Sandbox,
-               old_schedule: Option<Schedule>, mainloop: &Remote)
+               old_schedule: Option<Schedule>,
+               schedule_channel: UnboundedSender<()>,
+               mainloop: &Remote)
         -> SharedState
     {
         SharedState(
@@ -116,6 +122,7 @@ impl SharedState {
                 mainloop: mainloop.clone(),
                 fetch_state: ArcCell::new(
                     Arc::new(fetch::PublicState::Unstable)),
+                schedule_channel,
             }),
             Arc::new(Mutex::new(State {
                 last_known_schedule: old_schedule.map(Arc::new),
@@ -124,6 +131,8 @@ impl SharedState {
                 actions: BTreeMap::new(),
                 errors: Arc::new(HashMap::new()),
                 failed_roles: Arc::new(HashSet::new()),
+                stable_schedule: None,
+                owned_schedule: None,
             })),
         )
     }
@@ -152,10 +161,10 @@ impl SharedState {
         self.lock().election.clone()
     }
     pub fn stable_schedule(&self) -> Option<Arc<Schedule>> {
-        unimplemented!();
+        self.lock().stable_schedule.clone()
     }
     pub fn owned_schedule(&self) -> Option<Arc<Schedule>> {
-        unimplemented!();
+        self.lock().owned_schedule.clone()
     }
     pub fn pending_actions(&self) -> BTreeMap<u64, Arc<Json>> {
         self.lock().actions.clone()
@@ -340,75 +349,10 @@ impl SharedState {
             return false;
         }
     }
-
-    /// This is waited on in apply/render code
-    pub fn wait_new_schedule(&self, hash: &str) -> Arc<Schedule>
-    {
-        unimplemented!();
-        /*
-        let mut guard = self.lock();
-        loop {
-            match stable_schedule(&mut guard) {
-                Some(schedule) => {
-                    if self.force_render.swap(false, SeqCst) ||  // if forced
-                        &schedule.hash != &hash  // or not up to date
-                    {
-                        return schedule;
-                    }
-                }
-                None => {}
-            };
-            guard = self.apply_schedule.wait(guard)
-                .expect("shared state lock");
-        }
-        */
-    }
     pub fn force_render(&self) {
         self.force_render.store(true, SeqCst);
         self.apply_schedule.notify_all();
     }
-    /*
-    pub fn fetched_schedule(&self, schedule: Schedule) {
-        use scheduler::State::{Following, Leading};
-        use scheduler::FollowerState::{Fetching, Stable};
-        use scheduler::LeaderState::{Prefetching};
-        let ref mut guard = *self.lock();
-        match *guard.schedule.clone() {
-            Following(ref id, Fetching(ref hash)) if &schedule.hash == hash
-            => {
-                let sched = Arc::new(schedule);
-                if guard.last_scheduler_debug_info.is_some() {
-                    guard.last_scheduler_debug_info = Arc::new(None);
-                }
-                guard.schedule = Arc::new(
-                    Following(id.clone(), Stable(sched.clone())));
-                guard.last_known_schedule = Some(sched);
-                self.apply_schedule.notify_all();
-            }
-            Leading(Prefetching(_, ref mutex)) => {
-                let mut lock = mutex.lock().expect("prefetch lock");
-                lock.add_schedule(Arc::new(schedule));
-                if lock.done() {
-                    self.run_scheduler.notify_all();
-                }
-            }
-            _ => {
-                debug!("Received outdated schedule");
-            }
-        }
-    }
-    */
-    // late initializers
-    /*
-    pub fn set_update_notifier(&self, notifier: Notifier) {
-        let mut guard = self.lock();
-        guard.external_schedule_update = Some(notifier);
-    }
-    pub fn set_cantal(&self, cantal: Cantal) {
-        let mut guard = self.lock();
-        guard.cantal = Some(cantal);
-    }
-    */
     pub fn push_action(&self, data: Json) -> Result<u64, PushActionError> {
         unimplemented!();
         /*

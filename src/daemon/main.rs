@@ -263,9 +263,11 @@ fn main() {
     run_forever(move || -> Result<(), Box<::std::error::Error>> {
 
 
+        let (schedule_tx, schedule_rx) = unbounded();
         let state = SharedState::new(&id, &name, &hostname,
-            options.clone(), sandbox, old_schedule,
+            options.clone(), sandbox, old_schedule, schedule_tx,
             tk_easyloop::handle().remote());
+
 
         let apply_settings = apply::Settings {
             dry_run: options.dry_run,
@@ -279,7 +281,7 @@ fn main() {
         let m1 = meter.clone();
         thread::Builder::new().name(String::from("apply")).spawn(move || {
             m1.track_current_thread_by_name();
-            apply::run(apply_state, apply_settings);
+            apply::run(apply_state, apply_settings, schedule_rx);
         }).expect("apply thread starts");
 
         watchdog::init();
