@@ -1,6 +1,7 @@
+use std::collections::{HashMap, HashSet};
 use std::io::BufWriter;
 use std::str::from_utf8;
-use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 use std::time::SystemTime;
 
 use futures::future::{FutureResult, ok, Future};
@@ -12,14 +13,15 @@ use tk_http::Status::{TooManyRequests, ServiceUnavailable};
 use tk_http::server::{Codec as CodecTrait, Dispatcher as DispatcherTrait};
 use tk_http::server::{Head, Encoder, EncoderDone, RecvMode, Error};
 
-use id::Id;
 use elect::Epoch;
-use shared::{SharedState, PushActionError};
-use frontend::{reply, read_json};
-use frontend::to_json::ToJson;
+use fetch;
+use frontend::error_page::{serve_error_page, error_page};
 use frontend::routing::{ApiRoute, Format};
 use frontend::serialize::serialize_opt_timestamp;
-use frontend::error_page::{serve_error_page, error_page};
+use frontend::to_json::ToJson;
+use frontend::{reply, read_json};
+use id::Id;
+use shared::{SharedState, PushActionError};
 
 
 pub type Request<S> = Box<CodecTrait<S, ResponseFuture=Reply<S>>>;
@@ -172,6 +174,7 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                     //self_report: Option<self_meter::Report>,
                     //threads_report: HashMap<String, self_meter::ThreadReport>,
                     metrics: HashMap<&'static str, Value>,
+                    fetch_state: Arc<fetch::PublicState>,
                 }
                 let peers = state.peers();
                 let election = state.election();
@@ -225,6 +228,7 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                     //self_report: me,
                     //threads_report: thr,
                     metrics: get_metrics(),
+                    fetch_state: state.fetch_state.get(),
                 }))
             }))
         }

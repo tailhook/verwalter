@@ -22,6 +22,7 @@ use crossbeam::sync::ArcCell;
 use cell;
 use config::Sandbox;
 use elect::{ElectionState, ScheduleStamp, Epoch};
+use fetch;
 use id::Id;
 use {Options};
 use peer::{Peer, Peers};
@@ -59,6 +60,7 @@ pub struct SharedData {
     pub options: Options,
     pub sandbox: Sandbox,
     pub mainloop: Remote,
+    pub fetch_state: ArcCell<fetch::PublicState>,
     force_render: AtomicBool,
     apply_schedule: Condvar,
     run_scheduler: Condvar,
@@ -112,6 +114,8 @@ impl SharedState {
                 run_scheduler: Condvar::new(),
                 peers: ArcCell::new(Arc::new(Peers::new())),
                 mainloop: mainloop.clone(),
+                fetch_state: ArcCell::new(
+                    Arc::new(fetch::PublicState::Unstable)),
             }),
             Arc::new(Mutex::new(State {
                 last_known_schedule: old_schedule.map(Arc::new),

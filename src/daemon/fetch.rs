@@ -27,6 +27,17 @@ enum State {
     Following(Id, Arc<Schedule>),
 }
 
+#[derive(Clone, PartialEq, Eq, Serialize)]
+#[serde(tag="state")]
+pub enum PublicState {
+    Unstable,
+    StableLeader,
+    Prefetching,
+    FollowerWaiting { leader: Id },
+    Replicating { leader: Id },
+    Following { leader: Id },
+}
+
 pub struct Prefetch {
 }
 
@@ -43,7 +54,33 @@ impl Future for Fetch {
     type Item = ();
     type Error = ();
     fn poll(&mut self) -> Result<Async<()>, ()> {
-        unimplemented!();
+        self.poll_messages()?;
+        let state = self.public_state();
+        if *self.shared.fetch_state.get() != state {
+            self.shared.fetch_state.set(Arc::new(state));
+        }
+        Ok(Async::NotReady)
+    }
+}
+
+impl Fetch {
+    fn public_state(&self) -> PublicState {
+        use self::State as S;
+        use self::PublicState as P;
+        match self.state {
+            S::Unstable => P::Unstable,
+            S::StableLeader => P::StableLeader,
+            S::Prefetching(..) => P::Prefetching,
+            S::FollowerWaiting(ref id)
+            => P::FollowerWaiting {leader: id.clone()},
+            S::Replicating(ref id, ..)
+            => P::Replicating { leader: id.clone() },
+            S::Following(ref id, ..)
+            => P::Following { leader: id.clone() },
+        }
+    }
+    fn poll_messages(&mut self) -> Result<(), ()> {
+        Ok(())
     }
 }
 
