@@ -13,7 +13,7 @@ use tk_http::Status::{TooManyRequests, ServiceUnavailable};
 use tk_http::server::{Codec as CodecTrait, Dispatcher as DispatcherTrait};
 use tk_http::server::{Head, Encoder, EncoderDone, RecvMode, Error};
 
-use elect::Epoch;
+use elect::{Epoch, ElectionState};
 use fetch;
 use frontend::error_page::{serve_error_page, error_page};
 use frontend::routing::{ApiRoute, Format};
@@ -175,6 +175,7 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                     //threads_report: HashMap<String, self_meter::ThreadReport>,
                     metrics: HashMap<&'static str, Value>,
                     fetch_state: Arc<fetch::PublicState>,
+                    election_state: &'a Arc<ElectionState>,
                 }
                 let peers = state.peers();
                 let election = state.election();
@@ -229,6 +230,7 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                     //threads_report: thr,
                     metrics: get_metrics(),
                     fetch_state: state.fetch_state.get(),
+                    election_state: &election,
                 }))
             }))
         }

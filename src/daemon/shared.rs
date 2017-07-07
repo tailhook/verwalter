@@ -288,56 +288,19 @@ impl SharedState {
         dest_elect.last_stable_timestamp = tstamp;
     }
     // Utility
-
-    pub fn wait_schedule_update(&self, max_interval: Duration)
-        -> LeaderCookie
-    {
-        unimplemented!();
-        /*
-        use scheduler::State::*;
-        use scheduler::LeaderState::*;
-        let mut guard = self.lock();
-        let mut wait_time = max_interval;
-        loop {
-            guard = self.run_scheduler
-                .wait_timeout(guard, wait_time)
-                .expect("shared state lock")
-                .0;
-            wait_time = match *guard.schedule.clone() {
-                Leading(Prefetching) => {
-                    unimplemented!();
-                    /*
-                    let pref = Duration::from_millis(MAX_PREFETCH_TIME);
-                    let elapsed = time.elapsed();
-                    if elapsed > pref ||
-                        mutex.lock().expect("prefetch lock").done()
-                    {
-                        guard.schedule = Arc::new(Leading(Calculating));
-                        return LeaderCookie {
-                            epoch: guard.election.epoch,
-                            parent_schedules:
-                                mutex.lock().expect("prefetch lock")
-                                .get_schedules(),
-                            actions: guard.actions.clone(),
-                        };
-                    } else {
-                        pref - elapsed
-                    }
-                    */
-                }
-                Leading(Stable(ref x)) => {
-                    guard.schedule = Arc::new(Leading(Calculating));
-                    return LeaderCookie {
-                        epoch: guard.election.epoch,
-                        parent_schedules: vec![x.clone()],
-                        actions: guard.actions.clone(),
-                    };
-                }
-                Leading(Calculating) => unreachable!(),
-                _ => max_interval,
-            };
+    pub fn leader_cookie(&self) -> Option<LeaderCookie> {
+        let guard = self.lock();
+        if !guard.election.is_leader ||
+           *self.fetch_state.get() != fetch::PublicState::StableLeader
+        {
+            return None;
         }
-        */
+        return Some(LeaderCookie {
+            epoch: guard.election.epoch,
+            // TODO(tailhook) get parent schedules from fetch machine
+            parent_schedules: guard.stable_schedule.iter().cloned().collect(),
+            actions: guard.actions.clone(),
+        })
     }
     pub fn refresh_cookie(&self, cookie: &mut LeaderCookie) -> bool {
         let guard = self.lock();

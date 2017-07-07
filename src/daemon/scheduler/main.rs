@@ -17,14 +17,14 @@ use libcantal::{Counter, Integer};
 use frontend::serialize::{serialize_opt_timestamp, serialize_timestamp};
 
 use config;
-use time_util::ToMsec;
 use hash::hash;
-use watchdog;
 use id::Id;
-use shared::{SharedState};
+use peer::Peer;
 use scheduler::Schedule;
 use scheduler::state::num_roles;
-use peer::Peer;
+use shared::{SharedState};
+use time_util::ToMsec;
+use watchdog;
 
 
 lazy_static! {
@@ -203,7 +203,12 @@ pub fn main(state: SharedState, settings: Settings) -> !
         config::read_runtime(&settings.config_dir.join("runtime"))
     };
     loop {
-        let mut cookie = state.wait_schedule_update(Duration::from_secs(5));
+        sleep(Duration::new(5, 0));
+        let mut cookie = if let Some(cookie) = state.leader_cookie() {
+            cookie
+        } else {
+            continue;
+        };
 
         while state.refresh_cookie(&mut cookie) {
 
