@@ -215,7 +215,7 @@ impl Future for ElectionMachine {
                 self.fetcher.send(fetch::Message::Follower(leader.clone()))
             }
             Voted { .. } | Starting { .. } | Electing { .. } => {
-                self.fetcher.send(fetch::Message::Unstable)
+                self.fetcher.send(fetch::Message::Election)
             }
         }.expect("fetcher always work");
         self.machine = Some(me);

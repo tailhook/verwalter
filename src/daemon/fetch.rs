@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use abstract_ns;
-use futures::{Future, Async};
+use futures::{Future, Stream, Async};
 use futures::sync::mpsc::UnboundedReceiver;
 
 use elect::ScheduleStamp;
@@ -14,7 +14,7 @@ use tk_easyloop;
 pub enum Message {
     Leader,
     Follower(Id),
-    Unstable,
+    Election,
     PeerSchedule(Id, ScheduleStamp),
 }
 
@@ -22,9 +22,7 @@ enum State {
     Unstable,
     StableLeader,
     Prefetching(Prefetch),
-    FollowerWaiting(Id),
     Replicating(Id, Replica),
-    Following(Id, Arc<Schedule>),
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize)]
@@ -42,6 +40,7 @@ pub struct Prefetch {
 }
 
 pub struct Replica {
+
 }
 
 pub struct Fetch {
@@ -71,15 +70,61 @@ impl Fetch {
             S::Unstable => P::Unstable,
             S::StableLeader => P::StableLeader,
             S::Prefetching(..) => P::Prefetching,
-            S::FollowerWaiting(ref id)
-            => P::FollowerWaiting {leader: id.clone()},
+            // TODO(tailhook) unpack replication state
             S::Replicating(ref id, ..)
             => P::Replicating { leader: id.clone() },
-            S::Following(ref id, ..)
-            => P::Following { leader: id.clone() },
         }
     }
     fn poll_messages(&mut self) -> Result<(), ()> {
+        use self::Message::*;
+        use self::State::*;
+        while let Async::Ready(value) = self.chan.poll()? {
+            let msg = if let Some(x) = value { x }
+                else {
+                    error!("Premature exit of fetch channel");
+                    // TODO(tailhook) panic?
+                    return Err(());
+                };
+            match (msg, &mut self.state) {
+                (Leader, &mut StableLeader) => {},
+                (Leader, state) => {
+                    // TODO(tailhook) drop schedule
+                    *state = Prefetching(Prefetch {
+                    });
+                }
+                (Follower(ref d), &mut Replicating(ref s, ..)) if s == d => {}
+                (Follower(id), state) => {
+                    // TODO(tailhook) drop schedule
+                    *state = Replicating(id, Replica {
+                    });
+                }
+                (Election, &mut Unstable) => {}
+                (Election, state) => {
+                    // TODO(tailhook) drop schedule
+                    *state = Unstable;
+                }
+                (PeerSchedule(_, _), &mut Unstable) => {} // ignore
+                (PeerSchedule(_, _), &mut StableLeader) => {} // ignore
+                (PeerSchedule(ref id, ref stamp),
+                 &mut Prefetching(ref mut pre))
+                => {
+                    unimplemented!()
+                    // pre.report(id, stamp)
+                }
+                (PeerSchedule(ref d, ref stamp), &mut Replicating(ref s, ref mut rep))
+                if s == d
+                => {
+                    // TODO(tailhook) drop schedule
+                    unimplemented!();
+                    // rep.update(stamp)
+                }
+                (PeerSchedule(id, stamp), state@&mut Replicating(..)) => {
+                    // TODO(tailhook) drop schedule
+                    *state = Replicating(id, Replica {
+                    });
+                }
+            }
+        }
         Ok(())
     }
 }
