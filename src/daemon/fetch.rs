@@ -1,3 +1,4 @@
+use std::mem;
 use std::sync::Arc;
 
 use abstract_ns;
@@ -53,7 +54,23 @@ impl Future for Fetch {
     type Item = ();
     type Error = ();
     fn poll(&mut self) -> Result<Async<()>, ()> {
+        use self::State::*;
         self.poll_messages()?;
+        self.state = match mem::replace(&mut self.state, Unstable) {
+            Unstable => Unstable,
+            StableLeader => StableLeader,
+            Prefetching(mut pre) => match pre.poll()? {
+                Async::NotReady => Prefetching(pre),
+                Async::Ready(prefetch_data) => {
+                    // TODO(tailhook) send parent schedules
+                    StableLeader
+                }
+            },
+            Replicating(id, mut replica) => match replica.poll()? {
+                Async::NotReady => Replicating(id, replica),
+                Async::Ready(()) => unreachable!(),
+            },
+        };
         let state = self.public_state();
         if *self.shared.fetch_state.get() != state {
             self.shared.fetch_state.set(Arc::new(state));
@@ -126,6 +143,22 @@ impl Fetch {
             }
         }
         Ok(())
+    }
+}
+
+impl Future for Replica {
+    type Item = ();
+    type Error = ();
+    fn poll(&mut self) -> Result<Async<()>, ()> {
+        unimplemented!()
+    }
+}
+
+impl Future for Prefetch {
+    type Item = Vec<Arc<Schedule>>;
+    type Error = ();
+    fn poll(&mut self) -> Result<Async<Vec<Arc<Schedule>>>, ()> {
+        unimplemented!()
     }
 }
 
