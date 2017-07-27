@@ -1,5 +1,6 @@
 use std::io::{self, Read, Write, Seek};
 use std::str::from_utf8;
+use std::cmp::min;
 use std::path::Path;
 use std::path::Component::Normal;
 use std::fs::{File, metadata};
@@ -154,7 +155,7 @@ fn serve_log(route: &LogRoute, ctx: &Context, res: &mut Response)
     let meta = try!(metadata(&path));
 
     let (start, end) = match rng {
-        FromTo(x, y) => (x, y + 1),
+        FromTo(x, y) => (x, min(y + 1, meta.len())),
         AllFrom(x) => (x, meta.len()),
         Last(x) => (meta.len().saturating_sub(x), meta.len()),
     };
@@ -169,6 +170,11 @@ fn serve_log(route: &LogRoute, ctx: &Context, res: &mut Response)
     if num_bytes > MAX_LOG_RESPONSE {
         return Err(io::Error::new(io::ErrorKind::InvalidData,
             "Requested range is too large"));
+    }
+
+    if start > meta.len() {
+        return Err(io::Error::new(io::ErrorKind::InvalidData,
+            "Requested range starts with too large offset"));
     }
 
     let mut buf = vec![0u8; num_bytes as usize];
