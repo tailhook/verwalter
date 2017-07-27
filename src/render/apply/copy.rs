@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::Path;
+use std::os::unix::fs::PermissionsExt;
 
 use quire::validate as V;
 use rustc_serialize::json::{Json, ToJson};
@@ -11,6 +12,7 @@ use apply::expand::Variables;
 pub struct Copy {
     src: String,
     dest: String,
+    mode: Option<u32>,
 }
 
 impl Copy {
@@ -18,6 +20,7 @@ impl Copy {
         V::Structure::new()
         .member("src", V::Scalar::new().default("{{ tmp_file }}"))
         .member("dest", V::Scalar::new())
+        .member("mode", V::Numeric::new().optional())
     }
 }
 
@@ -36,18 +39,26 @@ impl Action for Copy {
                     dest.clone())));
             let tmpdest = Path::new(&dest).with_file_name(
                 format!(".tmp.{}", fname.to_str().unwrap()));
-            try!(fs::copy(&src, &tmpdest)
+            fs::copy(&src, &tmpdest)
                 .map_err(|e| {
                     task.log.log(format_args!(
                         "{:?} failed to copy: {}\n", self, e));
                     Error::IoError(e)
-                }));
-            try!(fs::rename(&tmpdest, &dest)
+                })?;
+            if let Some(mode) = self.mode {
+                fs::set_permissions(&tmpdest, fs::Permissions::from_mode(mode))
+                    .map_err(|e| {
+                        task.log.log(format_args!(
+                            "{:?} failed to set mode: {}\n", self, e));
+                        Error::IoError(e)
+                    })?;
+            }
+            fs::rename(&tmpdest, &dest)
                 .map_err(|e| {
                     task.log.log(format_args!(
                         "{:?} failed to rename: {}\n", self, e));
                     Error::IoError(e)
-                }));
+                })?;
             Ok(())
         } else {
             Ok(())
