@@ -13,7 +13,7 @@ import argparse
 
 
 async def get_json(session, url):
-    with aiohttp.Timeout(10):
+    with aiohttp.Timeout(120):
         async with session.get(url) as response:
             assert response.status == 200
             return await response.json()
