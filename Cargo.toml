@@ -37,13 +37,14 @@ lazy_static = "0.2.6"
 sha1 = "0.2.0"
 inotify = "0.3.0"
 itertools = "0.6.0"
-gron = "0.3.0"
+gron = "0.4.0"
 self-meter = "0.3.0"
 quick-error = "1.1.0"
 libcantal = { git="git://github.com/tailhook/cantal-rs", rev="bbe360a" }
 tera = "0.10.5"
 error-chain = "0.10.0"  # for tera
 serde_json = "1.0.0"
+trimmer = "0.2.0"
 
 [dependencies.indexed_log]
 path = "./indexed_log"
