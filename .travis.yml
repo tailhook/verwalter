@@ -1,8 +1,48 @@
 language: rust
-rust:
-- stable
-- beta
-- nightly
+rust: stable
+os: linux
+dist: trusty
+sudo: false
+addons:
+  apt:
+    packages:
+    - fakeroot
+    - musl-tools
+
+cache:
+- apt
+- cargo
+
+before_cache:
+- rm -r $TRAVIS_BUILD_DIR/target/debug
+
 script:
-- cargo build --verbose
-- cargo test --verbose
+- cargo build $CARGO_ARGS
+- cargo test $CARGO_ARGS
+
+jobs:
+  include:
+  - rust: beta
+  - rust: stable
+  - rust: nightly
+
+  # deploy
+  - stage: publish binary
+    install: true
+
+    before_deploy: |
+      mkdir -p dist
+      rustup target add x86_64-unknown-linux-musl
+      cargo build --target=x86_64-unknown-linux-musl --release
+      fakeroot sh -ecx '
+        install -D target/x86_64-unknown-linux-musl/release/verwalter_render pkg/usr/bin/verwalter_render
+        tar -C pkg -czf dist/verwalter_render-static-$TRAVIS_TAG.tar.gz usr
+      '
+    deploy:
+      provider: releases
+      api_key:
+        secure: "CpkpLx1a3knFot8FqD7Im3fqzYNY94cEGEiA+noBk4+YOpj/B1YOpSMm+6wcnI0Q8x7ueWQqJoFuqg992fTLBgro/pZwK7fQIn9ObNdC2vik6BQ2sdaz4qXvLvg+g68QHybGAoRaskdE8d7MmfOajLtGB3JaZDOWpC3YLW+JFKugfpBvhRuuMFpoUNSErjSsV/Lbism3FP9Cvb1e6uIuvCrxa3RAjzbLF1SPmQUdO1cUOKQtf/aD9e6G2aQmJiLPLjJrBiH9JxB5yuShp0ca2an+ARaVFAo0SCwBEDEqhYqmuIM51pQ141ZUT6CBcO1Juq0N8kZNPF0lmA3JPx2d12qt8QEgE2k2txPCLGnybW2E9n7EC3Bbqmd3gKWSLx1CxxjGZE6wqGFKAwxldm7IFylrEt5CPOAAiZPvWv9eQCkU2Qp9RMXsdqRjIS7P3TFDQi606VjgVeHOHIWvk0lmFQN5O8iElnxVnZXMvJRijQewIYkho/TTW1azf81a1B59KHDv8gpuFJiv/MFr0OwW+OH0eAwFi1yePrvQh3Yrn+qgcH6KHapMJJF2ywQNoe1tLE1LCSCzSJ3lzTlZRt6hpcl9oK33TV97Y0pI7apUobX2N24xJ2EmuDnl80NFESZkLneFlq6XEGa2jt/Jt6moxn4IVplgPKmqetLU3RQiVC8="
+      file: "dist/verwalter_render-static-$TRAVIS_TAG.tar.gz"
+      skip_cleanup: true
+      on:
+        tags: true
