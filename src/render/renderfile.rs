@@ -133,7 +133,7 @@ pub fn read_renderers(path: &Path,
                     .and_then(|mut f| f.read_to_string(&mut buf))
                     .context(path)?;
                 trm.insert(tname.to_string(),
-                    trm_parser.parse(&tname).context(path)?);
+                    trm_parser.parse(&buf).context(path)?);
             } else if fname.ends_with(".render.yaml") ||
                       fname.ends_with(".render.yml")
             {
