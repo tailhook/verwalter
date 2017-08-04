@@ -8,7 +8,6 @@ addons:
     packages:
     - fakeroot
     - musl-tools
-    - libreadline-dev
 
 cache:
 - apt
@@ -30,6 +29,8 @@ jobs:
   # deploy
   - stage: publish binary
     install: true
+    env:
+      CFLAGS: -I/usr/lib/include
 
     before_deploy: |
       mkdir -p dist
