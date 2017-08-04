@@ -40,7 +40,7 @@ itertools = "0.6.0"
 gron = "0.4.0"
 self-meter = "0.3.0"
 quick-error = "1.1.0"
-libcantal = { git="git://github.com/tailhook/cantal-rs", rev="bbe360a" }
+libcantal = "0.3.0"
 tera = "0.10.5"
 error-chain = "0.10.0"  # for tera
 serde_json = "1.0.0"
