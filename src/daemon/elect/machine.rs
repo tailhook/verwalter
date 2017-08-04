@@ -117,7 +117,7 @@ impl Machine {
         use self::Machine::*;
 
         debug!("[{}] time {:?} passed (me: {:?})",
-            self.current_epoch(), self.current_deadline(), self);
+            self.current_epoch(), now, self);
         // In case of spurious time events
         if self.current_deadline() > now {
             return pass(self)
@@ -126,6 +126,8 @@ impl Machine {
         // We can't do much useful work if our peers info is outdated
         if !info.hosts_are_fresh() {
             // TODO(tailhook) We have to give up our leadership though
+            debug!("Hosts aren't fresh {:?}. Waiting...",
+                SystemTime::now().duration_since(info.hosts_timestamp.unwrap()));
             report(&BAD_HOSTS_NO, &BAD_HOSTS_TM);
             return pass(self)
         }

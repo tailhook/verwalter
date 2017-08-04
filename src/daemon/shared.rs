@@ -182,6 +182,8 @@ impl SharedState {
     */
     // Setters
     pub fn set_peers(&self, time: SystemTime, peers: HashMap<Id, Peer>) {
+        // all this logic seems to be very ugly
+        // TODO(tailhook) find some simpler way
         let old_peers = self.peers.get();
         let mut to_insert = Vec::new();
         for (id, peer) in &peers {
@@ -200,17 +202,6 @@ impl SharedState {
             } else {
                 to_insert.push((id, peer));
             }
-        }
-        let mut needs_mutation = to_insert.len() > 0;
-        if !needs_mutation {
-            for (id, _) in &old_peers.peers {
-                if !peers.contains_key(id) {
-                    needs_mutation = true;
-                }
-            }
-        }
-        if !needs_mutation {
-            return;
         }
         let mut new_peers = HashMap::new();
         for (id, peer) in &old_peers.peers {

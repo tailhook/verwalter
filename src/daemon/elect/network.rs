@@ -172,6 +172,13 @@ impl Future for ElectionMachine {
     type Item = ();
     type Error = ();
     fn poll(&mut self) -> Result<Async<()>, ()> {
+        self.poll_forever();
+        Ok(Async::NotReady)
+    }
+}
+
+impl ElectionMachine {
+    fn poll_forever(&mut self) {
         use elect::machine::Machine::*;
 
         let peers = self.shared.peers();
@@ -181,8 +188,12 @@ impl Future for ElectionMachine {
             all_hosts: &peers.peers,
             debug_force_leader: self.shared.debug_force_leader(),
         };
-        let mut me = self.machine.take().expect("machine is always here");
-        let dline = me.current_deadline();
+        let (dline, mut me) = match self.machine.take() {
+            Some(me) => (me.current_deadline(), me),
+            // Create machine and ensure that timer is called if called for
+            // the first time
+            None => (Instant::now() - Duration::new(1, 0), Machine::new(Instant::now())),
+        };
         loop {
             // Input messages
             me = self.process_input_messages(me, info);
@@ -219,11 +230,7 @@ impl Future for ElectionMachine {
             }
         }.expect("fetcher always work");
         self.machine = Some(me);
-        Ok(Async::NotReady)
     }
-}
-
-impl ElectionMachine {
     fn process_input_messages(&mut self, mut me: Machine, info: &Info)
         -> Machine
     {
@@ -289,7 +296,7 @@ pub fn spawn_election(ns: &abstract_ns::Router, addr: &str,
                 }).unwrap()
             }).collect();
         spawn(ElectionMachine {
-            machine: Some(Machine::new(Instant::now())),
+            machine: None,
             sockets: socks,
             shared: state,
             last_schedule_sent: String::new(),

@@ -12,6 +12,7 @@ use futures::future::ok;
 use shared::SharedState;
 use peer::Peer;
 use id::Id;
+use elect::peers_refresh;
 
 
 pub fn spawn_fetcher(state: &SharedState, port: u16)
@@ -20,7 +21,7 @@ pub fn spawn_fetcher(state: &SharedState, port: u16)
     let state = state.clone();
     let conn = tk_cantal::connect_local(&tk_easyloop::handle());
     tk_easyloop::spawn(
-        tk_easyloop::interval(Duration::new(3, 0))
+        tk_easyloop::interval(peers_refresh())
         .map_err(|_| { unreachable!() })
         .for_each(move |_| {
             let state = state.clone();
