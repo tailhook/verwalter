@@ -10,6 +10,7 @@ extern crate scan_dir;
 extern crate serde_json;
 extern crate tempfile;
 extern crate tera;
+extern crate trimmer;
 extern crate yaml_rust;
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate quick_error;

@@ -1,5 +1,6 @@
 use std::io::{self, Read, Write, Seek};
 use std::str::from_utf8;
+use std::cmp::min;
 use std::path::Path;
 use std::path::Component::Normal;
 use std::fs::{File, metadata};

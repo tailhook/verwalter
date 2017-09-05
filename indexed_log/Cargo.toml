@@ -4,7 +4,7 @@ description = """
     Logging with json'y indexes
 """
 keywords = ["logs", "json"]
-version = "0.8.11"
+version = "0.8.19"
 homepage = "http://github.com/tailhook/verwalter/tree/master/indexed_log"
 #readme = "README.rst"
 #documentation = "http://verwalter.readthedocs.org"
@@ -16,7 +16,7 @@ time = "0.1.32"
 nix = "0.5.0"
 quick-error = "1.0.0"
 log = "0.3.6"
-gron = "0.3.0"
+gron = "0.4.0"
 
 [lib]
 path = "src/lib.rs"

@@ -1,5 +1,6 @@
-use std::io::{self, Read};
+use std::collections::HashMap;
 use std::fs::File;
+use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 
 use error_chain::ChainedError;
@@ -9,6 +10,7 @@ use quire::{parse_config, Options, ErrorList as ConfigError};
 use quire::validate as V;
 use scan_dir;
 use tera::{Tera, Error as TeraError};
+use trimmer::{self, Template as Trimmer, ParseError as TrimmerError};
 
 use apply;
 use render::Renderer;
@@ -35,6 +37,13 @@ quick_error! {
             display("error reading {:?}: {}", path, err.display())
             description("error reading template file")
             context(path: &'a Path, e: TeraError)
+                -> (e, path.to_path_buf())
+        }
+        Trimmer(err: TrimmerError, path: PathBuf) {
+            cause(err)
+            display("error reading {:?}: {}", path, err)
+            description("error reading template file")
+            context(path: &'a Path, e: TrimmerError)
                 -> (e, path.to_path_buf())
         }
         Config(err: ConfigError) {
@@ -83,10 +92,14 @@ fn read_renderer(path: &Path, base: &Path)
     }))
 }
 
-pub fn read_renderers(path: &Path, hbars: &mut Handlebars, tera: &mut Tera)
+pub fn read_renderers(path: &Path,
+    hbars: &mut Handlebars, tera: &mut Tera,
+    trm: &mut HashMap<String, Trimmer>)
     -> Result<Vec<(String, Renderer)>, TemplateError>
 {
+    let trm_parser = trimmer::Parser::new();
     let mut renderers = Vec::new();
+
     try!(scan_dir::ScanDir::files().walk(path, |iter| {
         for (entry, fname) in iter {
             if fname.ends_with(".hbs") || fname.ends_with(".handlebars")
@@ -110,6 +123,17 @@ pub fn read_renderers(path: &Path, hbars: &mut Handlebars, tera: &mut Tera)
                     .and_then(|mut f| f.read_to_string(&mut buf))
                     .context(path)?;
                 tera.add_raw_template(&tname, &buf).context(path)?;
+            } else if fname.ends_with(".trm") || fname.ends_with(".trimmer") {
+                let epath = entry.path();
+                let mut buf = String::with_capacity(4096);
+                let tname = epath
+                    .strip_prefix(path).unwrap()
+                    .to_string_lossy();
+                File::open(&epath)
+                    .and_then(|mut f| f.read_to_string(&mut buf))
+                    .context(path)?;
+                trm.insert(tname.to_string(),
+                    trm_parser.parse(&buf).context(path)?);
             } else if fname.ends_with(".render.yaml") ||
                       fname.ends_with(".render.yml")
             {

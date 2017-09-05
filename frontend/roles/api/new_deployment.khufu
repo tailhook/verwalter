@@ -76,16 +76,16 @@ view new_process(role, role_name, role_state, @actions,
       store @variables = variables
       store @show_api = bool | init(false)
 
-      let version = role.versions[0]  // TODO fetch version from group
+      let group = @group_name and role_state and role_state.groups[@group_name]
       let runtime = @input and @input.runtime
       let role_meta = runtime and runtime[role_name]
-      let meta = role_meta and role_meta[version]
+      let meta = role_meta and group and role_meta[group.version]
 
       <div.form-group>
         <label> "Group"
         <div>
           <div.btn-group>
-            let groups = role_state.groups
+            let groups = role_state and role_state.groups
             for [gname, group] of entries_sorted(groups or {}) key gname:
               <button.btn.btn-default.btn-xs.active?(@group_name == gname)>
                 link {click} set(gname) -> @group_name
@@ -114,9 +114,6 @@ view new_process(role, role_name, role_state, @actions,
               <div.input-group.panel>
                 <input.form-control.short>
                   link {input} set_var(varname, this.value) -> @variables
-                if varname == 'nginx_port':
-                  <label.input-group-addon> "alternate port: "
-                  <input.form-control.short>
               if meta.ports:
                 `Allowed ranges: ${meta.ports.join(', ')}`
             elif vartype.type == 'Choice':

@@ -26,31 +26,34 @@ style:
     padding-bottom: 8px
   .canvas
     display: flex
+  .wide
+    width: 100%
 
 view _leftmenu(schedule):
   <ul.nav.nav-pills.nav-stacked.col-lg-2>
     if schedule and schedule.roles:
       for [name, role] of entries(schedule.roles) key name:
-        <li.active?(@router.path[1] == name) role="presentation">
-          <a href=`/role/${name}`>
-            link {click} go(event) -> @router
-            name
-            " "
-            if role and role.badge:
-              <span.badge>
-                role.badge
+        if role.frontend:
+          <li.active?(@router.path[1] == name) role="presentation">
+            <a href=`/role/${name}`>
+              link {click} go(event) -> @router
+              name
+              " "
+              if role and role.badge:
+                <span.badge>
+                  role.badge
     <li.bottom-button>
       <button.btn.btn-danger.rerender>
         store @preloader = preloader
         link {click} action('force_render_all') -> @preloader
         "Rerender all roles"
 
-view main(status):
+view main(status, expert_mode):
   <div.canvas>
     store @schedule = json_store | refresher | json('/v1/schedule')
     _leftmenu(@schedule and @schedule.data)
 
-    <div.col-lg-10>
+    <div.wide>
       if not @schedule or not @schedule.data:
         <div.panel.panel-default>
           <div.panel-body>
@@ -71,25 +74,29 @@ view main(status):
               example(role, role_name, {
                 role_state: role_state,
                 schedule: @schedule.data,
-                system_status: status
+                system_status: status,
+                expert_mode: expert_mode,
               })
           elif frontend == 'version':
               version(role, role_name, {
                 role_state: role_state,
                 schedule: @schedule.data,
-                system_status: status
+                system_status: status,
+                expert_mode: expert_mode,
               })
           elif frontend == 'migration':
               migration(role, role_name, {
                 role_state: role_state,
                 schedule: @schedule.data,
-                system_status: status
+                system_status: status,
+                expert_mode: expert_mode,
               })
           elif frontend == 'api':
               api(role, role_name, {
                 role_state: role_state,
                 schedule: @schedule.data,
-                system_status: status
+                system_status: status,
+                expert_mode: expert_mode,
               })
           else:
             <div.panel.panel-warning>

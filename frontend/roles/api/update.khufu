@@ -1,0 +1,259 @@
+import {progress} from './pipeline.khufu'
+import {step_and_index} from '../../util/update'
+import {is_leader} from '../../util/status'
+import {value, bool, set, init, toggle, disable} from '../../stores/simple'
+import {sample, repr} from './sample.khufu'
+import {execute} from '../../util/action'
+import {from_ms, till_now_ms, format_diff} from '../../util/time'
+import {show_progress} from '../../blocks/action.khufu'
+import {main as versions} from '../../blocks/version_select.khufu'
+
+
+style:
+  .title-addon
+    cursor: pointer
+    display: inline-flex
+    flex-direction: row
+    color: gray
+  .stack
+    font-size: 50%
+    margin-left: 8px
+    display: flex
+    flex-direction: column
+    align-items: center
+  .step-name
+    white-space: nowrap
+  .substep
+    margin-left: 4px
+  .paused
+    color: red
+    font-weight: bold
+    font-size: 120%
+    margin: 4px
+  .timers
+  .timer-name
+    margin: 2px 2px 2px 12px
+    color: gray
+  .timer-value
+    margin: 2px 2px 2px 2px
+  div.error
+    font-size: 120%
+    font-family: monospace
+    margin: 24px
+  span.error
+    color: red
+    font-weight: bold
+  span.error-message
+    padding-left: 8px
+  .glyphicon.title
+    position: relative
+    top: 0.2ex
+    margin-left: 0.2ex
+    margin-right: 0.2ex
+  .force-version-on-update
+    margin: 16px
+
+view action_button(action, icon, color, title,
+                   @actions, {group_name, role_name, update}):
+  let req = {button: {
+    action: 'update_action',
+    role: role_name,
+    group: group_name,
+    update_action: action,
+    step: action == 'proceed' or action == 'skip' ? update.step : null,
+  }}
+  <button.btn class=`btn-${color}` title=title>
+    <span.glyphicon class=`glyphicon-${icon}`>
+    link {click} execute(req) -> @actions
+    show_progress(@actions, req.button)
+
+view update_buttons(up, @actions, kw):
+  <div>
+    let [step, step_idx] = step_and_index(up.pipeline, up.step)
+    store @show_repr = bool | init(false)
+    store @show_force_update = bool | init(false)
+    <div>
+      <div.btn-group>
+
+        if is_leader(kw.system_status):
+          if up.direction == 'forward':
+            if step.forward_mode == 'time' or step.forward_mode == 'smooth':
+              action_button('pause', 'pause', 'default',
+                "Temporarily pause update process",
+                -> @actions, kw)
+            elif step.forward_mode == 'manual':
+              action_button('revert', 'backward', 'danger',
+                "Continue update process",
+                -> @actions, kw)
+              action_button('proceed', 'play', 'success',
+                "Continue update process",
+                -> @actions, kw)
+            elif step.forward_mode == 'ack':
+              action_button('revert', 'backward', 'danger',
+                "Revert the update",
+                -> @actions, kw)
+          elif up.direction == 'backward':
+            if step.backward_mode == 'time' or step.forward_mode == 'smooth':
+              action_button('pause', 'pause', 'default',
+                "Pause revert process",
+                -> @actions, kw)
+            elif step.backward_mode == 'manual':
+              action_button('revert', 'backward', 'default',
+                "Continue revert process",
+                -> @actions, kw)
+          elif up.direction == 'error':
+            action_button('revert', 'backward', 'danger',
+              "Revert the update",
+              -> @actions, kw)
+            action_button('skip', 'forward', 'danger',
+              "Skip this step and continue",
+              -> @actions, kw)
+          else:
+            action_button('revert', 'backward', 'danger',
+              "Revert the update",
+              -> @actions, kw)
+            action_button('resume', 'play', 'default',
+              "Continue update process",
+              -> @actions, kw)
+            action_button('skip', 'forward', 'danger',
+              "Skip this step and continue",
+              -> @actions, kw)
+
+        <button.btn.btn-info title="Push this if something is terribly wrong">
+          link {click} toggle(@show_force_update) -> @show_force_update
+          <span.glyphicon.glyphicon-fire>
+        <button.btn.btn-default>
+          link {click} toggle(@show_repr) -> @show_repr
+          <span.caret>
+
+      <span.timers>
+        <span.timer-name>
+          "Started:"
+        <span.timer-value>
+          format_diff(till_now_ms(from_ms(up.start_ts)))
+        <span.timer-name>
+          "Step:"
+        <span.timer-value>
+          format_diff(till_now_ms(from_ms(up.step_ts)))
+        <span.timer-name>
+          "Changed:"
+        <span.timer-value>
+          format_diff(till_now_ms(from_ms(up.change_ts)))
+
+    if @show_force_update:
+      show_force_update_buttons(->@actions, kw)
+
+    if @show_repr:
+      for action of ["pause", "revert", "resume", "skip", "ack", "proceed"]:
+        let action_req = {button: {
+          action: 'update_action',
+          role: kw.role_name,
+          group: kw.group_name,
+          update_action: action,
+          step: up.step,
+        }}
+        sample(`Action ${ action }`, action_req, kw.system_status)
+
+      let action_req = {button: {
+        action: 'update_action',
+        role: kw.role_name,
+        group: kw.group_name,
+        update_action: 'error',
+        step: up.step,
+        error_message: "Some error message",
+      }}
+      sample(`Action error`, action_req, kw.system_status)
+
+      <div>
+        repr("Update Info", up)
+
+view show_update({group, gname, role, role_name, system_status},
+                  @actions):
+  let up = group.update
+  <div>
+    <h3>
+      if up.direction == 'backward':
+        <b>
+          "Revert "
+        <span.glyphicon.glyphicon-fire>
+        " in progress "
+      elif up.auto:
+        "Auto-update in progress "
+      else:
+        "Update in progress "
+      <span>
+        <span.glyphicon.glyphicon-menu-left.title>
+        up.source_ver
+        " "
+        <span.glyphicon.glyphicon-arrow-right.title>
+        " "
+        up.target_ver
+        <span.glyphicon.glyphicon-menu-right.title>
+
+    progress(up)
+
+    if up.error_message:
+      <div.error>
+        <span.error>
+          "Error:"
+        <span.error-message>
+          up.error_message
+
+    update_buttons(up, -> @actions,
+      {system_status: system_status, group_name: gname, role_name: role_name,
+       role: role, update: up})
+
+
+view show_force_update_buttons(@actions, {role, role_name, group_name}):
+  <div.force-version-on-update.alert.alert-warning>
+    store @version = value | init('')
+    let force_call = {"button": {
+      role: role_name,
+      group: group_name,
+      action: "force_version",
+      to_version: @version,
+    }}
+    <p.title>
+      "Okay, if you thing something is terribly wrong you can revert to a"
+      " safe version at any time. But be careful, this revert is not smooth"
+    <p>
+      versions(role, -> @version)
+    <p>
+      <button.btn.btn-danger disabled=(@version ? null : "1")>
+        link {click} execute(force_call) -> @actions
+        "Force Version"
+        show_progress(@actions, force_call.button)
+
+
+view show_title(group):
+  let up = group.update
+  let [step, step_idx] = step_and_index(up.pipeline, up.step)
+  <div.title-addon>
+    <div.stack>
+      <div.versions>
+        <span.glyphicon.glyphicon-menu-left.title>
+        up.source_ver
+        " "
+        if up.auto:
+          <span.glyphicon.glyphicon-forward.title>
+        else:
+          <span.glyphicon.glyphicon-arrow-right.title>
+        " "
+        up.target_ver
+        <span.glyphicon.glyphicon-menu-right.title>
+        " "
+        if up.direction != 'forward':
+          <span.paused>
+            <span.glyphicon.glyphicon-exclamation-sign>
+            " "
+            up.direction
+      <div.step-name>
+        up.step
+        if up.smooth_step:
+          <span.substep>
+            up.smooth_step
+            " / "
+            step.substeps
+    if up.direction == 'forward':
+      if step.forward_mode == 'manual':
+        <span.glyphicon.glyphicon-hourglass>

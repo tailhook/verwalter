@@ -4,17 +4,18 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 
-use tempfile::NamedTempFile;
-use handlebars::{Handlebars, RenderError as HbsError};
-use tera::Error as TeraError;
-
 use apply::{Source, Command};
 use error_chain::ChainedError;
-use indexed_log::Role;
+use handlebars::{Handlebars, RenderError as HbsError};
 use quick_error::ResultExt;
-use renderfile::{self as config, TemplateError};
 use serde_json::{Value, to_string};
+use tempfile::NamedTempFile;
+use tera::Error as TeraError;
 use tera::Tera;
+use trimmer;
+
+use indexed_log::Role;
+use renderfile::{self as config, TemplateError};
 
 
 #[derive(RustcDecodable, Debug)]
@@ -40,6 +41,10 @@ quick_error! {
             display("unknown template type {:?}", path)
             description("unknown template type")
         }
+        NotFound(path: PathBuf) {
+            display("template {:?} not found", path)
+            description("template not found")
+        }
         Handlebars(err: HbsError, file: PathBuf, data: Value) {
             cause(err)
             display("error rendering template, file {:?}: \
@@ -57,6 +62,15 @@ quick_error! {
             context(ctx: (&'a PathBuf, &'a Value), err: TeraError)
                 -> (err, ctx.0.clone(), ctx.1.clone())
         }
+        Trimmer(err: trimmer::RenderError, file: PathBuf, data: Value) {
+            cause(err)
+            display("error rendering template, file {:?}: \
+                {}\nData: {}", file, err,
+                to_string(data).unwrap_or_else(|_| String::from("bad data")))
+            description("template rendering error")
+            context(ctx: (&'a PathBuf, &'a Value), err: trimmer::RenderError)
+                -> (err, ctx.0.clone(), ctx.1.clone())
+        }
     }
 }
 
@@ -65,9 +79,11 @@ pub fn render_role(dir: &Path, vars: &Value, log: &mut Role)
 {
     let mut hbars = Handlebars::new();
     let mut tera = Tera::default();
+    let mut trm = HashMap::new();
     let mut result = Vec::new();
 
-    let renderers = config::read_renderers(dir, &mut hbars, &mut tera)?;
+    let renderers = config::read_renderers(dir,
+        &mut hbars, &mut tera, &mut trm)?;
 
     for (rname, render) in renderers {
         let mut dest = HashMap::new();
@@ -82,6 +98,14 @@ pub fn render_role(dir: &Path, vars: &Value, log: &mut Role)
                 Some("tera") => {
                     tera.render(&tpath.display().to_string(), vars)
                         .context((&tpath, vars))?
+                }
+                Some("trm") | Some("trimmer") => {
+                    trm.get(&tpath.display().to_string())
+                        .ok_or_else(|| Error::NotFound(tpath.clone()))
+                    .and_then(|tpl| {
+                        Ok(trimmer::render_json(tpl, vars)
+                            .context((&tpath, vars))?)
+                    })?
                 }
                 _ => {
                     return Err(

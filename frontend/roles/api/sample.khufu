@@ -20,3 +20,9 @@ view sample(title, action_data, system_status):
     <h4> title
     <pre.sample>
       `curl http://${system_status.name}:8379/v1/action -XPOST -d '${pretty_json(action_data)}'`
+
+view repr(title, data):
+  <div.api-popup>
+    <h4> title
+    <pre.sample>
+      pretty_json(data)

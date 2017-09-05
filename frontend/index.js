@@ -11,8 +11,8 @@ let khufu_instance = khufu(document.getElementById('app'), main(VERSION), {
     store(reducer, middleware, state) {
         let mid = middleware.filter(x => typeof x === 'function')
         if(DEBUG) {
-            let createLogger = require('redux-logger')
-            mid.push(createLogger({
+            let logger = require('redux-logger')
+            mid.push(logger.createLogger({
                 collapsed: true,
             }))
         }

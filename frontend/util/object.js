@@ -33,3 +33,9 @@ export function reversed(x) {
 export function pretty_json(x) {
     return JSON.stringify(x, null, 2)
 }
+
+export function* enumerate(lst) {
+    for(var i = 0; i < lst.length; ++i) {
+        yield [i, lst[i]]
+    }
+}
