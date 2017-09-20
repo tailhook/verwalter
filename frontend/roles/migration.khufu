@@ -72,13 +72,18 @@ view migration({status_title, original, target, progress, buttons,
       original
     <div.progress-bar-base>
       <div.progress>
+        let real_progress = (
+          (progress > 1) ?  // treat it as percentage
+          progress :
+          progress*100  // backwards compatibility
+        )
         <div.progress-bar.progress-bar-striped.active?(mode != 'paused')
             role="progressbar" aria-valuenow="40"
             aria-valuemin="0" aria-valuemax="100"
-            style={width: `${ progress*100 }%`}>
+            style={width: `${ real_progress }%`}>
           if mode == 'backward':
             <span.progress-mark.glyphicon.glyphicon-backward>
-          `${ (progress*100).toFixed(0) }%`
+          `${ real_progress.toFixed(0) }%`
           if mode == 'forward':
             <span.progress-mark.glyphicon.glyphicon-forward>
     <div.target.big-version>
