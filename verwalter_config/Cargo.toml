@@ -4,7 +4,7 @@ description = """
     Verwalter's internal configuration library
 """
 keywords = ["config", "verwalter"]
-version = "0.8.21"
+version = "0.8.22"
 homepage = "http://github.com/tailhook/verwalter/tree/master/verwalter_config"
 #readme = "README.rst"
 #documentation = "http://verwalter.readthedocs.org"
