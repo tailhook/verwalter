@@ -206,6 +206,7 @@ view main(role, role_name, role_state, @actions,
       body:
         <div>
           store @delete_confirm = value | init(false)
+          store @delete_daemon = value | init(null)
           <h3> "Services"
           for [sname, service] of entries_sorted(group.services) key sname:
             <h4> sname
@@ -232,6 +233,32 @@ view main(role, role_name, role_state, @actions,
                            expert_mode: expert_mode})
                       else:
                         repr(value)
+            if is_leader(system_status) and expert_mode:
+
+              let delete_call = {"button": {
+                role: role_name,
+                group: gname,
+                name: sname,
+                action: "delete_daemon",
+              }}
+
+              if @delete_daemon == sname:
+                <div.btn-group>
+                  <button.btn.btn-success>
+                    link {click} set(null) -> @delete_daemon
+                    "Oh, not now"
+                  " "
+                  <button.btn.btn-danger>
+                    link {click} execute(delete_call) -> @actions
+                    `Yes, delete daemon "${ sname }" in "${ gname }" `
+                    `of role "${ role_name }" for me`
+                    show_action_progress("delete_daemon", @actions)
+              else:
+                <p align="right">
+                  <button.btn.btn-danger.btn-xs>
+                    link {click} set(sname) -> @delete_daemon
+                    `Delete daemon "${ sname }"`
+
           if is_leader(system_status):
             if group.update:
               update.show_update({group: group, gname: gname,
