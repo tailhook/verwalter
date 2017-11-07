@@ -8,6 +8,7 @@ addons:
     packages:
     - fakeroot
     - musl-tools
+    - libreadline-dev
 
 cache:
 - apt
