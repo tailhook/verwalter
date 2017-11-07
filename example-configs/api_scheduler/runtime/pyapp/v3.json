@@ -9,7 +9,7 @@
       "image": "pyapp-prod.45f2331b",
       "update": {
         "restart": "smooth",
-        "substeps": 100
+        "smooth_substeps": 100
       }
     }
   },
