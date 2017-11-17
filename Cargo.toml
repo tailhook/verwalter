@@ -52,6 +52,10 @@ path = "./indexed_log"
 [dependencies.verwalter_config]
 path = "./verwalter_config"
 
+[profile.release]
+debug = true
+lto = true
+
 [[bin]]
 name = "verwalter"
 path = "src/daemon/main.rs"
