@@ -11,10 +11,6 @@ documentation = "http://verwalter.readthedocs.org"
 authors = ["Paul Colomiets <paul@colomiets.name>"]
 
 [dependencies]
-rotor = "0.6.3"
-rotor-http = "0.7.0"
-rotor-tools = "0.3.2"
-rotor-cantal = { rev="080ffac", git="git://github.com/tailhook/rotor-cantal" }
 lua = { rev="90d38a8", git="git://github.com/tailhook/rust-lua53" }
 argparse = "0.2"
 handlebars = { version="0.26.1" }
