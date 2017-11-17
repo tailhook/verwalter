@@ -24,7 +24,8 @@ mod apply;
 mod render;
 mod renderfile;
 
-use std::io::{stderr, Write};
+use std::io::{BufReader};
+use std::fs::File;
 use std::path::{PathBuf};
 use std::process::exit;
 
@@ -46,6 +47,7 @@ impl FromCommandLine for ParseJson {
 fn main() {
     let mut vars = ParseJson(Value::Null);
     let mut schedule = ParseJson(Value::Null);
+    let mut schedule_file = None::<PathBuf>;
     let mut log_dir = PathBuf::from("/var/log/verwalter");
     let mut config_dir = PathBuf::from("/etc/verwalter");
     let mut check_dir = None::<PathBuf>;
@@ -64,6 +66,10 @@ fn main() {
         ap.refer(&mut schedule)
             .add_option(&["--schedule"], Parse, "
                 Global variables to pass to global renderer.");
+        ap.refer(&mut schedule_file)
+            .add_option(&["--schedule-file"], ParseOption, "
+                A file that contains global veriables to pass to renderer.
+                This option conflicts with `--schedule`");
         ap.refer(&mut check_dir)
             .add_option(&["-C", "--check", "--check-dir"], ParseOption, "
                 Render things in specified log dir, and show output.
@@ -108,8 +114,7 @@ fn main() {
         let sandbox = match Sandbox::parse_all(&config_dir.join("sandbox")) {
             Ok(cfg) => cfg,
             Err(e) => {
-                writeln!(&mut stderr(),
-                    "Error reading sandbox config: {}", e).ok();
+                eprintln!("Error reading sandbox config: {}", e);
                 exit(3);
             }
         };
@@ -120,7 +125,22 @@ fn main() {
         Some(x) => x.to_string(),
         None => exit(3),
     };
-    vars.insert(String::from("full_schedule"), schedule.0);
+    if let Some(filename) = schedule_file {
+        let res = File::open(&filename)
+            .map(|f| BufReader::new(f)).map_err(|e| e.to_string())
+            .and_then(|f| serde_json::from_reader(f)
+                          .map_err(|e| e.to_string()));
+        let schedule: Value = match res {
+            Ok(json) => json,
+            Err(e) => {
+                eprintln!("Error reading {:?}: {}", filename, e);
+                exit(3);
+            }
+        };
+        vars.insert(String::from("full_schedule"), schedule);
+    } else {
+        vars.insert(String::from("full_schedule"), schedule.0);
+    }
 
     let mut dlog = log.deployment(&id, false);
     {

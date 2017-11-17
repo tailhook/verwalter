@@ -5,7 +5,7 @@ description = """
 """
 readme = "README.rst"
 keywords = ["cluster", "linux", "resource", "configuration", "management"]
-version = "0.8.19"
+version = "0.8.23"
 homepage = "http://github.com/tailhook/verwalter"
 documentation = "http://verwalter.readthedocs.org"
 authors = ["Paul Colomiets <paul@colomiets.name>"]
@@ -47,7 +47,7 @@ serde = {version="1.0.0", features=["rc"]}
 serde_derive = "1.0.0"
 serde_json = "1.0.0"
 crossbeam = "0.2.10"
-trimmer = "0.3.0"
+trimmer = "0.3.4"
 
 abstract-ns = "0.3.2"
 tokio-core = "0.1.6"
@@ -65,6 +65,10 @@ path = "./indexed_log"
 
 [dependencies.verwalter_config]
 path = "./verwalter_config"
+
+[profile.release]
+debug = true
+lto = true
 
 [[bin]]
 name = "verwalter"

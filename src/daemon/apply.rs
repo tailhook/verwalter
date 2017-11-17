@@ -11,9 +11,8 @@ use serde_json::{Map, Value as Json};
 use indexed_log::Index;
 use futures::sync::mpsc::UnboundedReceiver;
 use futures::Stream;
-
-use fs_util::write_file;
 use scheduler::SchedulerInput;
+use fs_util::{write_file, safe_write};
 use shared::{SharedState};
 use watchdog;
 
@@ -199,8 +198,22 @@ fn apply_schedule(hash: &String, is_new: bool,
         cmd.arg(&settings.log_dir);
         cmd.arg("--config-dir");
         cmd.arg(&settings.config_dir);
-        cmd.arg("--schedule");
-        cmd.arg(&string_schedule);
+        if string_schedule.len() > 10 {
+            let fname = "/tmp/verwalter/schedule-for-render.json";
+            match safe_write(fname.as_ref(), string_schedule.as_bytes()) {
+                Ok(()) => {}
+                Err(e) => {
+                    error!("Can't write schedule file {:?}: {}",
+                        fname, e);
+                    return;
+                }
+            }
+            cmd.arg("--schedule-file");
+            cmd.arg(fname);
+        } else {
+            cmd.arg("--schedule");
+            cmd.arg(&string_schedule);
+        }
         if settings.dry_run {
             cmd.arg("--dry-run");
         }

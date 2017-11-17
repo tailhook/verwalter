@@ -1,7 +1,7 @@
 use std::io::{self, Write, Read, BufWriter, BufReader};
 use std::path::Path;
 use std::io::ErrorKind::{NotFound, AlreadyExists};
-use std::fs::{File, create_dir, rename, metadata};
+use std::fs::{File, OpenOptions, remove_file, create_dir, rename, metadata};
 
 use serde_json::{to_writer_pretty, from_reader, Value as Json};
 use serde::Serialize;
@@ -30,6 +30,21 @@ pub fn read_json(path: &Path) -> io::Result<Json> {
     // TODO(tailhook) better error wrapping
     from_reader(BufReader::new(file)).map_err(
         |_| io::Error::new(io::ErrorKind::InvalidData, "Can't decode json"))
+}
+
+pub fn safe_write(path: &Path, data: &[u8]) -> io::Result<()> {
+    ensure_dir(&path.parent().expect("valid dir"))?;
+    let tmppath = path.with_extension("tmp");
+    match remove_file(&tmppath) {
+        Ok(()) => {}
+        Err(ref e) if e.kind() == io::ErrorKind::NotFound => {}
+        Err(e) => return Err(e),
+    }
+    let mut file = OpenOptions::new().create_new(true).write(true)
+        .open(&tmppath)?;
+    file.write_all(data)?;
+    rename(&tmppath, path)?;
+    Ok(())
 }
 
 pub fn write_file<T: Serialize>(path: &Path, data: &T) -> io::Result<()> {

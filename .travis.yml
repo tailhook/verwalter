@@ -8,6 +8,7 @@ addons:
     packages:
     - fakeroot
     - musl-tools
+    - libreadline-dev
 
 cache:
 - apt
@@ -32,7 +33,7 @@ jobs:
     env:
       CFLAGS: -I/usr/lib/include
 
-    before_deploy: |
+    script: |
       mkdir -p dist
       rustup target add x86_64-unknown-linux-musl
       cargo build --target=x86_64-unknown-linux-musl --release
