@@ -1,6 +1,7 @@
 #![allow(unused_imports)]  // temporary
 extern crate abstract_ns;
 extern crate argparse;
+extern crate async_slot;
 extern crate cbor;
 extern crate crossbeam;
 extern crate env_logger;
@@ -30,8 +31,8 @@ extern crate tk_easyloop;
 extern crate tk_http;
 extern crate tk_listen;
 extern crate tokio_core;
-extern crate yaml_rust;
 extern crate void;
+extern crate yaml_rust;
 
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate log;
@@ -265,7 +266,7 @@ fn main() {
     run_forever(move || -> Result<(), Box<::std::error::Error>> {
 
 
-        let (schedule_tx, schedule_rx) = unbounded();
+        let (schedule_tx, schedule_rx) = async_slot::channel();
         let state = SharedState::new(&id, &name, &hostname,
             options.clone(), sandbox, old_schedule, schedule_tx,
             tk_easyloop::handle().remote());

@@ -9,6 +9,7 @@ use std::time::{Duration, SystemTime, Instant};
 use std::collections::{HashMap, BTreeMap, HashSet};
 use std::collections::btree_map::Entry::{Occupied, Vacant};
 
+use async_slot as slot;
 use futures::Future;
 use futures::sync::oneshot;
 use futures::sync::mpsc::UnboundedSender;
@@ -66,7 +67,7 @@ pub struct SharedData {
     apply_schedule: Condvar,
     run_scheduler: Condvar,
     peers: ArcCell<Peers>,
-    schedule_channel: UnboundedSender<()>,
+    schedule_channel: slot::Sender<Arc<Schedule>>,
 }
 
 pub struct LeaderCookie {
@@ -107,7 +108,7 @@ impl SharedState {
     pub fn new(id: &Id, name: &str, hostname: &str,
                options: Options, sandbox: Sandbox,
                old_schedule: Option<Schedule>,
-               schedule_channel: UnboundedSender<()>,
+               schedule_channel: slot::Sender<Arc<Schedule>>,
                mainloop: &Remote)
         -> SharedState
     {
@@ -229,36 +230,14 @@ impl SharedState {
     pub fn set_schedule_by_leader(&self, cookie: LeaderCookie,
         val: Schedule, input: SchedulerInput, debug: String)
     {
-        unimplemented!();
-        /*
-        use scheduler::State::{Leading};
-        use scheduler::LeaderState::{Stable, Calculating};
         let mut guard = self.lock();
-        match *guard.schedule {
-            Leading(Calculating) => {
-                /*
-                if let Some(ref x) = val.data.find("query_metrics") {
-                    guard.cantal.as_ref().unwrap()
-                        .set_remote_query_json(x, Duration::new(5, 0));
-                } else {
-                    guard.cantal.as_ref().unwrap().clear_remote_query();
-                }
-                */
-                let sched = Arc::new(val);
-                guard.schedule = Arc::new(Leading(Stable(sched.clone())));
-                guard.last_known_schedule = Some(sched);
-                guard.last_scheduler_debug_info =
-                    Arc::new(Some((input, debug)));
-                for (aid, _) in cookie.actions {
-                    guard.actions.remove(&aid);
-                }
-                self.apply_schedule.notify_all();
-            }
-            _ => {
-                debug!("Calculated a schedule when not a leader already");
-            }
+        if guard.election.is_leader {
+            let schedule = Arc::new(val);
+            guard.owned_schedule = Some(schedule.clone());
+            guard.stable_schedule = Some(schedule.clone());
+            self.0.schedule_channel.swap(schedule.clone())
+                .expect("apply channel is alive");
         }
-        */
     }
     pub fn set_error(&self, domain: &'static str, value: String) {
         Arc::make_mut(&mut self.lock().errors).insert(domain, value);
@@ -266,11 +245,12 @@ impl SharedState {
     pub fn clear_error(&self, domain: &'static str) {
         Arc::make_mut(&mut self.lock().errors).remove(domain);
     }
-    // TODO(tailhook) this method does too much, refactor it
     pub fn update_election(&self, mut elect: ElectionState) {
         let mut guard = self.lock();
         if !elect.is_leader {
             guard.actions.clear();
+            guard.owned_schedule = None;
+            // TODO(tailhook) clean stable schedule?
             let errors = Arc::make_mut(&mut guard.errors);
             errors.remove("reload_configs");
             errors.remove("scheduler_load");

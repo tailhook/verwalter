@@ -2,16 +2,17 @@ use std::path::PathBuf;
 use std::time::Duration;
 use std::sync::Arc;
 use std::borrow::Cow;
-use std::process::{Command, ExitStatus};
+use std::process::{Command, ExitStatus, exit};
 
+use async_slot as slot;
 use time::now_utc;
 use rand::{thread_rng, Rng};
 use itertools::Itertools;
 use serde_json::{Map, Value as Json};
 use indexed_log::Index;
-use futures::sync::mpsc::UnboundedReceiver;
 use futures::Stream;
-use scheduler::SchedulerInput;
+
+use scheduler::{SchedulerInput, Schedule};
 use fs_util::{write_file, safe_write};
 use shared::{SharedState};
 use watchdog;
@@ -246,21 +247,16 @@ fn apply_schedule(hash: &String, is_new: bool,
 }
 
 pub fn run(state: SharedState, settings: Settings,
-    schedules: UnboundedReceiver<()>)
+    schedules: slot::Receiver<Arc<Schedule>>)
     -> !
 {
     let _guard = watchdog::ExitOnReturn(93);
     let mut prev_schedule = String::new();
-    for _ in schedules.wait() {
-        let schedule = if let Some(schedule) = state.stable_schedule() {
-            if schedule.hash != prev_schedule {
-                schedule
-            } else {
-                continue;
-            }
-        } else {
+    for schedule in schedules.wait() {
+        let schedule = schedule.unwrap_or_else(|_| exit(93));
+        if schedule.hash == prev_schedule {
             continue;
-        };
+        }
         let _alarm = watchdog::Alarm::new(Duration::new(180, 0));
         write_file(&settings.schedule_file, &*schedule)
             .map_err(|e| error!("Writing schedule failed: {:?}", e)).ok();
