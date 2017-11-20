@@ -65,7 +65,7 @@ export function path(state={path:[], query:{}}, action) {
 
 export function go(event) {
     let val = deserialize(event.currentTarget.href)
-    if(event.ctrlKey) {
+    if(event.ctrlKey || event.metaKey) {
         return
     }
     if(event) {
