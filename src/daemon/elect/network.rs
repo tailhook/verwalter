@@ -218,6 +218,7 @@ impl ElectionMachine {
             }
         }
         self.shared.update_election(ElectionState::from(&me));
+        // TODO(tailhook) send on change only
         match me {
             Leader { .. } => {
                 self.fetcher.send(fetch::Message::Leader)

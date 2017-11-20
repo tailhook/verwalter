@@ -3,11 +3,14 @@ use std::sync::Arc;
 use std::process::exit;
 use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
+use std::net::SocketAddr;
 
 use abstract_ns;
 use futures::{Future, Stream, Async};
+use futures::future::FutureResult;
 use futures::sync::mpsc::UnboundedReceiver;
 use tokio_core::reactor::Timeout;
+use tokio_core::net::TcpStream;
 
 use elect::{self, ScheduleStamp};
 use id::Id;
@@ -15,6 +18,8 @@ use scheduler::{Schedule, ScheduleId};
 use shared::SharedState;
 use tk_easyloop::{self, timeout, timeout_at};
 use void::{Void, unreachable};
+use tk_http::client::{Proto, Codec, Encoder, EncoderDone, Error, RecvMode};
+use tk_http::client::{Head};
 
 
 const PREFETCH_MIN: u64 = elect::settings::HEARTBEAT_INTERVAL * 3/2;
@@ -33,6 +38,7 @@ enum State {
     StableLeader,
     Prefetching(Prefetch),
     Replicating(Id, Replica),
+    NoLeaderAddress(Id),
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize)]
@@ -60,8 +66,19 @@ pub struct Prefetch {
     waiting: HashMap<ScheduleId, HashSet<Id>>,
 }
 
-pub struct Replica {
+enum ReplicaConnState {
+    Idle,
+    Failed(Timeout),
+    KeepAlive(Proto<TcpStream, ReplicaCodec>),
+    Waiting(Proto<TcpStream, ReplicaCodec>),
+}
 
+struct ReplicaCodec {
+}
+
+pub struct Replica {
+    target: Option<ScheduleId>,
+    state: ReplicaConnState,
 }
 
 pub struct Fetch {
@@ -91,6 +108,7 @@ impl Future for Fetch {
                 Async::NotReady => Replicating(id, replica),
                 Async::Ready(()) => unreachable!(),
             },
+            NoLeaderAddress(id) => NoLeaderAddress(id),
         };
         let state = self.public_state();
         if *self.shared.fetch_state.get() != state {
@@ -110,6 +128,9 @@ impl Fetch {
             S::Prefetching(Prefetch { state, .. } ) => P::Prefetching(state),
             // TODO(tailhook) unpack replication state
             S::Replicating(ref id, ..)
+            => P::Replicating { leader: id.clone() },
+            // TODO(tailhook) show failure in public state
+            S::NoLeaderAddress(ref id, ..)
             => P::Replicating { leader: id.clone() },
         }
     }
@@ -143,8 +164,9 @@ impl Fetch {
                 }
                 (Follower(ref d), &mut Replicating(ref s, ..)) if s == d => {}
                 (Follower(id), state) => {
-                    // TODO(tailhook) drop schedule
                     *state = Replicating(id, Replica {
+                        target: None,
+                        state: ReplicaConnState::Idle,
                     });
                 }
                 (Election, &mut Unstable) => {}
@@ -163,13 +185,14 @@ impl Fetch {
                 (PeerSchedule(ref d, ref stamp), &mut Replicating(ref s, ref mut rep))
                 if s == d
                 => {
-                    // TODO(tailhook) drop schedule
-                    unimplemented!();
-                    // rep.update(stamp)
+                    rep.target = Some(stamp.hash.clone());
                 }
-                (PeerSchedule(id, stamp), state@&mut Replicating(..)) => {
-                    // TODO(tailhook) drop schedule
+                (PeerSchedule(id, stamp), state@&mut Replicating(..))
+                | (PeerSchedule(id, stamp), state@&mut NoLeaderAddress(..))
+                => {
                     *state = Replicating(id, Replica {
+                        target: Some(stamp.hash),
+                        state: ReplicaConnState::Idle,
                     });
                 }
             }
@@ -231,4 +254,22 @@ pub fn spawn_fetcher(ns: &abstract_ns::Router, state: &SharedState,
         state: State::Unstable,
     }.map(|v| unreachable(v)).map_err(|e| unreachable(e)));
     Ok(())
+}
+
+impl Codec<TcpStream> for ReplicaCodec {
+    type Future = FutureResult<EncoderDone<TcpStream>, Error>;
+    fn start_write(&mut self, e: Encoder<TcpStream>) -> Self::Future {
+        unimplemented!();
+    }
+    fn headers_received(&mut self, headers: &Head) -> Result<RecvMode, Error> {
+        unimplemented!();
+    }
+    fn data_received(
+        &mut self,
+        data: &[u8],
+        end: bool
+    ) -> Result<Async<usize>, Error> {
+        assert!(end);
+        unimplemented!();
+    }
 }
