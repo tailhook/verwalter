@@ -5,6 +5,7 @@ use std::sync::Arc;
 use std::thread::sleep;
 use std::time::{Duration, SystemTime, Instant};
 
+use serde;
 use serde_json::{Value as Json};
 use inotify::INotify;
 use inotify::ffi::{IN_MODIFY, IN_ATTRIB, IN_CLOSE_WRITE, IN_MOVED_FROM};
@@ -33,19 +34,29 @@ lazy_static! {
     pub static ref SCHEDULER_FAILED: Counter = Counter::new();
 }
 
+#[derive(Debug)]
+pub struct Parent(Arc<Schedule>);
+
 #[derive(Serialize, Debug)]
 pub struct SchedulerInput {
     #[serde(serialize_with="serialize_timestamp")]
     now: SystemTime,
     current_host: String,
     current_id: Id,
-    //parents: Vec<&'a str>,
+    parents: Vec<Parent>,
     actions: BTreeMap<u64, Arc<Json>>,
     runtime: Arc<Json>,
     peers: HashMap<Id, Arc<Peer>>,
     metrics: HashMap<(), ()>,  // TODO(tailhook)
 }
 
+impl serde::Serialize for Parent {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where S: serde::Serializer
+    {
+        self.0.serialize(serializer)
+    }
+}
 
 pub struct Settings {
     pub id: Id,
@@ -276,8 +287,8 @@ pub fn main(state: SharedState, settings: Settings) -> !
                 now: timestamp,
                 current_host: scheduler.hostname.clone(),
                 current_id: scheduler.id.clone(),
-                //parents: cookie.parent_schedules.iter()
-                //        .map(|s| s.data.clone()).collect(),
+                parents: cookie.parent_schedules.iter()
+                  .map(|x| Parent(x.clone())).collect(),
                 actions: cookie.actions.clone(),
                 runtime: runtime.data.clone(),
                 // TODO(tailhook) show runtime errors

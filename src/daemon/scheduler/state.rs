@@ -9,11 +9,12 @@ use id::Id;
 use time_util::ToMsec;
 use itertools::Itertools;
 
+pub type ScheduleId = String; // temporarily
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Schedule {
     pub timestamp: u64,
-    pub hash: String,
+    pub hash: ScheduleId,
     pub data: Json,
     pub origin: Id,
     pub num_roles: usize,

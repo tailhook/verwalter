@@ -9,7 +9,8 @@ Verwalter Daemon
 * ``3`` -- initial configuration read failed
 * ``4`` -- failed to load scheduler's lua code
 * ``5`` -- failed to add inotify watch
-* ``81`` -- tcp listener exited (should never happen)
+* ``81`` -- internal bug: tcp listener exited
+* ``82`` -- internal bug: fetch channel is dead
 * ``91`` -- killed by watchdog of scheduler, which means:
 
     * scheduler has not finished it's work within one second

@@ -91,6 +91,9 @@ struct State {
     actions: BTreeMap<u64, Arc<Json>>,
     errors: Arc<HashMap<&'static str, String>>,
     failed_roles: Arc<HashSet<String>>,
+    // TODO(tailhook) it's a bit ugly that parents used only once, are
+    // stored here
+    parent_schedules: Option<Vec<Arc<Schedule>>>,
 }
 
 impl Deref for SharedState {
@@ -133,6 +136,7 @@ impl SharedState {
                 failed_roles: Arc::new(HashSet::new()),
                 stable_schedule: None,
                 owned_schedule: None,
+                parent_schedules: None,
             })),
         )
     }
@@ -278,9 +282,12 @@ impl SharedState {
         *dest_elect = elect;
         dest_elect.last_stable_timestamp = tstamp;
     }
+    pub fn set_parents(&self, parents: Vec<Arc<Schedule>>) {
+        self.lock().parent_schedules = Some(parents);
+    }
     // Utility
     pub fn leader_cookie(&self) -> Option<LeaderCookie> {
-        let guard = self.lock();
+        let mut guard = self.lock();
         if !guard.election.is_leader ||
            *self.fetch_state.get() != fetch::PublicState::StableLeader
         {
@@ -289,7 +296,8 @@ impl SharedState {
         return Some(LeaderCookie {
             epoch: guard.election.epoch,
             // TODO(tailhook) get parent schedules from fetch machine
-            parent_schedules: guard.stable_schedule.iter().cloned().collect(),
+            parent_schedules: guard.parent_schedules.take()
+              .unwrap_or(guard.stable_schedule.iter().cloned().collect()),
             actions: guard.actions.clone(),
         })
     }

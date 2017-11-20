@@ -1,3 +1,4 @@
+#![allow(unused_imports)]  // temporary
 extern crate abstract_ns;
 extern crate argparse;
 extern crate cbor;
@@ -30,6 +31,7 @@ extern crate tk_http;
 extern crate tk_listen;
 extern crate tokio_core;
 extern crate yaml_rust;
+extern crate void;
 
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate log;

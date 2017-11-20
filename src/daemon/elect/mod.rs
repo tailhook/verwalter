@@ -13,11 +13,11 @@ use frontend::serialize::{serialize_timestamp, deserialize_timestamp};
 
 mod action;
 mod info;
-mod settings;
 mod state;
 
 pub mod machine;  // pub for making counters visible
 pub mod network;  // pub for making counters visible
+pub mod settings;
 
 mod encode;
 #[cfg(test)] mod test_node;

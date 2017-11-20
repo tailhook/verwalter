@@ -9,7 +9,7 @@ mod execute;
 mod state;
 pub mod main;  // pub for making counters visible
 
-pub use self::state::{Schedule, from_json};
+pub use self::state::{Schedule, ScheduleId, from_json};
 pub use self::main::{main as run, Settings, SchedulerInput};
 
 
