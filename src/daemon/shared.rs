@@ -235,6 +235,7 @@ impl SharedState {
             let schedule = Arc::new(val);
             guard.owned_schedule = Some(schedule.clone());
             guard.stable_schedule = Some(schedule.clone());
+            guard.last_scheduler_debug_info = Arc::new(Some((input, debug)));
             self.0.schedule_channel.swap(schedule.clone())
                 .expect("apply channel is alive");
         }
@@ -245,18 +246,21 @@ impl SharedState {
     pub fn clear_error(&self, domain: &'static str) {
         Arc::make_mut(&mut self.lock().errors).remove(domain);
     }
-    pub fn update_election(&self, mut elect: ElectionState) {
+    pub fn update_election(&self, elect: ElectionState) {
         let mut guard = self.lock();
         if !elect.is_leader {
             guard.actions.clear();
             guard.owned_schedule = None;
+            if guard.last_scheduler_debug_info.is_some() {
+                guard.last_scheduler_debug_info = Arc::new(None);
+            }
             // TODO(tailhook) clean stable schedule?
             let errors = Arc::make_mut(&mut guard.errors);
             errors.remove("reload_configs");
             errors.remove("scheduler_load");
             errors.remove("scheduler");
         }
-        let mut dest_elect = Arc::make_mut(&mut guard.election);
+        let dest_elect = Arc::make_mut(&mut guard.election);
         let tstamp = elect.last_stable_timestamp
             .or(dest_elect.last_stable_timestamp);
         *dest_elect = elect;
