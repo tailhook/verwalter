@@ -50,7 +50,7 @@ pub enum PublicState {
     StableLeader,
     Prefetching(PrefetchState),
     FollowerWaiting { leader: Id },
-    Replicating { leader: Id },
+    Replicating { leader: Id, schedule: Option<ScheduleId> },
     Following { leader: Id },
 }
 
@@ -141,8 +141,9 @@ impl Fetch {
             S::StableLeader => P::StableLeader,
             S::Prefetching(Prefetch { state, .. } ) => P::Prefetching(state),
             // TODO(tailhook) unpack replication state
-            S::Replicating(Replica { ref leader, .. })
-            => P::Replicating { leader: leader.clone() },
+            S::Replicating(Replica { ref leader, ref target, .. })
+            => P::Replicating { leader: leader.clone(),
+                                schedule: target.clone() },
             // TODO(tailhook) show failure in public state
         }
     }
@@ -318,7 +319,7 @@ impl ReplicaConnState {
                         }
                     }
                 }
-                (Waiting(mut proto, chan), targ@&mut None) => {
+                (Waiting(..), &mut None) => {
                     unreachable!();
                 }
             }

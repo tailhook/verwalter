@@ -19,6 +19,7 @@ pub struct Peer {
     // pub last_report_direct: Option<SystemTime>,  // TODO(tailhook)
 }
 
+#[derive(Debug)]
 pub struct Peers {
     pub timestamp: SystemTime,
     pub peers: HashMap<Id, ArcCell<Peer>>,

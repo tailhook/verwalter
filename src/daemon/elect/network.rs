@@ -258,7 +258,7 @@ impl ElectionMachine {
                         act.action.map(|x| execute_action(x, &info,
                             me.current_epoch(), &sockets,
                             shared, hash));
-                        if let Some(peer) = shared.peers().peers.get(info.id) {
+                        if let Some(peer) = shared.peers().peers.get(&src) {
                             if peer.get().schedule != msg.schedule {
                                 if let Some(ref stamp) = msg.schedule {
                                     self.fetcher.unbounded_send(
