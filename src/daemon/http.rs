@@ -10,14 +10,13 @@ use tk_http::{Status};
 use tk_http::server::buffered::{Request, BufferedDispatcher};
 use tk_http::server::{self, Encoder, EncoderDone, Proto, Error};
 use tokio_core::net::TcpListener;
-use tokio_core::io::Io;
 use tk_listen::ListenExt;
 
 use frontend;
 use shared::SharedState;
 
 
-fn service<S:Io>(_: Request, mut e: Encoder<S>)
+fn service<S>(_: Request, mut e: Encoder<S>)
     -> FutureResult<EncoderDone<S>, Error>
 {
     const BODY: &'static str = "Hello World!";
@@ -68,10 +67,9 @@ pub fn spawn_listener(ns: &abstract_ns::Router, addr: &str,
                     .map_err(|e| debug!("Http protocol error: {}", e))
                 })
                 .listen(500)
-                .then(move |res| {
+                .then(move |res| -> Result<(), ()> {
                     error!("Listener {} exited: {:?}", addr, res);
                     exit(81);
-                    Ok(())
                 }));
         }
     }).map_err(move |e| {

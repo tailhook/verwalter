@@ -221,13 +221,14 @@ impl ElectionMachine {
         // TODO(tailhook) send on change only
         match me {
             Leader { .. } => {
-                self.fetcher.send(fetch::Message::Leader)
+                self.fetcher.unbounded_send(fetch::Message::Leader)
             }
             Follower { ref leader, .. } => {
-                self.fetcher.send(fetch::Message::Follower(leader.clone()))
+                self.fetcher.unbounded_send(
+                    fetch::Message::Follower(leader.clone()))
             }
             Voted { .. } | Starting { .. } | Electing { .. } => {
-                self.fetcher.send(fetch::Message::Election)
+                self.fetcher.unbounded_send(fetch::Message::Election)
             }
         }.expect("fetcher always work");
         self.machine = Some(me);
@@ -260,7 +261,7 @@ impl ElectionMachine {
                         if let Some(peer) = shared.peers().peers.get(info.id) {
                             if peer.get().schedule != msg.schedule {
                                 if let Some(ref stamp) = msg.schedule {
-                                    self.fetcher.send(
+                                    self.fetcher.unbounded_send(
                                         fetch::Message::PeerSchedule(
                                             info.id.clone(), stamp.clone(),
                                         )).expect("fetcher always work");

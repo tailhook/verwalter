@@ -6,21 +6,23 @@ use std::time::{Duration, Instant};
 use std::net::SocketAddr;
 
 use abstract_ns;
-use futures::{Future, Stream, Async};
+use futures::{Future, Stream, Sink, Async, AsyncSink};
 use futures::future::FutureResult;
 use futures::sync::mpsc::UnboundedReceiver;
+use futures::sync::oneshot;
+use rand::{thread_rng, Rng};
 use tokio_core::reactor::Timeout;
-use tokio_core::net::TcpStream;
+use tokio_core::net::{TcpStream, TcpStreamNew};
 use valuable_futures::{Supply, StateMachine, Async as A, Async as VAsync};
 
 use elect::{self, ScheduleStamp};
 use id::Id;
 use scheduler::{Schedule, ScheduleId};
 use shared::SharedState;
-use tk_easyloop::{self, timeout, timeout_at};
+use tk_easyloop::{self, timeout, timeout_at, handle};
 use void::{Void, unreachable};
 use tk_http::client::{Proto, Codec, Encoder, EncoderDone, Error, RecvMode};
-use tk_http::client::{Head};
+use tk_http::client::{Head, Config};
 
 
 const PREFETCH_MIN: u64 = elect::settings::HEARTBEAT_INTERVAL * 3/2;
@@ -38,8 +40,7 @@ enum Fetch {
     Unstable,
     StableLeader,
     Prefetching(Prefetch),
-    Replicating(Id, Replica),
-    NoLeaderAddress(Id),
+    Replicating(Replica),
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize)]
@@ -70,21 +71,32 @@ pub struct Prefetch {
 enum ReplicaConnState {
     Idle,
     Failed(Timeout),
+    Connecting(TcpStreamNew),
     KeepAlive(Proto<TcpStream, ReplicaCodec>),
-    Waiting(Proto<TcpStream, ReplicaCodec>),
+    Waiting(Proto<TcpStream, ReplicaCodec>, oneshot::Receiver<Arc<Schedule>>),
 }
 
 struct ReplicaCodec {
+    tx: Option<oneshot::Sender<Arc<Schedule>>>,
 }
 
 pub struct Replica {
+    leader: Id,
     target: Option<ScheduleId>,
     state: ReplicaConnState,
 }
 
 pub struct Context {
+    http_config: Arc<Config>,
     shared: SharedState,
     chan: UnboundedReceiver<Message>,
+}
+
+pub struct ReplicaContext<'a> {
+    http_config: &'a Arc<Config>,
+    shared: &'a SharedState,
+    leader: &'a Id,
+    target: &'a mut Option<ScheduleId>,
 }
 
 impl StateMachine for Fetch {
@@ -107,11 +119,10 @@ impl StateMachine for Fetch {
                     StableLeader
                 }
             },
-            Replicating(id, replica) => match replica.poll(ctx)? {
-                A::NotReady(replica) => Replicating(id, replica),
+            Replicating(replica) => match replica.poll(ctx)? {
+                A::NotReady(replica) => Replicating(replica),
                 A::Ready(v) => unreachable(v),
             },
-            NoLeaderAddress(id) => NoLeaderAddress(id),
         };
         let state = self.public_state();
         if *ctx.shared.fetch_state.get() != state {
@@ -130,11 +141,9 @@ impl Fetch {
             S::StableLeader => P::StableLeader,
             S::Prefetching(Prefetch { state, .. } ) => P::Prefetching(state),
             // TODO(tailhook) unpack replication state
-            S::Replicating(ref id, ..)
-            => P::Replicating { leader: id.clone() },
+            S::Replicating(Replica { ref leader, .. })
+            => P::Replicating { leader: leader.clone() },
             // TODO(tailhook) show failure in public state
-            S::NoLeaderAddress(ref id, ..)
-            => P::Replicating { leader: id.clone() },
         }
     }
     fn poll_messages(self, ctx: &mut Context) -> Self {
@@ -166,18 +175,20 @@ impl Fetch {
                         waiting: HashMap::new(),
                     })
                 }
-                (Follower(d), Replicating(s, r)) => {
-                    if s == d {
-                        Replicating(s, r)
+                (Follower(leader), Replicating(repl)) => {
+                    if repl.leader == leader {
+                        Replicating(repl)
                     } else {
-                        Replicating(d, Replica {
+                        Replicating(Replica {
+                            leader: leader,
                             target: None,
                             state: ReplicaConnState::Idle,
                         })
                     }
                 }
-                (Follower(id), _) => {
-                    Replicating(id, Replica {
+                (Follower(leader), _) => {
+                    Replicating(Replica {
+                        leader: leader,
                         target: None,
                         state: ReplicaConnState::Idle,
                     })
@@ -194,28 +205,124 @@ impl Fetch {
                     unimplemented!()
                     // pre.report(id, stamp)
                 }
-                (PeerSchedule(d, stamp), Replicating(s, rep)) => {
-                    if s == d {
-                        Replicating(s, Replica {
+                (PeerSchedule(peer, stamp), Replicating(repl)) => {
+                    if repl.leader == peer {
+                        Replicating(Replica {
                             target: Some(stamp.hash),
-                            ..rep
+                            ..repl
                         })
                     } else {
-                        Replicating(d, Replica {
-                            target: Some(stamp.hash),
-                            state: ReplicaConnState::Idle,
-                        })
+                        Replicating(repl)
                     }
-                }
-                (PeerSchedule(id, stamp), NoLeaderAddress(..)) => {
-                    Replicating(id, Replica {
-                        target: Some(stamp.hash),
-                        state: ReplicaConnState::Idle,
-                    })
                 }
             }
         }
         return me;
+    }
+}
+
+fn get_addr(shared: &SharedState, leader: &Id) -> Option<SocketAddr> {
+    shared.peers()
+        .peers.get(leader)
+        .and_then(|peer| peer.get().addr)
+}
+
+
+impl ReplicaConnState {
+    fn poll_state(mut self, ctx: ReplicaContext)
+        -> ReplicaConnState
+    {
+        fn reconnect() -> ReplicaConnState {
+            Failed(timeout(Duration::from_millis(
+                thread_rng().gen_range(100, 300))))
+        }
+        use self::ReplicaConnState::*;
+        loop {
+            self = match (self, &mut *ctx.target) {
+                (Idle, &mut Some(_)) => {
+                    match get_addr(ctx.shared, ctx.leader) {
+                        Some(addr) => {
+                            Connecting(TcpStream::connect(&addr, &handle()))
+                        }
+                        None => {
+                            warn!("No address of leader: {:?}", ctx.leader);
+                            reconnect()
+                        }
+                    }
+                }
+                (Idle, &mut None) => return Idle,
+                (Failed(mut timeo), _) => {
+                    match timeo.poll().expect("infallible") {
+                        Async::Ready(()) => Idle,
+                        Async::NotReady => return Failed(timeo),
+                    }
+                }
+                (Connecting(mut proto), _) => match proto.poll() {
+                    Ok(Async::Ready(sock)) => {
+                        KeepAlive(
+                            Proto::new(sock, &handle(), &ctx.http_config))
+                    }
+                    Ok(Async::NotReady) => return Connecting(proto),
+                    Err(e) => {
+                        debug!("Replica connection error: {:?}", e);
+                        reconnect()
+                    }
+                },
+                (KeepAlive(mut proto), &mut Some(_)) => {
+                    let (codec, resp) = ReplicaCodec::new();
+                    match proto.start_send(codec) {
+                        Ok(AsyncSink::NotReady(_)) => return KeepAlive(proto),
+                        Ok(AsyncSink::Ready) => Waiting(proto, resp),
+                        Err(e) => {
+                            debug!("Replica connection error: {:?}", e);
+                            reconnect()
+                        }
+                    }
+                }
+                (KeepAlive(mut proto), &mut None) => {
+                    match proto.poll_complete() {
+                        Ok(_) => return KeepAlive(proto),
+                        Err(e) => {
+                            debug!("Replica connection error: {:?}", e);
+                            reconnect()
+                        }
+                    }
+                }
+                // TODO(tailhook) receive request
+                (Waiting(mut proto, mut chan), targ@&mut Some(_)) => {
+                    let pro_poll = proto.poll_complete();
+                    let chan_poll = chan.poll();
+                    match chan_poll {
+                        Ok(Async::Ready(ref sched)) => {
+                            if sched.hash == *targ.as_ref().unwrap() {
+                                *targ = None;
+                                ctx.shared.set_schedule_by_follower(sched);
+                            }
+                        }
+                        _ => {}
+                    }
+                    match (chan_poll, pro_poll) {
+                        (Ok(Async::Ready(_)), Ok(_)) => KeepAlive(proto),
+                        (Ok(Async::NotReady), Ok(_)) => {
+                            return Waiting(proto, chan)
+                        }
+                        (_, Err(e)) => {
+                            debug!("Replica connection error: {}", e);
+                            reconnect()
+                        }
+                        (Err(e), _) => {
+                            debug!("Request dropped unexpectedly: {}", e);
+                            // This might be not necessary but ocasionally
+                            // reconnecting is fine
+                            reconnect()
+                        }
+                    }
+                }
+                (Waiting(mut proto, chan), targ@&mut None) => {
+                    unreachable!();
+                }
+            }
+        }
     }
 }
 
@@ -224,15 +331,14 @@ impl StateMachine for Replica {
     type Item = Void;
     type Error = Void;
     fn poll(self, ctx: &mut Context) -> Result<VAsync<Void, Self>, Void> {
-        /*
-        match self.state {
-            Idle => Idle,
-            Failed(mut timeo) => {}
-            KeepAlive(Proto<TcpStream, ReplicaCodec>),
-            Waiting(Proto<TcpStream, ReplicaCodec>),
-        }
-        */
-        unimplemented!();
+        let Replica { mut target, state, leader } = self;
+        let state = state.poll_state(ReplicaContext {
+            leader: &leader,
+            http_config: &ctx.http_config,
+            shared: &ctx.shared,
+            target: &mut target,
+        });
+        return Ok(VAsync::NotReady(Replica { target, state, leader }));
     }
 }
 
@@ -282,9 +388,21 @@ pub fn spawn_fetcher(ns: &abstract_ns::Router, state: &SharedState,
     tk_easyloop::spawn(Supply::new(Context {
             shared: state.clone(),
             chan: chan,
+            http_config: Config::new()
+                .inflight_request_limit(1)
+                .keep_alive_timeout(Duration::new(300, 0))
+                .max_request_timeout(Duration::new(3, 0))
+                .done(),
         }, Fetch::Unstable)
         .map(|v| unreachable(v)).map_err(|e| unreachable(e)));
     Ok(())
+}
+
+impl ReplicaCodec {
+    fn new() -> (ReplicaCodec, oneshot::Receiver<Arc<Schedule>>) {
+        let (tx, rx) = oneshot::channel();
+        (ReplicaCodec { tx: Some(tx) }, rx)
+    }
 }
 
 impl Codec<TcpStream> for ReplicaCodec {

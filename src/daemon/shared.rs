@@ -227,6 +227,19 @@ impl SharedState {
         self.lock().last_scheduler_debug_info =
             Arc::new(Some((input, debug)));
     }
+    pub fn set_schedule_by_follower(&self, schedule: &Arc<Schedule>)
+    {
+        let mut guard = self.lock();
+        if !guard.election.is_leader &&
+            guard.election.leader.as_ref() == Some(&schedule.origin)
+        {
+            guard.stable_schedule = Some(schedule.clone());
+        } else {
+            debug!("Ingoring follower schedule {} from {}",
+                schedule.hash, schedule.origin);
+        }
+        // TODO(tailhook) check if leader is still the same
+    }
     pub fn set_schedule_by_leader(&self, cookie: LeaderCookie,
         val: Schedule, input: SchedulerInput, debug: String)
     {

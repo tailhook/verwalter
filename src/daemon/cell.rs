@@ -32,7 +32,7 @@ impl<T: Clone> Sender<T> {
         *self.0.current_value.write().expect("cell is not poisoned")
             = value;
         self.0.notifiers.lock().expect("cell is not poisoned").retain(|s| {
-            s.send(()).is_ok()
+            s.unbounded_send(()).is_ok()
         })
     }
     pub fn get(&self) -> T {
