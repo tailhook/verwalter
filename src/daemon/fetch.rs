@@ -352,11 +352,11 @@ impl StateMachine for Prefetch {
     type Supply = Context;
     type Item = Vec<Arc<Schedule>>;
     type Error = Void;
-    fn poll(self, ctx: &mut Context) -> Result<VAsync<Self::Item, Self>, Void>
+    fn poll(mut self, ctx: &mut Context)
+        -> Result<VAsync<Self::Item, Self>, Void>
     {
-        /*
         if self.state == PrefetchState::Fetching && self.waiting.len() == 0 {
-            return Ok(Async::Ready(self.get_state()));
+            return Ok(VAsync::Ready(self.get_state()));
         }
         match self.timeout.poll().expect("timeout never fails") {
             Async::Ready(()) if self.state == PrefetchState::Graceful => {
@@ -365,19 +365,17 @@ impl StateMachine for Prefetch {
                     Duration::from_millis(PREFETCH_MAX));
                 match self.timeout.poll().expect("timeout never fails") {
                     Async::Ready(()) => {
-                        return Ok(Async::Ready(self.get_state()));
+                        return Ok(VAsync::Ready(self.get_state()));
                     }
                     Async::NotReady => {}
                 }
             }
             Async::Ready(()) => {
-                return Ok(Async::Ready(self.get_state()));
+                return Ok(VAsync::Ready(self.get_state()));
             }
             Async::NotReady => {}
         }
-        Ok(Async::NotReady)
-        */
-        unimplemented!();
+        Ok(VAsync::NotReady(self))
     }
 }
 
