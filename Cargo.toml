@@ -45,6 +45,7 @@ crossbeam = "0.2.10"
 trimmer = "0.3.5"
 void = "1.0"
 async-slot = "0.1.0"
+valuable_futures = "0.1.1"
 
 abstract-ns = "0.3.2"
 tokio-core = "0.1.6"

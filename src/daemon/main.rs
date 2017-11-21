@@ -31,6 +31,7 @@ extern crate tk_easyloop;
 extern crate tk_http;
 extern crate tk_listen;
 extern crate tokio_core;
+extern crate valuable_futures;
 extern crate void;
 extern crate yaml_rust;
 

@@ -11,6 +11,7 @@ use futures::future::FutureResult;
 use futures::sync::mpsc::UnboundedReceiver;
 use tokio_core::reactor::Timeout;
 use tokio_core::net::TcpStream;
+use valuable_futures::{Supply, StateMachine, Async as A, Async as VAsync};
 
 use elect::{self, ScheduleStamp};
 use id::Id;
@@ -33,7 +34,7 @@ pub enum Message {
     PeerSchedule(Id, ScheduleStamp),
 }
 
-enum State {
+enum Fetch {
     Unstable,
     StableLeader,
     Prefetching(Prefetch),
@@ -81,48 +82,50 @@ pub struct Replica {
     state: ReplicaConnState,
 }
 
-pub struct Fetch {
+pub struct Context {
     shared: SharedState,
     chan: UnboundedReceiver<Message>,
-    state: State,
 }
 
-impl Future for Fetch {
+impl StateMachine for Fetch {
+    type Supply = Context;
     type Item = Void;
     type Error = Void;
-    fn poll(&mut self) -> Result<Async<Void>, Void> {
-        use self::State::*;
-        self.poll_messages().expect("input channel never fails");
-        self.state = match mem::replace(&mut self.state, Unstable) {
+    fn poll(mut self, ctx: &mut Context)
+        -> Result<VAsync<Void, Fetch>, Void>
+    {
+        use self::Fetch::*;
+        self = self.poll_messages(ctx);
+        self = match self {
             Unstable => Unstable,
             StableLeader => StableLeader,
-            Prefetching(mut pre) => match pre.poll()? {
-                Async::NotReady => Prefetching(pre),
-                Async::Ready(prefetch_data) => {
+            Prefetching(pre) => match pre.poll(ctx)? {
+                A::NotReady(pre) => Prefetching(pre),
+                A::Ready(prefetch_data) => {
                     // TODO(tailhook) send parent schedules
-                    self.shared.set_parents(prefetch_data);
+                    ctx.shared.set_parents(prefetch_data);
                     StableLeader
                 }
             },
-            Replicating(id, mut replica) => match replica.poll()? {
-                Async::NotReady => Replicating(id, replica),
-                Async::Ready(()) => unreachable!(),
+            Replicating(id, replica) => match replica.poll(ctx)? {
+                A::NotReady(replica) => Replicating(id, replica),
+                A::Ready(v) => unreachable(v),
             },
             NoLeaderAddress(id) => NoLeaderAddress(id),
         };
         let state = self.public_state();
-        if *self.shared.fetch_state.get() != state {
-            self.shared.fetch_state.set(Arc::new(state));
+        if *ctx.shared.fetch_state.get() != state {
+            ctx.shared.fetch_state.set(Arc::new(state));
         }
-        Ok(Async::NotReady)
+        Ok(A::NotReady(self))
     }
 }
 
 impl Fetch {
     fn public_state(&self) -> PublicState {
-        use self::State as S;
+        use self::Fetch as S;
         use self::PublicState as P;
-        match self.state {
+        match *self {
             S::Unstable => P::Unstable,
             S::StableLeader => P::StableLeader,
             S::Prefetching(Prefetch { state, .. } ) => P::Prefetching(state),
@@ -134,78 +137,102 @@ impl Fetch {
             => P::Replicating { leader: id.clone() },
         }
     }
-    fn poll_messages(&mut self) -> Result<(), ()> {
+    fn poll_messages(self, ctx: &mut Context) -> Self {
         use self::Message::*;
-        use self::State::*;
-        while let Async::Ready(value) = self.chan.poll()? {
+        use self::Fetch::*;
+        let mut me = self;
+        while let Async::Ready(value) = ctx.chan.poll().expect("infallible") {
             let msg = if let Some(x) = value { x }
                 else {
                     error!("Premature exit of fetch channel");
                     exit(82);
                 };
-            match (msg, &mut self.state) {
-                (Leader, &mut StableLeader) => {},
-                (Leader, &mut Prefetching(..)) => {},
-                (Leader, state) => {
+            me = match (msg, me) {
+                (Leader, StableLeader) => StableLeader,
+                (Leader, m @ Prefetching(..)) => m,
+                (Leader, _) => {
                     // TODO(tailhook) drop schedule
                     let mut schedules = HashMap::new();
-                    if let Some(sch) = self.shared.schedule() {
+                    if let Some(sch) = ctx.shared.schedule() {
                         schedules.insert(sch.hash.clone(), sch);
                     }
                     let dline = Instant::now() +
                         Duration::from_millis(PREFETCH_MIN);
-                    *state = Prefetching(Prefetch {
+                    Prefetching(Prefetch {
                         start: Instant::now(),
                         state: PrefetchState::Graceful,
                         timeout: timeout_at(dline),
                         schedules,
                         waiting: HashMap::new(),
-                    });
+                    })
                 }
-                (Follower(ref d), &mut Replicating(ref s, ..)) if s == d => {}
-                (Follower(id), state) => {
-                    *state = Replicating(id, Replica {
+                (Follower(d), Replicating(s, r)) => {
+                    if s == d {
+                        Replicating(s, r)
+                    } else {
+                        Replicating(d, Replica {
+                            target: None,
+                            state: ReplicaConnState::Idle,
+                        })
+                    }
+                }
+                (Follower(id), _) => {
+                    Replicating(id, Replica {
                         target: None,
                         state: ReplicaConnState::Idle,
-                    });
+                    })
                 }
-                (Election, &mut Unstable) => {}
-                (Election, state) => {
+                (Election, Unstable) => Unstable,
+                (Election, _) => {
                     // TODO(tailhook) drop schedule
-                    *state = Unstable;
+                    Unstable
                 }
-                (PeerSchedule(_, _), &mut Unstable) => {} // ignore
-                (PeerSchedule(_, _), &mut StableLeader) => {} // ignore
-                (PeerSchedule(ref id, ref stamp),
-                 &mut Prefetching(ref mut pre))
+                (PeerSchedule(_, _), Unstable) => Unstable, // ignore
+                (PeerSchedule(_, _), StableLeader) => StableLeader, // ignore
+                (PeerSchedule(ref id, ref stamp), Prefetching(ref mut pre))
                 => {
                     unimplemented!()
                     // pre.report(id, stamp)
                 }
-                (PeerSchedule(ref d, ref stamp), &mut Replicating(ref s, ref mut rep))
-                if s == d
-                => {
-                    rep.target = Some(stamp.hash.clone());
+                (PeerSchedule(d, stamp), Replicating(s, rep)) => {
+                    if s == d {
+                        Replicating(s, Replica {
+                            target: Some(stamp.hash),
+                            ..rep
+                        })
+                    } else {
+                        Replicating(d, Replica {
+                            target: Some(stamp.hash),
+                            state: ReplicaConnState::Idle,
+                        })
+                    }
                 }
-                (PeerSchedule(id, stamp), state@&mut Replicating(..))
-                | (PeerSchedule(id, stamp), state@&mut NoLeaderAddress(..))
-                => {
-                    *state = Replicating(id, Replica {
+                (PeerSchedule(id, stamp), NoLeaderAddress(..)) => {
+                    Replicating(id, Replica {
                         target: Some(stamp.hash),
                         state: ReplicaConnState::Idle,
-                    });
+                    })
                 }
             }
         }
-        Ok(())
+        return me;
     }
 }
 
-impl Future for Replica {
-    type Item = ();
+impl StateMachine for Replica {
+    type Supply = Context;
+    type Item = Void;
     type Error = Void;
-    fn poll(&mut self) -> Result<Async<()>, Void> {
-        unimplemented!()
+    fn poll(self, ctx: &mut Context) -> Result<VAsync<Void, Self>, Void> {
+        /*
+        match self.state {
+            Idle => Idle,
+            Failed(mut timeo) => {}
+            KeepAlive(Proto<TcpStream, ReplicaCodec>),
+            Waiting(Proto<TcpStream, ReplicaCodec>),
+        }
+        */
+        unimplemented!();
     }
 }
 
@@ -215,11 +242,13 @@ impl Prefetch {
     }
 }
 
-impl Future for Prefetch {
+impl StateMachine for Prefetch {
+    type Supply = Context;
     type Item = Vec<Arc<Schedule>>;
     type Error = Void;
-    fn poll(&mut self) -> Result<Async<Vec<Arc<Schedule>>>, Void> {
-
+    fn poll(self, ctx: &mut Context) -> Result<VAsync<Self::Item, Self>, Void>
+    {
+        /*
         if self.state == PrefetchState::Fetching && self.waiting.len() == 0 {
             return Ok(Async::Ready(self.get_state()));
         }
@@ -241,6 +270,8 @@ impl Future for Prefetch {
             Async::NotReady => {}
         }
         Ok(Async::NotReady)
+        */
+        unimplemented!();
     }
 }
 
@@ -248,11 +279,11 @@ pub fn spawn_fetcher(ns: &abstract_ns::Router, state: &SharedState,
     chan: UnboundedReceiver<Message>)
     -> Result<(), Box<::std::error::Error>>
 {
-    tk_easyloop::spawn(Fetch {
-        shared: state.clone(),
-        chan: chan,
-        state: State::Unstable,
-    }.map(|v| unreachable(v)).map_err(|e| unreachable(e)));
+    tk_easyloop::spawn(Supply::new(Context {
+            shared: state.clone(),
+            chan: chan,
+        }, Fetch::Unstable)
+        .map(|v| unreachable(v)).map_err(|e| unreachable(e)));
     Ok(())
 }
 
