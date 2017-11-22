@@ -1,9 +1,10 @@
+use std::cmp::max;
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::mem;
-use std::sync::Arc;
-use std::process::exit;
-use std::collections::{HashMap, HashSet};
-use std::time::{Duration, Instant};
 use std::net::SocketAddr;
+use std::process::exit;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use abstract_ns;
 use futures::{Future, Stream, Sink, Async, AsyncSink};
@@ -23,10 +24,16 @@ use tk_easyloop::{self, timeout, timeout_at, handle};
 use void::{Void, unreachable};
 use tk_http::client::{Proto, Codec, Encoder, EncoderDone, Error, RecvMode};
 use tk_http::client::{Head, Config};
+use failures::Blacklist;
 
 
 const PREFETCH_MIN: u64 = elect::settings::HEARTBEAT_INTERVAL * 3/2;
 const PREFETCH_MAX: u64 = PREFETCH_MIN + 60_000;
+/// Find next host if some request hangs for more than this amount of ms
+/// Note: we don't cancel request, just run another in parallel
+const PREFETCH_OLD: u64 = 1000;
+/// This is randomized 0.5 - 1.5 of the value for randomized reconnects
+const PREFETCH_BLACKLIST: u64 = 200;
 
 
 pub enum Message {
@@ -66,6 +73,8 @@ pub struct Prefetch {
     timeout: Timeout,
     schedules: HashMap<ScheduleId, Arc<Schedule>>,
     waiting: HashMap<ScheduleId, HashSet<Id>>,
+    blacklist: Blacklist,
+    fetching: VecDeque<(FetchContext, FetchState)>,
 }
 
 enum ReplicaConnState {
@@ -74,6 +83,17 @@ enum ReplicaConnState {
     Connecting(TcpStreamNew),
     KeepAlive(Proto<TcpStream, ReplicaCodec>),
     Waiting(Proto<TcpStream, ReplicaCodec>, oneshot::Receiver<Arc<Schedule>>),
+}
+
+struct FetchContext {
+    started: Instant,
+    schedule: ScheduleId,
+    addr: SocketAddr,
+}
+
+enum FetchState {
+    Connecting(TcpStreamNew),
+    Waiting(Proto<TcpStream, ReplicaCodec>, oneshot::Receiver<Arc<Schedule>>)
 }
 
 struct ReplicaCodec {
@@ -174,6 +194,8 @@ impl Fetch {
                         timeout: timeout_at(dline),
                         schedules,
                         waiting: HashMap::new(),
+                        blacklist: Blacklist::new(&handle()),
+                        fetching: VecDeque::new(),
                     })
                 }
                 (Follower(leader), Replicating(repl)) => {
@@ -201,10 +223,10 @@ impl Fetch {
                 }
                 (PeerSchedule(_, _), Unstable) => Unstable, // ignore
                 (PeerSchedule(_, _), StableLeader) => StableLeader, // ignore
-                (PeerSchedule(ref id, ref stamp), Prefetching(ref mut pre))
+                (PeerSchedule(id, stamp), Prefetching(mut pre))
                 => {
-                    unimplemented!()
-                    // pre.report(id, stamp)
+                    pre.report(id, stamp.hash);
+                    Prefetching(pre)
                 }
                 (PeerSchedule(peer, stamp), Replicating(repl)) => {
                     if repl.leader == peer {
@@ -344,8 +366,75 @@ impl StateMachine for Replica {
 }
 
 impl Prefetch {
+    fn report(&mut self, peer: Id, schedule: ScheduleId) {
+        if self.schedules.contains_key(&schedule) {
+            return;
+        }
+        self.waiting.entry(schedule).or_insert_with(HashSet::new)
+            .insert(peer);
+    }
     fn get_state(&mut self) -> Vec<Arc<Schedule>> {
         self.schedules.drain().map(|(_, v)| v).collect()
+    }
+    fn poll_futures(&mut self) {
+        struct ScheduleState {
+            recent: Instant,
+            fetching: HashSet<SocketAddr>,
+        }
+
+        let mut futures = HashMap::new();
+
+        for _ in 0..self.fetching.len() {
+            let (mut ctx, mach) = self.fetching.pop_front().unwrap();
+            match mach.poll(&mut ctx) {
+                Ok(VAsync::Ready(schedule)) => {
+                    self.waiting.remove(&schedule.hash);
+                    self.schedules.insert(schedule.hash.clone(), schedule);
+                }
+                Ok(VAsync::NotReady(mach)) => {
+                    let entry = futures.entry(ctx.schedule.clone())
+                        .or_insert_with(|| ScheduleState {
+                            recent: ctx.started,
+                            fetching: HashSet::new(),
+                        });
+                    entry.recent = max(entry.recent, ctx.started);
+                    entry.fetching.insert(ctx.addr);
+                    self.fetching.push_back((ctx, mach));
+                }
+                Err(e) => {
+                    info!("Error fetching schedule {} from {}: {}",
+                        ctx.schedule, ctx.addr, e);
+                    self.blacklist.blacklist(ctx.addr,
+                        Instant::now() + Duration::from_millis(
+                            thread_rng().gen_range(
+                                PREFETCH_BLACKLIST*1/2,
+                                PREFETCH_BLACKLIST*3/2,
+                                )));
+                }
+            }
+        }
+
+        let too_old = Instant::now() - Duration::from_millis(PREFETCH_OLD);
+        for (id, peers) in &self.waiting {
+            if let Some(state) = futures.get(id) {
+                if state.recent > too_old {
+                    continue; // all ok
+                }
+            }
+            // Issue a new connection
+            unimplemented!()
+        }
+    }
+}
+
+impl StateMachine for FetchState {
+    type Supply = FetchContext;
+    type Item = Arc<Schedule>;
+    type Error = Error;
+    fn poll(mut self, ctx: &mut FetchContext)
+        -> Result<VAsync<Self::Item, Self>, Error>
+    {
+        unimplemented!();
     }
 }
 
@@ -356,9 +445,14 @@ impl StateMachine for Prefetch {
     fn poll(mut self, ctx: &mut Context)
         -> Result<VAsync<Self::Item, Self>, Void>
     {
+        while let Async::Ready(_) = self.blacklist.poll() { }
+        self.poll_futures();
+        while let Async::Ready(_) = self.blacklist.poll() { }
+
         if self.state == PrefetchState::Fetching && self.waiting.len() == 0 {
             return Ok(VAsync::Ready(self.get_state()));
         }
+
         match self.timeout.poll().expect("timeout never fails") {
             Async::Ready(()) if self.state == PrefetchState::Graceful => {
                 self.state = PrefetchState::Fetching;

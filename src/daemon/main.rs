@@ -83,6 +83,7 @@ mod shared;
 mod time_util;
 mod watchdog;
 mod fetch;
+mod failures;
 
 use argparse::{ArgumentParser, Parse, ParseOption, StoreOption, StoreTrue};
 use argparse::{Print};
