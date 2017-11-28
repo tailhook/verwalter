@@ -29,7 +29,17 @@ use tk_http::{Version, Status};
 use failures::Blacklist;
 
 
-const PREFETCH_MIN: u64 = elect::settings::HEARTBEAT_INTERVAL * 3/2;
+/// Minimum time to spend on prefetching
+///
+/// Absolute minimum for this value is about 2.5 heartbeat intervals (now it's
+/// about 1.2 sec, but we still want some spare time, because it's important
+/// to get all the schedules.
+const PREFETCH_MIN: u64 = 15_000;
+// elect::settings::HEARTBEAT_INTERVAL * 5/2;
+/// A deadline for prefetching
+///
+/// If some hosts are unavailable and we know that they had different
+/// schedules, we wait this long, and then bail out.
 const PREFETCH_MAX: u64 = PREFETCH_MIN + 60_000;
 /// Find next host if some request hangs for more than this amount of ms
 /// Note: we don't cancel request, just run another in parallel
@@ -61,9 +71,7 @@ pub enum PublicState {
     Unstable,
     StableLeader,
     Prefetching(PrefetchState),
-    FollowerWaiting { leader: Id },
     Replicating { leader: Id, schedule: Option<ScheduleId> },
-    Following { leader: Id },
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Serialize)]
@@ -505,7 +513,7 @@ impl StateMachine for Prefetch {
     }
 }
 
-pub fn spawn_fetcher(ns: &abstract_ns::Router, state: &SharedState,
+pub fn spawn_fetcher(state: &SharedState,
     chan: UnboundedReceiver<Message>)
     -> Result<(), Box<::std::error::Error>>
 {
