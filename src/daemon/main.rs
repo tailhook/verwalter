@@ -10,6 +10,7 @@ extern crate futures;
 extern crate futures_cpupool;
 extern crate gron;
 extern crate handlebars;
+extern crate http_file_headers;
 extern crate inotify;
 extern crate itertools;
 extern crate libc;
@@ -32,6 +33,7 @@ extern crate tk_easyloop;
 extern crate tk_http;
 extern crate tk_listen;
 extern crate tokio_core;
+extern crate tokio_io;
 extern crate valuable_futures;
 extern crate void;
 extern crate yaml_rust;
@@ -296,7 +298,8 @@ fn main() {
         let ns = name::init(&meter);
         let (fetch_tx, fetch_rx) = unbounded();
 
-        http::spawn_listener(&ns, &listen_addr, &state)?;
+        http::spawn_listener(&ns, &listen_addr, &state,
+            &options.config_dir.join("frontend"))?;
         fetch::spawn_fetcher(&state, fetch_rx)?;
         cantal::spawn_fetcher(&state, udp_port)?;
         elect::spawn_election(&ns, &listen_addr, &state, fetch_tx)?;

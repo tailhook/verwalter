@@ -5,8 +5,6 @@ use std::path::Component::Normal;
 
 use tk_http::server::Head;
 
-use frontend::files::{self, File};
-
 
 #[derive(Clone, Debug)]
 pub enum ApiRoute {
@@ -50,7 +48,7 @@ pub enum Format {
 #[derive(Clone, Debug)]
 pub enum Route {
     Index,
-    Static(&'static File),
+    Static(String),
     Api(ApiRoute, Format),
     Log(LogRoute),
     NotFound,
@@ -206,13 +204,13 @@ pub fn route(head: &Head) -> Route {
     let route = match path_component(&path[..]) {
         ("", _) => Some(Index),
         ("v1", suffix) => parse_api(suffix, &head),
-        ("common", "css/main.css") => {
-            Some(Static(&files::MAIN_CSS))
+        ("common", path) => {
+            if !validate_path(path) {
+                // TODO(tailhook) implement 400
+                return Route::NotFound;
+            }
+            Some(Static(path.to_string()))
         },
-        ("common", "css/bootstrap.min.css") => {
-            Some(Static(&files::BOOTSTRAP_CSS))
-        },
-        ("common", "js/bundle.js") => Some(Static(&files::BUNDLE_JS)),
         (_, _) => Some(Index),
     };
     debug!("Routed {:?} to {:?}", path, route);

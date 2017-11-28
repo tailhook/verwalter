@@ -1,5 +1,7 @@
 use std::time::Duration;
 use std::process::exit;
+use std::path::Path;
+use std::sync::Arc;
 
 use abstract_ns::{self, Resolver};
 use futures::{Future, Stream};
@@ -17,11 +19,12 @@ use shared::SharedState;
 
 
 pub fn spawn_listener(ns: &abstract_ns::Router, addr: &str,
-    state: &SharedState)
+    state: &SharedState, static_dir: &Path)
     -> Result<(), Box<::std::error::Error>>
 {
     let str_addr = addr.to_string();
     let state = state.clone();
+    let static_dir = Arc::new(static_dir.to_path_buf());
     let hcfg = tk_http::server::Config::new()
         .inflight_request_limit(2)
         .inflight_request_prealoc(0)
@@ -44,12 +47,16 @@ pub fn spawn_listener(ns: &abstract_ns::Router, addr: &str,
                 });
             let hcfg = hcfg.clone();
             let state = state.clone();
+            let static_dir = static_dir.clone();
             spawn(listener.incoming()
                 .sleep_on_error(Duration::from_millis(100), &handle())
                 .map(move |(socket, saddr)| {
                     Proto::new(socket, &hcfg,
-                       frontend::Dispatcher(state.clone()),
-                       &handle())
+                        frontend::Dispatcher {
+                            state: state.clone(),
+                            dir: static_dir.clone(),
+                        },
+                        &handle())
                     .map_err(move |e| {
                         debug!("Http protocol error for {}: {}", saddr, e);
                     })
