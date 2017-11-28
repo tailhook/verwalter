@@ -1,112 +1,35 @@
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
-use rustc_serialize::json::Json;
-use rustc_serialize::{Encodable, Encoder};
-use time::SteadyTime;
+use serde_json::Value as Json;
+use serde::{Serialize, Serializer};
 
 use hash::hash;
-use shared::Id;
-use super::prefetch::PrefetchInfo;
+use id::Id;
 use time_util::ToMsec;
 use itertools::Itertools;
 
+pub type ScheduleId = String; // temporarily
 
-#[derive(Clone, Debug, RustcEncodable)]
+#[derive(Clone, Debug, Serialize)]
 pub struct Schedule {
     pub timestamp: u64,
-    pub hash: String,
+    pub hash: ScheduleId,
     pub data: Json,
     pub origin: Id,
     pub num_roles: usize,
 }
 
-#[derive(Clone, Debug, RustcEncodable)]
-pub enum FollowerState {
-    Waiting,
-    Fetching(String),
-    Stable(Arc<Schedule>),
-}
-
-#[derive(Debug)]
-pub enum LeaderState {
-    /// This is mutexed prefetch info to not to copy that large structure
-    ///
-    /// WARNING: this lock is a subject of Global Lock Ordering.
-    /// Which means: if you want to lock this one and shared::SharedState
-    /// you must lock SharedState first! And this one second!
-    Prefetching(SteadyTime, Mutex<PrefetchInfo>),
-
-    Calculating,
-    Stable(Arc<Schedule>),
-}
-
-
-#[derive(Debug, RustcEncodable)]
-pub enum State {
-    Unstable,
-    // Follower states
-    Following(Id, FollowerState),
-    Leading(LeaderState),
-}
-
-impl State {
-    pub fn describe(&self) -> &'static str {
-        use self::State::*;
-        use self::LeaderState as L;
-        use self::FollowerState as F;
-        match *self {
-            Unstable => "unstable",
-            Following(_, F::Waiting) => "follower:waiting",
-            Following(_, F::Fetching(..)) => "follower:fetching",
-            Following(_, F::Stable(..)) => "follower:stable",
-            Leading(L::Prefetching(..)) => "leader:prefetching",
-            Leading(L::Calculating) => "leader:calculating",
-            Leading(L::Stable(..)) => "leader:stable",
-        }
-    }
-}
-
-impl Encodable for LeaderState {
-     fn encode<E: Encoder>(&self, e: &mut E) -> Result<(), E::Error> {
-        use self::LeaderState::*;
-        e.emit_enum("LeaderState", |e| {
-            match *self {
-                Prefetching(time_started, ref x) => {
-                    e.emit_enum_variant("Prefetching", 0, 2, |e| {
-                        try!(e.emit_enum_variant_arg(0, |e| {
-                            time_started.to_msec().encode(e)
-                        }));
-                        try!(e.emit_enum_variant_arg(1, |e| {
-                            x.lock().expect("buildinfo lock").encode(e)
-                        }));
-                        Ok(())
-                    })
-                }
-                Calculating => {
-                    e.emit_enum_variant("Calculating", 1, 0, |_| {Ok(())})
-                }
-                Stable(ref x) => {
-                    e.emit_enum_variant("Stable", 2, 1, |e| {
-                        e.emit_enum_variant_arg(0, |e| {
-                            x.encode(e)
-                        })
-                    })
-                }
-            }
-        })
-     }
-}
-
 pub fn num_roles(json: &Json) -> usize {
     (
-        json.find("roles")
+        json.get("roles")
         .and_then(|x| x.as_object())
         .map(|x| x.keys())
     ).into_iter().chain(
-        json.find("nodes")
+        json.get("nodes")
         .and_then(|x| x.as_object())
         .map(|x| x.values().filter_map(|x|
-            x.find("roles")
+            x.get("roles")
              .and_then(|x| x.as_object())
              .map(|x| x.keys())))
         .into_iter().flat_map(|x| x)
@@ -122,7 +45,7 @@ pub fn from_json(json: Json) -> Result<Schedule, String> {
     };
     let hashvalue = j.remove("hash");
     let origin = j.remove("origin")
-        .and_then(|x| x.as_string().and_then(|x| x.parse().ok()));
+        .and_then(|x| x.as_str().and_then(|x| x.parse().ok()));
     let timestamp = j.remove("timestamp").and_then(|x| x.as_u64());
     let data = j.remove("data");
     match (hashvalue, timestamp, data, origin) {

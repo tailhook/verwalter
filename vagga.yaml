@@ -6,7 +6,7 @@ commands:
     description: Make default javascripts
     container:  js
     work-dir: frontend
-    run: [webpack]
+    run: [webpack, --progress]
 
   make-js-release: !Command
     description: Make default javascripts
@@ -14,11 +14,12 @@ commands:
     work-dir: frontend
     environ:
       NODE_ENV: production
-    run: [webpack]
+    run: [webpack, --progress]
 
   make: !Command
     description: Build binaries and frontend
     container: xenial
+    prerequisites: [make-js]
     run: [cargo, build]
 
   bulk: !Command
@@ -98,56 +99,50 @@ commands:
     prerequisites: [make]
     children:
       n1: !Command
-        container: xenial
+        container: util
         network: &n1
           ip: 172.23.0.1
           ports: {20001: 22682, 21001: 8379}
         run: |
-          RUST_LOG=warn cantal-agent \
-            --config-dir=/work/example-configs/cantal \
-            --host=0.0.0.0 --override-machine-id=beef01 &
-          RUST_LOG=debug ./target/debug/verwalter \
+          python3 util/fake-cantal.py \
+            --peers self:n1 n2 n3 \
+            --vagga-ips &
+          RUST_LOG=debug,mio=warn,tokio_core=warn ./target/debug/verwalter \
             --config-dir=example-configs/pyapp --storage-dir=tmp/storage \
             --log-id --log-dir=/tmp/logs \
             --dry-run \
-            --host=0.0.0.0 --override-machine-id=beef01
+            --host=0.0.0.0 \
+            --override-machine-id=77985419c732412ea38b94db00000001
       n2: !Command
-        container: xenial
+        container: util
         network: &n2
           ip: 172.23.0.2
           ports: {20002: 22682, 21002: 8379}
         run: |
-          RUST_LOG=warn cantal-agent \
-            --config-dir=/work/example-configs/cantal \
-            --host=0.0.0.0 --override-machine-id=beef02 &
-          RUST_LOG=debug ./target/debug/verwalter \
+          python3 util/fake-cantal.py \
+            --peers n1 self:n2 n3 \
+            --vagga-ips &
+          RUST_LOG=debug,mio=warn,tokio_core=warn ./target/debug/verwalter \
             --config-dir=example-configs/pyapp --storage-dir=tmp/storage \
             --log-id --log-dir=/tmp/logs \
             --dry-run \
-            --host=0.0.0.0 --override-machine-id=beef02
+            --host=0.0.0.0 \
+            --override-machine-id=77985419c732412ea38b94db00000002
       n3: !Command
-        container: xenial
+        container: util
         network: &n3
           ip: 172.23.0.3
           ports: {20003: 22682, 21003: 8379}
         run: |
-          RUST_LOG=warn cantal-agent \
-            --config-dir=/work/example-configs/cantal \
-            --host=0.0.0.0 --override-machine-id=beef03 &
-          RUST_LOG=debug ./target/debug/verwalter \
+          python3 util/fake-cantal.py \
+            --peers n1 n2 self:n3 \
+            --vagga-ips &
+          RUST_LOG=debug,mio=warn,tokio_core=warn ./target/debug/verwalter \
             --config-dir=example-configs/pyapp --storage-dir=tmp/storage \
             --log-id --log-dir=/tmp/logs \
             --dry-run \
-            --host=0.0.0.0 --override-machine-id=beef03
-      connector: !BridgeCommand
-        container: xenial
-        run: |
-          sleep 2
-          for i in $(seq 2 3); do
-            wget http://172.23.0.1:22682/add_host.json -nv -O- \
-              --method POST --body-data '{"addr": "172.23.0.'$i':22682"}'
-          done
-          sleep 100000
+            --host=0.0.0.0 \
+            --override-machine-id=77985419c732412ea38b94db00000003
 
   _package-trusty: !Command
     container: trusty
@@ -321,6 +316,7 @@ containers:
   util:
     setup:
     - !Ubuntu xenial  # we need to run verwalter in same container
+    - !Install [iptables]
     - !PipConfig { dependencies: true }
     - !Py3Requirements util/requirements.txt
 

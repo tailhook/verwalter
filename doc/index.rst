@@ -15,6 +15,7 @@ Contents:
    running/index
    scheduler/index
    deploy-tutorial
+   changelog
 
 
 

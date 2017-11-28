@@ -1,25 +1,29 @@
-use std::net::SocketAddr;
-use std::time::{SystemTime, Duration, UNIX_EPOCH};
-use std::sync::Mutex;
 use std::collections::HashMap;
+use std::net::SocketAddr;
+use std::process::exit;
+use std::sync::{Mutex, Arc};
+use std::time::{SystemTime, Instant, Duration};
 
-use time::{Timespec, get_time};
+use abstract_ns::{self, Resolver};
+use futures::{Async, Future};
+use futures::sync::mpsc::UnboundedSender;
+use tokio_core::net::UdpSocket;
+use tokio_core::reactor::Timeout;
 use libcantal::{Counter, Integer};
-use rotor::{Machine, EventSet, Scope, Response, PollOpt};
-use rotor::mio::udp::UdpSocket;
-use rotor::void::{unreachable, Void};
-use rotor_cantal::{Schedule as Cantal};
+use tk_easyloop::{handle, spawn, timeout_at};
 
-use time_util::ToMsec;
-use net::Context;
+use cell::Cell;
+use elect::action::Action;
+use elect::{Info};
+use elect::{encode};
+use elect::machine::{Epoch, Machine};
+use elect::settings::MAX_PACKET_SIZE;
+use elect::state::ElectionState;
+use fetch;
+use id::Id;
+use peer::Peer;
 use shared::{SharedState};
-use super::{machine, encode};
-use super::settings::MAX_PACKET_SIZE;
-use super::action::Action;
-use super::machine::Epoch;
-use super::state::ElectionState;
-use super::{Election, Info};
-use shared::{Peer, Id};
+use time_util::ToMsec;
 
 
 lazy_static! {
@@ -47,49 +51,34 @@ lazy_static! {
     static ref LOG_TRACKER: Mutex<LogTracker> = Mutex::new(LogTracker::Nothing);
 }
 
-impl Election {
-    pub fn new(id: Id, hostname: String, name: String, addr: &SocketAddr,
-        debug_force_leader: bool,
-        state: SharedState, cantal: Cantal, scope: &mut Scope<Context>)
-        -> Response<Election, Void>
-    {
-        let mach = machine::Machine::new(scope.now());
-        let dline = mach.current_deadline();
-        let sock = match UdpSocket::bound(addr) {
-            Ok(x) => x,
-            Err(e) => return Response::error(Box::new(e)),
-        };
-        scope.register(&sock, EventSet::readable() | EventSet::writable(),
-            PollOpt::edge()).expect("register socket");
-        Response::ok(Election {
-            id: id,
-            addr: addr.clone(),
-            hostname: hostname,
-            name: name,
-            state: state,
-            last_schedule_sent: String::new(),
-            cantal: cantal,
-            machine: mach,
-            socket: sock,
-            debug_force_leader: debug_force_leader,
-        }).deadline(dline)
+fn sockets_send(sockets: &[UdpSocket], msg: &[u8], addr: &SocketAddr)
+    -> Result<(), ()>
+{
+    let mut errors = Vec::new();
+    for sock in sockets {
+        match sock.send_to(msg, addr) {
+            Ok(_) => return Ok(()),
+            Err(e) => errors.push(e),
+        }
     }
+    error!("Error sending UDP message: {}",
+        errors.iter().map(|e| e.to_string()).collect::<Vec<_>>().join("; "));
+    return Err(())
 }
 
-fn send_all(msg: &[u8], info: &Info, socket: &UdpSocket) {
+fn send_all(msg: &[u8], info: &Info, sockets: &[UdpSocket]) {
     for (id, peer) in info.all_hosts {
         if id == info.id {
             // Don't send anything to myself
             continue;
         }
+        let peer = peer.get();
         if let Some(ref addr) = peer.addr {
             debug!("Sending Ping to {} ({})", addr, id);
-            socket.send_to(&msg, addr)
-            .map(|_| BROADCASTS_SENT.incr(1))
-            .map_err(|e| {
-                BROADCASTS_ERRORED.incr(1);
-                info!("Error sending message to {}: {}", addr, e);
-            }).ok();
+            sockets_send(sockets, &msg, addr)
+                .map(|()| BROADCASTS_SENT.incr(1))
+                .map_err(|()| BROADCASTS_ERRORED.incr(1))
+                .ok();
         } else {
             debug!("Can't send to {:?}, no address", id);
         }
@@ -97,7 +86,7 @@ fn send_all(msg: &[u8], info: &Info, socket: &UdpSocket) {
 }
 
 fn execute_action(action: Action, info: &Info, epoch: Epoch,
-    socket: &UdpSocket, state: &SharedState, last_sent_hash: &mut String)
+    sockets: &[UdpSocket], state: &SharedState, last_sent_hash: &mut String)
 {
     use super::action::Action::*;
     let now = SystemTime::now();
@@ -119,7 +108,7 @@ fn execute_action(action: Action, info: &Info, epoch: Epoch,
                 }
             };
             let msg = encode::ping(&info.id, epoch, &opt_schedule);
-            send_all(&msg, info, socket);
+            send_all(&msg, info, sockets);
             LAST_PING_ALL.set(now.to_msec() as i64);
             *last_sent_hash = opt_schedule.as_ref().map(|x| &x.hash[..])
                 .unwrap_or("").to_string();
@@ -127,18 +116,16 @@ fn execute_action(action: Action, info: &Info, epoch: Epoch,
         Vote(id) => {
             info!("[{}] Vote for {}", epoch, id);
             let msg = encode::vote(&info.id, epoch, &id, &state.schedule());
-            send_all(&msg, info, socket);
+            send_all(&msg, info, sockets);
             LAST_VOTE.set(now.to_msec() as i64);
         }
         ConfirmVote(id) => {
             info!("[{}] Confirm vote {}", epoch, id);
             let msg = encode::vote(&info.id, epoch, &id, &state.schedule());
-            let dest = info.all_hosts.get(&id).and_then(|x| x.addr);
+            let dest = info.all_hosts.get(&id).and_then(|p| p.get().addr);
             if let Some(ref addr) = dest {
                 debug!("Sending (confirm) vote to {} ({:?})", addr, id);
-                socket.send_to(&msg, addr)
-                .map_err(|e| info!("Error sending message to {}: {}",
-                    addr, e)).ok();
+                sockets_send(sockets, &msg, addr).ok();
                 LAST_CONFIRM_VOTE.set(now.to_msec() as i64);
             } else {
                 debug!("Error confirming vote to {:?}, no address", id);
@@ -157,15 +144,13 @@ fn execute_action(action: Action, info: &Info, epoch: Epoch,
                 }
             }
             let msg = encode::pong(&info.id, epoch, &state.schedule());
-            let dest = info.all_hosts.get(&id).and_then(|x| x.addr);
+            let dest = info.all_hosts.get(&id).and_then(|p| p.get().addr);
             if let Some(ref addr) = dest {
                 debug!("Sending pong to {} ({:?})", addr, id);
-                socket.send_to(&msg, addr)
-                .map(|_| PONGS_SENT.incr(1))
-                .map_err(|e| {
-                    PONGS_ERRORED.incr(1);
-                    info!("Error sending message to {}: {}", addr, e);
-                }).ok();
+                sockets_send(sockets, &msg, addr)
+                    .map(|()| PONGS_SENT.incr(1))
+                    .map_err(|()| PONGS_ERRORED.incr(1))
+                    .ok();
                 LAST_PONG.set(now.to_msec() as i64);
             } else {
                 debug!("Error sending pong to {:?}, no address", id);
@@ -174,150 +159,155 @@ fn execute_action(action: Action, info: &Info, epoch: Epoch,
     }
 }
 
-impl Machine for Election {
-    type Context = Context;
-    type Seed = Void;
-    fn create(seed: Self::Seed, _scope: &mut Scope<Context>)
-        -> Response<Self, Void>
-    {
-        unreachable(seed)
+struct ElectionMachine {
+    sockets: Vec<UdpSocket>,
+    shared: SharedState,
+    machine: Option<Machine>,
+    last_schedule_sent: String,
+    timer: Timeout,
+    fetcher: UnboundedSender<fetch::Message>,
+}
+
+impl Future for ElectionMachine {
+    type Item = ();
+    type Error = ();
+    fn poll(&mut self) -> Result<Async<()>, ()> {
+        self.poll_forever();
+        Ok(Async::NotReady)
     }
-    fn ready(mut self, events: EventSet, scope: &mut Scope<Context>)
-        -> Response<Self, Self::Seed>
+}
+
+impl ElectionMachine {
+    fn poll_forever(&mut self) {
+        use elect::machine::Machine::*;
+
+        let peers = self.shared.peers();
+        let ref info = Info {
+            id: &self.shared.id.clone(),
+            hosts_timestamp: Some(peers.timestamp),
+            all_hosts: &peers.peers,
+            debug_force_leader: self.shared.debug_force_leader(),
+        };
+        let (dline, mut me) = match self.machine.take() {
+            Some(me) => (me.current_deadline(), me),
+            // Create machine and ensure that timer is called if called for
+            // the first time
+            None => (Instant::now() - Duration::new(1, 0), Machine::new(Instant::now())),
+        };
+        loop {
+            // Input messages
+            me = self.process_input_messages(me, info);
+
+            // Timeouts
+            let (m, act) = me.time_passed(info, Instant::now());
+            me = m;
+            act.action.map(|x| execute_action(x, &info,
+                me.current_epoch(), &self.sockets,
+                &self.shared, &mut self.last_schedule_sent));
+
+            let new_dline = me.current_deadline();
+            if new_dline == dline {
+                break;
+            } else {
+                self.timer = timeout_at(new_dline);
+                match self.timer.poll() {
+                    Ok(Async::NotReady) => break,
+                    Ok(Async::Ready(())) => continue,
+                    Err(_) => unreachable!(),
+                }
+            }
+        }
+        self.shared.update_election(ElectionState::from(&me));
+        // TODO(tailhook) send on change only
+        match me {
+            Leader { .. } => {
+                self.fetcher.unbounded_send(fetch::Message::Leader)
+            }
+            Follower { ref leader, .. } => {
+                self.fetcher.unbounded_send(
+                    fetch::Message::Follower(leader.clone()))
+            }
+            Voted { .. } | Starting { .. } | Electing { .. } => {
+                self.fetcher.unbounded_send(fetch::Message::Election)
+            }
+        }.expect("fetcher always work");
+        self.machine = Some(me);
+    }
+    fn process_input_messages(&mut self, mut me: Machine, info: &Info)
+        -> Machine
     {
-        let mut me = self.machine;
-        {
-            let peers_opt = self.state.peers();
-            let empty_map = HashMap::new();
-            let peers = peers_opt.as_ref().map(|x| &x.1).unwrap_or(&empty_map);
-            let ref info = Info {
-                id: &self.id,
-                hosts_timestamp: peers_opt.as_ref().map(|x| x.0),
-                all_hosts: &peers,
-                debug_force_leader: self.debug_force_leader,
-            };
-            let ref socket = self.socket;
-            let ref state = self.state;
-            let ref mut hash = self.last_schedule_sent;
-            if events.is_readable() {
-                let mut buf = [0u8; MAX_PACKET_SIZE];
-                while let Ok(Some((n, _))) = self.socket.recv_from(&mut buf) {
-                    // TODO(tailhook) check address?
-                    match encode::read_packet(&buf[..n]) {
-                        Ok(msg) => {
-                            if &msg.source == info.id {
-                                info!("Message from myself {:?}", msg);
-                                continue;
+        let mut buf = [0u8; MAX_PACKET_SIZE];
+
+        let ref shared = self.shared;
+        let ref sockets = self.sockets;
+        let ref mut hash = self.last_schedule_sent;
+        for socket in &self.sockets {
+            while let Ok((n, _)) = socket.recv_from(&mut buf) {
+                // TODO(tailhook) check address?
+                match encode::read_packet(&buf[..n]) {
+                    Ok(msg) => {
+                        if &msg.source == info.id {
+                            info!("Message from myself {:?}", msg);
+                            continue;
+                        }
+                        let src = msg.source;
+                        let (m, act) = me.message(info,
+                            (src.clone(), msg.epoch, msg.message),
+                            Instant::now());
+                        me = m;
+                        act.action.map(|x| execute_action(x, &info,
+                            me.current_epoch(), &sockets,
+                            shared, hash));
+                        if let Some(peer) = shared.peers().peers.get(&src) {
+                            if peer.get().schedule != msg.schedule {
+                                if let Some(ref stamp) = msg.schedule {
+                                    self.fetcher.unbounded_send(
+                                        fetch::Message::PeerSchedule(
+                                            src.clone(), stamp.clone(),
+                                        )).expect("fetcher always work");
+                                }
+                                peer.set(Arc::new(Peer {
+                                    schedule: msg.schedule,
+                                    .. (*peer.get()).clone()
+                                }));
                             }
-                            let src = msg.source;
-                            let (m, act) = me.message(info,
-                                (src.clone(), msg.epoch, msg.message),
-                                scope.now());
-                            me = m;
-                            act.action.map(|x| execute_action(x, &info,
-                                me.current_epoch(), &socket, state, hash));
-                            state.update_election(
-                                ElectionState::from(&me, scope),
-                                msg.schedule.map(|x| (src, x)));
                         }
-                        Err(e) => {
-                            info!("Error parsing packet {:?}", e);
-                        }
+                    }
+                    Err(e) => {
+                        info!("Error parsing packet {:?}", e);
                     }
                 }
             }
         }
-        let dline = me.current_deadline();
-        Response::ok(Election { machine: me, ..self }).deadline(dline)
-    }
-    fn spawned(self, _scope: &mut Scope<Context>) -> Response<Self, Self::Seed>
-    {
-        unreachable!();
-    }
-    fn timeout(mut self, scope: &mut Scope<Context>)
-        -> Response<Self, Self::Seed>
-    {
-        let (me, wakeup) = {
-            let peers_opt = self.state.peers();
-            let empty_map = HashMap::new();
-            let peers = peers_opt.as_ref().map(|x| &x.1).unwrap_or(&empty_map);
-            let ref info = Info {
-                id: &self.id,
-                hosts_timestamp: peers_opt.as_ref().map(|x| x.0),
-                all_hosts: &peers,
-                debug_force_leader: self.debug_force_leader,
-            };
-            let ref socket = self.socket;
-            let ref state = self.state;
-            let ref mut hash = self.last_schedule_sent;
-            let (me, alst) = self.machine.time_passed(info, scope.now());
-            debug!("Current state {:?} at {:?} -> {:?}",
-                me, scope.now(), alst);
-            alst.action.map(|x| execute_action(x, &info,
-                    me.current_epoch(), &socket, state, hash));
-            (me, alst.next_wakeup)
-        };
-        let elect = ElectionState::from(&me, scope);
-        scope.state.update_election(elect, None);
-        Response::ok(Election { machine: me, ..self})
-        .deadline(wakeup)
-    }
-    fn wakeup(self, scope: &mut Scope<Context>)
-        -> Response<Self, Self::Seed>
-    {
-        let oldp = self.state.peers();
-        let oldpr = oldp.as_ref();
-        // TODO(tailhook) optimize peer copy when unneeded
-        let (recv, new_hosts) = if let Some(peers) = self.cantal.get_peers()
-        {
-            let mut map = peers.peers.iter()
-                .filter_map(|p| {
-                    p.id.parse()
-                    .map_err(|e| error!("Error parsing node id {:?}: {}",
-                                        p.id, e)).ok()
-                    .map(|x| (x, p))
-                })
-                // Cantal has a bug (or a feature) of adding itself to peers
-                .filter(|&(ref id, _)| id != &self.id)
-                .map(|(id, p)| (id, Peer {
-                    addr: p.primary_addr.as_ref()
-                        .and_then(|x| x.parse().ok())
-                        // TODO(tailhook) allow to override port
-                        .map(|x: SocketAddr| SocketAddr::new(x.ip(), 8379)),
-                    last_report: p.last_report_direct.map(|x| {
-                        Timespec { sec: (x/1000) as i64,
-                                   nsec: ((x % 1000)*1_000_000) as i32 }
-                    }),
-                    hostname: p.hostname.clone(),
-                    name: p.name.clone(),
-                })).collect::<HashMap<_, _>>();
-            // We skip host there and add it here, to make sure
-            // we have correct host info in the list
-            map.insert(self.id.clone(), Peer {
-                addr: Some(self.addr),
-                last_report: Some(get_time()),
-                hostname: self.hostname.clone(),
-                name: self.name.clone(),
-            }).map(|_| unreachable!());
-            if oldpr.map(|x| x.1.len() != map.len()).unwrap_or(true) {
-                info!("Peer number changed {} -> {}",
-                    oldpr.map(|x| x.1.len()).unwrap_or(0), map.len());
-            }
-            (peers.received, map)
-        } else {
-            // Note we just return here, because the (owned) schedule can't be
-            // changed while there is no peers yet
-            let dline = self.machine.current_deadline();
-            return Response::ok(self).deadline(dline);
-        };
-        self.state.set_peers(to_system_time(scope.estimate_timespec(recv)),
-                             new_hosts);
-
-        let dline = self.machine.current_deadline();
-        Response::ok(self).deadline(dline)
+        return me;
     }
 }
 
-fn to_system_time(time: Timespec) -> SystemTime {
-    UNIX_EPOCH + Duration::new(time.sec as u64, time.nsec as u32)
+pub fn spawn_election(ns: &abstract_ns::Router, addr: &str,
+    state: &SharedState, fetcher_tx: UnboundedSender<fetch::Message>)
+    -> Result<(), Box<::std::error::Error>>
+{
+    let str_addr = addr.to_string();
+    let state = state.clone();
+    spawn(ns.resolve(addr).map(move |address| {
+        let socks = address.at(0).addresses().map(|a| {
+                UdpSocket::bind(&a, &handle())
+                .map_err(move |e| {
+                    error!("Can't bind address {}: {}", a, e);
+                    exit(3);
+                }).unwrap()
+            }).collect();
+        spawn(ElectionMachine {
+            machine: None,
+            sockets: socks,
+            shared: state,
+            last_schedule_sent: String::new(),
+            timer: timeout_at(Instant::now()),
+            fetcher: fetcher_tx,
+        });
+    }).map_err(move |e| {
+        error!("Can't bind address {}: {}", str_addr, e);
+        exit(3);
+    }));
+    Ok(())
 }

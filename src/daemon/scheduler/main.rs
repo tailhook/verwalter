@@ -1,27 +1,30 @@
-use std::path::{PathBuf, Path};
-use std::time::{Duration, SystemTime, Instant};
-use std::thread::sleep;
-use std::process::exit;
 use std::collections::{HashMap, BTreeMap};
+use std::path::{PathBuf, Path};
+use std::process::exit;
+use std::sync::Arc;
+use std::thread::sleep;
+use std::time::{Duration, SystemTime, Instant};
 
-
+use serde;
+use serde_json::{Value as Json};
 use inotify::INotify;
 use inotify::ffi::{IN_MODIFY, IN_ATTRIB, IN_CLOSE_WRITE, IN_MOVED_FROM};
 use inotify::ffi::{IN_MOVED_TO, IN_CREATE, IN_DELETE, IN_DELETE_SELF};
 use inotify::ffi::{IN_MOVE_SELF};
 use scan_dir::ScanDir;
 use lua::GcOption;
-use rotor_cantal::{Dataset, Key, Value, Chunk};
 use libcantal::{Counter, Integer};
+use frontend::serialize::{serialize_opt_timestamp, serialize_timestamp};
 
 use config;
-use time_util::ToMsec;
 use hash::hash;
-use watchdog::{Alarm, ExitOnReturn};
-use shared::{Id, SharedState};
+use id::Id;
+use peer::Peer;
 use scheduler::Schedule;
 use scheduler::state::num_roles;
-use rustc_serialize::json::{Json, ToJson};
+use shared::{SharedState};
+use time_util::ToMsec;
+use watchdog;
 
 
 lazy_static! {
@@ -30,6 +33,29 @@ lazy_static! {
     pub static ref SCHEDULER_FAILED: Counter = Counter::new();
 }
 
+#[derive(Debug)]
+pub struct Parent(Arc<Schedule>);
+
+#[derive(Serialize, Debug)]
+pub struct SchedulerInput {
+    #[serde(serialize_with="serialize_timestamp")]
+    now: SystemTime,
+    current_host: String,
+    current_id: Id,
+    parents: Vec<Parent>,
+    actions: BTreeMap<u64, Arc<Json>>,
+    runtime: Arc<Json>,
+    peers: HashMap<Id, Arc<Peer>>,
+    metrics: HashMap<(), ()>,  // TODO(tailhook)
+}
+
+impl serde::Serialize for Parent {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where S: serde::Serializer
+    {
+        self.0.data.serialize(serializer)
+    }
+}
 
 pub struct Settings {
     pub id: Id,
@@ -62,111 +88,12 @@ fn watch_dir(notify: &mut INotify, path: &Path) {
     }).ok();
 }
 
-fn convert_key(key: &Key) -> Json {
-    use rotor_cantal::KeyVisitor::{Key, Value};
-    let mut map = BTreeMap::new();
-    let mut item = None;
-    key.visit(|x| {
-        match x {
-            Key(k) => item = Some(k.to_string()),
-            Value(v) => {
-                map.insert(item.take().unwrap(), Json::String(v.into()));
-            }
-        }
-    });
-    return Json::Object(map);
-}
-
-fn convert_metrics(metrics: &HashMap<String, Dataset>) -> Json {
-    Json::Object(
-        metrics.iter()
-        .map(|(name, metric)| (name.to_string(), convert_metric(metric)))
-        .collect()
-    )
-}
-
-fn convert_chunk(value: &Chunk) -> Json {
-    use rotor_cantal::Chunk::*;
-    match *value {
-        Counter(ref vals) => vals.to_json(),
-        Integer(ref vals) => vals.to_json(),
-        Float(ref vals) => vals.to_json(),
-        State(_) => unimplemented!(),
-    }
-}
-
-fn convert_value(value: &Value) -> Json {
-    use rotor_cantal::Value::*;
-    match *value {
-        Counter(x) => Json::U64(x),
-        Integer(x) => Json::I64(x),
-        Float(x) => Json::F64(x),
-        State(_) => unimplemented!(),
-    }
-}
-
-fn convert_metric(metric: &Dataset) -> Json {
-    use rotor_cantal::Dataset::*;
-    match *metric {
-        SingleSeries(ref key, ref chunk, ref stamps) => {
-            Json::Object(vec![
-                ("type".into(), Json::String("single_series".into())),
-                ("key".into(), convert_key(key)),
-                ("values".into(), convert_chunk(chunk)),
-                ("timestamps".into(), stamps.to_json()),
-            ].into_iter().collect())
-        },
-        MultiSeries(ref items) => {
-            Json::Object(vec![
-                ("type".into(), Json::String("multi_series".into())),
-                ("items".into(), Json::Array(items.iter()
-                    .map(|&(ref key, ref chunk, ref stamps)| Json::Object(vec![
-                        ("key".into(), convert_key(key)),
-                        ("values".into(), convert_chunk(chunk)),
-                        ("timestamps".into(), stamps.to_json()),
-                        ].into_iter().collect()))
-                    .collect())),
-            ].into_iter().collect())
-        },
-        SingleTip(ref key, ref value, ref slc) => {
-            Json::Object(vec![
-                ("type".into(), Json::String("single_tip".into())),
-                ("key".into(), convert_key(key)),
-                ("value".into(), convert_value(value)),
-                ("old_timestamp".into(), slc.0.to_json()),
-                ("new_timestamp".into(), slc.1.to_json()),
-            ].into_iter().collect())
-        },
-        MultiTip(ref items) => {
-            Json::Object(vec![
-                ("type".into(), Json::String("multi_tip".into())),
-                ("items".into(), Json::Array(items.iter()
-                    .map(|&(ref key, ref value, ref timestamp)|
-                        Json::Object(vec![
-                            ("key".into(), convert_key(key)),
-                            ("value".into(), convert_value(value)),
-                            ("timestamp".into(), timestamp.to_json()),
-                            ].into_iter().collect()))
-                    .collect())),
-            ].into_iter().collect())
-        }
-        Chart(_) => unimplemented!(),
-        Empty => Json::Null,
-        Incompatible(_) => {
-            Json::Object(vec![
-                ("type".into(), Json::String("error".into())),
-                ("error".into(), Json::String("incompatible".into())),
-            ].into_iter().collect())
-        }
-    }
-}
-
-pub fn main(state: SharedState, settings: Settings, mut alarm: Alarm) -> !
+pub fn main(state: SharedState, settings: Settings) -> !
 {
     let mut inotify = INotify::init().expect("create inotify");
-    let _guard = ExitOnReturn(92);
+    let _guard = watchdog::ExitOnReturn(92);
     let mut scheduler = {
-        let _alarm = alarm.after(Duration::from_secs(10));
+        let _alarm = watchdog::Alarm::new(Duration::new(10, 0));
         watch_dir(&mut inotify, &settings.config_dir.join("scheduler"));
         match super::read(settings.id.clone(),
                           settings.hostname.clone(),
@@ -180,12 +107,17 @@ pub fn main(state: SharedState, settings: Settings, mut alarm: Alarm) -> !
         }
     };
     let mut runtime = {
-        let _alarm = alarm.after(Duration::from_secs(2));
+        let _alarm = watchdog::Alarm::new(Duration::new(2, 0));
         watch_dir(&mut inotify, &settings.config_dir.join("runtime"));
         config::read_runtime(&settings.config_dir.join("runtime"))
     };
     loop {
-        let mut cookie = state.wait_schedule_update(Duration::from_secs(5));
+        sleep(Duration::new(5, 0));
+        let mut cookie = if let Some(cookie) = state.leader_cookie() {
+            cookie
+        } else {
+            continue;
+        };
 
         while state.refresh_cookie(&mut cookie) {
 
@@ -198,7 +130,7 @@ pub fn main(state: SharedState, settings: Settings, mut alarm: Alarm) -> !
             if events > 0 {
                 debug!("Inotify events, waiting to become stable");
                 {
-                    let _alarm = alarm.after(Duration::from_secs(10));
+                    let _alarm = watchdog::Alarm::new(Duration::new(10, 0));
                     while events > 0 {
                         // Since we rescan every file anyway, it's negligible
                         // to just rescan the whole directory tree for inotify
@@ -219,7 +151,7 @@ pub fn main(state: SharedState, settings: Settings, mut alarm: Alarm) -> !
 
                 debug!("Directories stable. Reading configs");
                 {
-                    let _alarm = alarm.after(Duration::from_secs(10));
+                    let _alarm = watchdog::Alarm::new(Duration::new(10, 0));
                     match super::read(settings.id.clone(),
                                       settings.hostname.clone(),
                                       &settings.config_dir)
@@ -236,48 +168,42 @@ pub fn main(state: SharedState, settings: Settings, mut alarm: Alarm) -> !
                     }
                 }
                 {
-                    let _alarm = alarm.after(Duration::from_secs(2));
+                    let _alarm = watchdog::Alarm::new(Duration::new(2, 0));
                     runtime = config::read_runtime(
                         &settings.config_dir.join("runtime"))
                 }
             }
 
-            let peers = state.peers().expect("peers are ready for scheduler");
+            let peers = state.peers();
             // TODO(tailhook) check if peers are outdated
 
             let timestamp = SystemTime::now();
             let instant = Instant::now();
-            let _alarm = alarm.after(Duration::from_secs(1));
+            let _alarm = watchdog::Alarm::new(Duration::new(1, 0));
 
-            let input = Json::Object(vec![
-                ("now".to_string(), timestamp.to_msec().to_json()),
-                ("current_host".to_string(), scheduler.hostname.to_json()),
-                ("current_id".to_string(), scheduler.id.to_string().to_json()),
-                ("parents".to_string(), Json::Array(
-                    cookie.parent_schedules.iter()
-                        .map(|s| s.data.clone()).collect()
-                    )),
-                ("actions".to_string(), Json::Object(
-                    cookie.actions.iter()
-                        .map(|(id, value)| (id.to_string(), value.to_json()))
-                        .collect()
-                    )),
-                ("runtime".to_string(), runtime.data.to_json()),
+            let input = SchedulerInput {
+                now: timestamp,
+                current_host: scheduler.hostname.clone(),
+                current_id: scheduler.id.clone(),
+                parents: cookie.parent_schedules.iter()
+                  .map(|x| Parent(x.clone())).collect(),
+                actions: cookie.actions.clone(),
+                runtime: runtime.data.clone(),
                 // TODO(tailhook) show runtime errors
                 //("runtime_err".to_string(), runtime.errors.to_json()),
-                ("peers".to_string(), Json::Object(
-                    peers.1.iter()
-                        .map(|(id, peer)| (id.to_string(), peer.to_json()))
-                        .collect())),
-                ("metrics".to_string(),
+                peers: peers.peers.iter()
+                    .map(|(id, p)| (id.clone(), p.get()))
+                    .collect(),
+                metrics: HashMap::new(),
+                /* TODO(tailhook)
                     state.metrics()
                     .map(|x| Json::Object(x.items.iter()
                         .map(|(host, data)| (host.to_string(),
                             convert_metrics(data)))
                         .collect()))
                     .unwrap_or(Json::Null)),
-            ].into_iter().collect());
-
+                */
+            };
 
             let (result, dbg) = scheduler.execute(&input);
             SCHEDULING_TIME.set((Instant::now() - instant).to_msec() as i64);

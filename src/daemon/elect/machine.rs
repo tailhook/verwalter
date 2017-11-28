@@ -1,13 +1,12 @@
 use std::collections::HashSet;
 use std::cmp::{Ord, Ordering};
 use std::cmp::Ordering::{Less as Older, Equal as Current, Greater as Newer};
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, Instant, SystemTime};
 
-use rotor::Time;
 use libcantal::{Counter, Integer};
 
 use time_util::ToMsec;
-use shared::Id;
+use id::Id;
 use super::{Info, Message};
 use super::settings::{start_timeout, election_ivl, HEARTBEAT_INTERVAL};
 use super::action::{Action, ActionList};
@@ -64,11 +63,11 @@ lazy_static! {
 
 #[derive(Clone, Debug)]
 pub enum Machine {
-    Starting { leader_deadline: Time },
-    Electing { epoch: Epoch, votes_for_me: HashSet<Id>, deadline: Time },
-    Voted { epoch: Epoch, peer: Id, election_deadline: Time },
-    Leader { epoch: Epoch, next_ping_time: Time },
-    Follower { leader: Id, epoch: Epoch, leader_deadline: Time },
+    Starting { leader_deadline: Instant },
+    Electing { epoch: Epoch, votes_for_me: HashSet<Id>, deadline: Instant },
+    Voted { epoch: Epoch, peer: Id, election_deadline: Instant },
+    Leader { epoch: Epoch, next_ping_time: Instant },
+    Follower { leader: Id, epoch: Epoch, leader_deadline: Instant },
 }
 
 fn report(cnt: &Counter, time: &Integer) {
@@ -77,7 +76,7 @@ fn report(cnt: &Counter, time: &Integer) {
 }
 
 impl Machine {
-    pub fn new(now: Time) -> Machine {
+    pub fn new(now: Instant) -> Machine {
         Machine::Starting {
             leader_deadline: now + start_timeout(),
         }
@@ -101,7 +100,7 @@ impl Machine {
         let my_epoch = self.current_epoch();
         epoch.cmp(&my_epoch)
     }
-    pub fn current_deadline(&self) -> Time {
+    pub fn current_deadline(&self) -> Instant {
         use self::Machine::*;
         match *self {
             Starting { leader_deadline } => leader_deadline,
@@ -112,13 +111,13 @@ impl Machine {
         }
     }
 
-    pub fn time_passed(self, info: &Info, now: Time)
+    pub fn time_passed(self, info: &Info, now: Instant)
         -> (Machine, ActionList)
     {
         use self::Machine::*;
 
         debug!("[{}] time {:?} passed (me: {:?})",
-            self.current_epoch(), self.current_deadline(), self);
+            self.current_epoch(), now, self);
         // In case of spurious time events
         if self.current_deadline() > now {
             return pass(self)
@@ -127,6 +126,8 @@ impl Machine {
         // We can't do much useful work if our peers info is outdated
         if !info.hosts_are_fresh() {
             // TODO(tailhook) We have to give up our leadership though
+            debug!("Hosts aren't fresh {:?}. Waiting...",
+                SystemTime::now().duration_since(info.hosts_timestamp.unwrap()));
             report(&BAD_HOSTS_NO, &BAD_HOSTS_TM);
             return pass(self)
         }
@@ -184,7 +185,7 @@ impl Machine {
         };
         return (machine, action)
     }
-    pub fn message(self, info: &Info, msg: (Id, Epoch, Message), now: Time)
+    pub fn message(self, info: &Info, msg: (Id, Epoch, Message), now: Instant)
         -> (Machine, ActionList)
     {
         use self::Machine::*;
@@ -280,7 +281,7 @@ impl Machine {
     }
 }
 
-fn follow(leader: Id, epoch: Epoch, now: Time)
+fn follow(leader: Id, epoch: Epoch, now: Instant)
     -> (Machine, ActionList)
 {
     let dline = now + election_ivl();
@@ -303,13 +304,13 @@ fn minimum_votes(total_peers: usize) -> usize {
     }
 }
 
-fn become_leader(epoch: Epoch, now: Time) -> (Machine, ActionList) {
+fn become_leader(epoch: Epoch, now: Instant) -> (Machine, ActionList) {
     let next_ping = now + Duration::from_millis(HEARTBEAT_INTERVAL);
     (Machine::Leader { epoch: epoch, next_ping_time: next_ping },
      Action::PingAll.and_wait(next_ping))
 }
 
-fn start_election(epoch: Epoch, now: Time, first_vote: &Id)
+fn start_election(epoch: Epoch, now: Instant, first_vote: &Id)
     -> (Machine, ActionList)
 {
     report(&START_ELECTION_NO, &START_ELECTION_TM);

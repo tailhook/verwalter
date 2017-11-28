@@ -1,32 +1,50 @@
+#![allow(unused_imports)]  // temporary
+extern crate abstract_ns;
 extern crate argparse;
-extern crate handlebars;
+extern crate async_slot;
+extern crate cbor;
+extern crate crossbeam;
 extern crate env_logger;
+extern crate failure;
+extern crate futures;
+extern crate futures_cpupool;
+extern crate gron;
+extern crate handlebars;
+extern crate http_file_headers;
+extern crate inotify;
+extern crate itertools;
+extern crate libc;
+extern crate libcantal;
+extern crate nix;
+extern crate ns_std_threaded;
 extern crate quire;
+extern crate rand;
+extern crate regex;
 extern crate rustc_serialize;
+extern crate scan_dir;
+extern crate self_meter_http;
+extern crate serde;
+extern crate serde_json;
+extern crate sha1;
 extern crate tempfile;
 extern crate time;
-extern crate rand;
-extern crate libc;
-extern crate gron;
-#[macro_use] extern crate lua;
-extern crate nix;
-extern crate scan_dir;
+extern crate tk_cantal;
+extern crate tk_easyloop;
+extern crate tk_http;
+extern crate tk_listen;
+extern crate tokio_core;
+extern crate tokio_io;
+extern crate valuable_futures;
+extern crate void;
 extern crate yaml_rust;
-extern crate cbor;
-extern crate regex;
-extern crate sha1;
-extern crate inotify;
-extern crate libcantal;
-extern crate itertools;
-extern crate self_meter;
+
+#[macro_use] extern crate failure_derive;
 #[macro_use] extern crate lazy_static;
-#[macro_use] extern crate rotor;
-extern crate rotor_http;
-extern crate rotor_tools;
-extern crate rotor_cantal;
 #[macro_use] extern crate log;
+#[macro_use] extern crate lua;
 #[macro_use] extern crate matches;
 #[macro_use] extern crate quick_error;
+#[macro_use] extern crate serde_derive;
 
 extern crate indexed_log;
 extern crate verwalter_config as config;
@@ -40,27 +58,41 @@ use std::process::exit;
 use std::sync::mpsc::{channel, sync_channel};
 use std::thread;
 
+use abstract_ns::Resolver;
+use futures::Future;
+use futures::sync::mpsc::unbounded;
 use time::now_utc;
+use tk_easyloop::{run_forever, spawn, handle};
+use tk_listen::ListenExt;
 
-use shared::{Id, SharedState};
+use shared::SharedState;
 use config::Sandbox;
+use id::Id;
 
-mod fs_util;
-mod scheduler;
+mod apply;
+mod cantal;
+mod cell;
 mod elect;
 mod frontend;
-mod net;
+mod fs_util;
+mod hash;
+mod http;
+mod id;
 mod info;
+mod name;
+mod peer;
+mod routing_util;
+mod scheduler;
 mod shared;
 mod time_util;
 mod watchdog;
 mod fetch;
-mod hash;
-mod apply;
+mod failures;
 
 use argparse::{ArgumentParser, Parse, ParseOption, StoreOption, StoreTrue};
 use argparse::{Print};
 
+#[derive(Clone)]
 pub struct Options {
     config_dir: PathBuf,
     storage_dir: PathBuf,
@@ -201,14 +233,9 @@ fn main() {
     };
 
     init_logging(&id, options.log_id);
-    let meter = Arc::new(Mutex::new(
-        self_meter::Meter::new(Duration::new(1, 0))
-        .expect("meter created")));
-    meter.lock().unwrap().track_current_thread("main");
 
-    let addr = (&options.listen_host[..], options.listen_port)
-        .to_socket_addrs().expect("Can't resolve hostname")
-        .collect::<Vec<_>>()[0];
+    let meter = self_meter_http::Meter::new();
+    meter.track_current_thread_by_name();
 
     let schedule_file = options.storage_dir.join("schedule/schedule.json");
     debug!("Loading old schedule from {:?}", schedule_file);
@@ -230,61 +257,66 @@ fn main() {
         }
     };
 
-    let hostname = options.hostname
+    let hostname = options.hostname.clone()
                    .unwrap_or_else(|| info::hostname().expect("gethostname"));
     // TODO(tailhook) resolve FQDN
-    let name = options.name.unwrap_or_else(|| hostname.clone());
+    let name = options.name.clone().unwrap_or_else(|| hostname.clone());
+    let listen_addr = format!("{}:{}",
+        options.listen_host, options.listen_port);
+    // note this port is expected to be the same across cluster
+    let udp_port = options.listen_port;
 
-    let state = SharedState::new(&id, &name, &hostname,
-        options.debug_force_leader, old_schedule);
 
-    let (alarm_tx, alarm_rx) = channel();
 
-    let scheduler_settings = scheduler::Settings {
-        id: id.clone(),
-        hostname: hostname.clone(),
-        config_dir: options.config_dir.clone(),
-    };
-    let scheduler_state = state.clone();
-    let scheduler_alarm_tx = alarm_tx.clone();
-    let mymeter = meter.clone();
-    thread::spawn(move || {
-        mymeter.lock().unwrap().track_current_thread("scheduler");
-        let alarm = {
-            let (tx, rx) = sync_channel(1);
-            {scheduler_alarm_tx}.send(tx).expect("sent alarm task");
-            rx.recv().expect("received alarm")
+
+    run_forever(move || -> Result<(), Box<::std::error::Error>> {
+
+
+        let (schedule_tx, schedule_rx) = async_slot::channel();
+        let state = SharedState::new(&id, &name, &hostname,
+            options.clone(), sandbox, old_schedule, schedule_tx,
+            tk_easyloop::handle().remote());
+
+
+        let apply_settings = apply::Settings {
+            dry_run: options.dry_run,
+            use_sudo: options.use_sudo,
+            hostname: hostname.clone(),
+            log_dir: options.log_dir.clone(),
+            config_dir: options.config_dir.clone(),
+            schedule_file: schedule_file,
         };
-        scheduler::run(scheduler_state, scheduler_settings, alarm)
-    });
+        let apply_state = state.clone();
+        let m1 = meter.clone();
+        thread::Builder::new().name(String::from("apply")).spawn(move || {
+            m1.track_current_thread_by_name();
+            apply::run(apply_state, apply_settings, schedule_rx);
+        }).expect("apply thread starts");
 
-    let apply_settings = apply::Settings {
-        dry_run: options.dry_run,
-        use_sudo: options.use_sudo,
-        hostname: hostname.clone(),
-        log_dir: options.log_dir.clone(),
-        config_dir: options.config_dir.clone(),
-        schedule_file: schedule_file,
-    };
-    let apply_state = state.clone();
-    let apply_alarm_tx = alarm_tx; // this is last one, no clone
-    let mymeter = meter.clone();
-    thread::spawn(move || {
-        mymeter.lock().unwrap().track_current_thread("apply");
-        let alarm = {
-            let (tx, rx) = sync_channel(1);
-            {apply_alarm_tx}.send(tx).expect("sent alarm task");
-            rx.recv().expect("received alarm")
+        watchdog::init();
+
+        let ns = name::init(&meter);
+        let (fetch_tx, fetch_rx) = unbounded();
+
+        http::spawn_listener(&ns, &listen_addr, &state,
+            &options.config_dir.join("frontend"))?;
+        fetch::spawn_fetcher(&state, fetch_rx)?;
+        cantal::spawn_fetcher(&state, udp_port)?;
+        elect::spawn_election(&ns, &listen_addr, &state, fetch_tx)?;
+
+        let scheduler_settings = scheduler::Settings {
+            id: id.clone(),
+            hostname: hostname.clone(),
+            config_dir: options.config_dir.clone(),
         };
-        apply::run(apply_state, apply_settings, alarm);
-    });
 
-    info!("Started with machine id {}, listening {}", id, addr);
-    net::main(&addr, id, hostname, name, state,
-        options.config_dir.join("frontend"),
-        &sandbox, options.log_dir.clone(),
-        options.debug_force_leader,
-        alarm_rx, meter)
-        .expect("Error running main loop");
-    unreachable!();
+        let m1 = meter.clone();
+        let s1 = state.clone();
+        thread::Builder::new().name(String::from("scheduler")).spawn(move || {
+            m1.track_current_thread_by_name();
+            scheduler::run(s1, scheduler_settings)
+        }).expect("scheduler thread starts");
+
+        Ok(())
+    }).expect("loop starts");
 }

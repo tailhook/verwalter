@@ -16,16 +16,24 @@ start_time = time.time()
 
 
 async def make_peers(request):
-    # We only emulate things that rotor-cantal supports
-    peers = [{
-        'id': "77985419c732412ea38b94db{:08d}".format(idx),
-        'hostname': hostname,
-        'name': hostname,
-        'primary_addr': "192.168.255.{}:22682".format(idx),
-        'addresses': ["192.168.255.{}:22682".format(idx)],
-        'known_since': int(start_time * 1000),
-        'last_report_direct': int((time.time() - random.random()) * 1000),
-    } for idx, hostname in enumerate(request.app['options'].peers, 1)]
+    # We only emulate things that tokio-cantal supports
+    peers = []
+    for idx, hostname in enumerate(request.app['options'].peers, 1):
+        if hostname.startswith('self:'):
+            continue
+        if request.app['options'].vagga_ips:
+            ip = '172.23.0.{}:22682'.format(idx)
+        else:
+            ip = "192.168.255.{}:22682".format(idx)
+        peers.append({
+            'id': "77985419c732412ea38b94db{:08d}".format(idx),
+            'hostname': hostname,
+            'name': hostname,
+            'primary_addr': ip,
+            'addresses': [ip],
+            'known_since': int(start_time * 1000),
+            'last_report_direct': int((time.time() - random.random()) * 1000),
+        })
     return web.Response(
         body=json.dumps({'peers': peers}).encode('ascii'),
         content_type='application/json',
@@ -51,6 +59,9 @@ def options():
     # TODO(tailhook) add a simpler `--add-n-peers 10` command
     ap.add_argument('--peers', nargs='*',
         help="List of hostnames for peers")
+    ap.add_argument('--vagga-ips', action="store_true", default=False,
+        help="Use vagga IPs (172.23.0.0/24) instead of "
+             "192.168.255.0/24 which is default")
     return ap.parse_args()
 
 

@@ -2,18 +2,20 @@ use std::path::PathBuf;
 use std::time::Duration;
 use std::sync::Arc;
 use std::borrow::Cow;
-use std::process::{Command, ExitStatus};
-use std::collections::{BTreeMap};
+use std::process::{Command, ExitStatus, exit};
 
+use async_slot as slot;
 use time::now_utc;
 use rand::{thread_rng, Rng};
 use itertools::Itertools;
-use rustc_serialize::json::{Json};
+use serde_json::{Map, Value as Json};
 use indexed_log::Index;
+use futures::Stream;
 
+use scheduler::{SchedulerInput, Schedule};
 use fs_util::{write_file, safe_write};
 use shared::{SharedState};
-use watchdog::{ExitOnReturn, Alarm};
+use watchdog;
 
 
 pub struct Settings {
@@ -25,7 +27,7 @@ pub struct Settings {
     pub schedule_file: PathBuf,
 }
 
-fn merge_vars<'x, I, J>(iter: I) -> BTreeMap<String, Json>
+fn merge_vars<'x, I, J>(iter: I) -> Map<String, Json>
     where I: Iterator<Item=J>, J: Iterator<Item=(&'x String, &'x Json)>
 {
 
@@ -99,15 +101,15 @@ fn decode_render_error(s: ExitStatus) -> Cow<'static, str> {
 
 fn apply_schedule(hash: &String, is_new: bool,
     scheduler_result: &Json, settings: &Settings,
-    debug_info: Arc<(Json, String)>, state: &SharedState)
+    debug_info: Arc<Option<(SchedulerInput, String)>>, state: &SharedState)
 {
     let id: String = thread_rng().gen_ascii_chars().take(24).collect();
     let mut index = Index::new(&settings.log_dir, settings.dry_run);
     let mut dlog = index.deployment(&id, true);
     dlog.string("schedule-hash", &hash);
     if is_new {
-        if debug_info.1 != "" {
-            dlog.text("scheduler-debug", &debug_info.1);
+        if let Some((_, ref log)) = *debug_info {
+            dlog.text("scheduler-debug", log);
         }
 
         dlog.changes(&hash[..8]).map(|mut changes| {
@@ -116,7 +118,7 @@ fn apply_schedule(hash: &String, is_new: bool,
                 .and_then(|y| y.as_array())
                 .map(|lst| {
                     for line in lst {
-                        line.as_string().map(|val| {
+                        line.as_str().map(|val| {
                             changes.add_line(val);
                         });
                     }
@@ -124,7 +126,7 @@ fn apply_schedule(hash: &String, is_new: bool,
         }).map_err(|e| error!("Can't create changes log: {}", e)).ok();
     }
 
-    let empty = BTreeMap::new();
+    let empty = Map::new();
     let roles = scheduler_result.as_object()
         .and_then(|x| x.get("roles"))
         .and_then(|y| y.as_object())
@@ -244,20 +246,18 @@ fn apply_schedule(hash: &String, is_new: bool,
     }
 }
 
-pub fn run(state: SharedState, settings: Settings, mut alarm: Alarm) -> ! {
-    let _guard = ExitOnReturn(93);
+pub fn run(state: SharedState, settings: Settings,
+    schedules: slot::Receiver<Arc<Schedule>>)
+    -> !
+{
+    let _guard = watchdog::ExitOnReturn(93);
     let mut prev_schedule = String::new();
-    if let Some(schedule) = state.stable_schedule() {
-        let _alarm = alarm.after(Duration::from_secs(180));
-        write_file(&settings.schedule_file, &*schedule)
-            .map_err(|e| error!("Writing schedule failed: {:?}", e)).ok();
-        apply_schedule(&schedule.hash, true, &schedule.data, &settings,
-            state.scheduler_debug_info(), &state);
-        prev_schedule = schedule.hash.clone();
-    }
-    loop {
-        let schedule = state.wait_new_schedule(&prev_schedule);
-        let _alarm = alarm.after(Duration::from_secs(180));
+    for schedule in schedules.wait() {
+        let schedule = schedule.unwrap_or_else(|_| exit(93));
+        if schedule.hash == prev_schedule {
+            continue;
+        }
+        let _alarm = watchdog::Alarm::new(Duration::new(180, 0));
         write_file(&settings.schedule_file, &*schedule)
             .map_err(|e| error!("Writing schedule failed: {:?}", e)).ok();
         apply_schedule(&schedule.hash, prev_schedule != schedule.hash,
@@ -265,15 +265,17 @@ pub fn run(state: SharedState, settings: Settings, mut alarm: Alarm) -> ! {
             state.scheduler_debug_info(), &state);
         prev_schedule = schedule.hash.clone();
     }
+    unreachable!();
 }
 
 #[cfg(test)]
 mod tests {
-    use rustc_serialize::json::Json;
+    use serde_json::Value as Json;
+    use serde_json::from_str;
     use super::merge_vars;
 
     fn parse_str(s: &str) -> Json {
-        Json::from_str(s).unwrap()
+        from_str(s).unwrap()
     }
 
     #[test]

@@ -1,10 +1,10 @@
-use std::io::{self, Write, Read, BufWriter};
+use std::io::{self, Write, Read, BufWriter, BufReader};
 use std::path::Path;
 use std::io::ErrorKind::{NotFound, AlreadyExists};
 use std::fs::{File, OpenOptions, remove_file, create_dir, rename, metadata};
 
-use rustc_serialize::{Encodable};
-use rustc_serialize::json::{as_pretty_json, Json};
+use serde_json::{to_writer_pretty, from_reader, Value as Json};
+use serde::Serialize;
 
 
 pub fn ensure_dir(dir: &Path) -> Result<(), io::Error> {
@@ -25,10 +25,9 @@ pub fn ensure_dir(dir: &Path) -> Result<(), io::Error> {
 
 
 pub fn read_json(path: &Path) -> io::Result<Json> {
-    let mut buf = String::with_capacity(4096);
-    let mut file = try!(File::open(path));
-    try!(file.read_to_string(&mut buf));
-    Json::from_str(&buf).map_err(
+    let file = File::open(path)?;
+    // TODO(tailhook) better error wrapping
+    from_reader(BufReader::new(file)).map_err(
         |_| io::Error::new(io::ErrorKind::InvalidData, "Can't decode json"))
 }
 
@@ -47,11 +46,10 @@ pub fn safe_write(path: &Path, data: &[u8]) -> io::Result<()> {
     Ok(())
 }
 
-pub fn write_file<T: Encodable>(path: &Path, data: &T) -> io::Result<()> {
+pub fn write_file<T: Serialize>(path: &Path, data: &T) -> io::Result<()> {
     try!(ensure_dir(&path.parent().expect("valid dir")));
     let tmppath = path.with_extension("tmp");
-    let mut file = BufWriter::new(try!(File::create(&tmppath)));
-    try!(write!(&mut file, "{}", as_pretty_json(data)));
+    to_writer_pretty(BufWriter::new(File::create(&tmppath)?), data)?;
     try!(rename(&tmppath, path));
     Ok(())
 }

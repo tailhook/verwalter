@@ -1,13 +1,14 @@
-use rotor::{GenericScope};
+use std::time::SystemTime;
+use std::time::Instant;
 
-use shared::Id;
+use id::Id;
 use elect::Epoch;
 use elect::machine::Machine;
-use time_util::ToMsec;
+use frontend::serialize::{serialize_opt_timestamp, serialize_timestamp};
 
 /// This is same as elect::machine::Machine, but for easier publishing to
 /// API
-#[derive(Clone, RustcEncodable, Debug, Default)]
+#[derive(Clone, Serialize, Debug)]
 pub struct ElectionState {
     /// Is current node a leader
     pub is_leader: bool,
@@ -21,19 +22,42 @@ pub struct ElectionState {
     pub num_votes_for_me: Option<usize>,
     /// Current epoch (for debugging)
     pub epoch: Epoch,
-    /// Current timeout (for debugging), JSON-friendly, in seconds
-    pub deadline: u64,
+    /// Current timeout (for debugging), JSON-friendly, in milliseconds
+    #[serde(serialize_with="serialize_timestamp")]
+    pub deadline: SystemTime,
     /// Last known timestamp when cluster was known to be stable
     /// the `ElectionState::from` timestamp returns it either None or now
     /// depending on whether cluster is table. And `shared` module keeps track
     /// of the last one
-    pub last_stable_timestamp: Option<u64>,
+    #[serde(serialize_with="serialize_opt_timestamp")]
+    pub last_stable_timestamp: Option<SystemTime>,
+}
+
+
+fn estimate(instant: Instant) -> SystemTime {
+    let inow = Instant::now();
+    let snow = SystemTime::now();
+    if instant > inow {
+        return snow + instant.duration_since(inow)
+    } else {
+        return snow + inow.duration_since(instant);
+    }
 }
 
 impl ElectionState {
-    pub fn from<S: GenericScope>(src: &Machine, scope: &mut S)
-        -> ElectionState
-    {
+    pub fn blank() -> ElectionState {
+        ElectionState {
+            is_leader: false,
+            is_stable: false,
+            leader: None,
+            promoting: None,
+            num_votes_for_me: None,
+            epoch: Epoch::default(),
+            deadline: SystemTime::now(),
+            last_stable_timestamp: None,
+        }
+    }
+    pub fn from(src: &Machine) -> ElectionState {
         use elect::machine::Machine::*;
         match *src {
             Starting { leader_deadline } => ElectionState {
@@ -43,7 +67,7 @@ impl ElectionState {
                 promoting: None,
                 num_votes_for_me: None,
                 epoch: 0,
-                deadline: scope.estimate_timespec(leader_deadline).to_msec(),
+                deadline: estimate(leader_deadline),
                 last_stable_timestamp: None,
             },
             Electing { epoch, ref votes_for_me, deadline } => ElectionState {
@@ -53,7 +77,7 @@ impl ElectionState {
                 promoting: None,
                 num_votes_for_me: Some(votes_for_me.len()),
                 epoch: epoch,
-                deadline: scope.estimate_timespec(deadline).to_msec(),
+                deadline: estimate(deadline),
                 last_stable_timestamp: None,
             },
             Voted { epoch, ref peer, election_deadline } => ElectionState {
@@ -63,7 +87,7 @@ impl ElectionState {
                 promoting: Some(peer.clone()),
                 num_votes_for_me: None,
                 epoch: epoch,
-                deadline: scope.estimate_timespec(election_deadline).to_msec(),
+                deadline: estimate(election_deadline),
                 last_stable_timestamp: None,
             },
             Leader { epoch, next_ping_time } => ElectionState {
@@ -73,9 +97,8 @@ impl ElectionState {
                 promoting: None,
                 num_votes_for_me: None,
                 epoch: epoch,
-                deadline: scope.estimate_timespec(next_ping_time).to_msec(),
-                last_stable_timestamp:
-                    Some(scope.estimate_timespec(scope.now()).to_msec()),
+                deadline: estimate(next_ping_time),
+                last_stable_timestamp: Some(SystemTime::now()),
             },
             Follower { ref leader, epoch, leader_deadline } => ElectionState {
                 is_leader: false,
@@ -84,9 +107,8 @@ impl ElectionState {
                 promoting: None,
                 num_votes_for_me: None,
                 epoch: epoch,
-                deadline: scope.estimate_timespec(leader_deadline).to_msec(),
-                last_stable_timestamp:
-                    Some(scope.estimate_timespec(scope.now()).to_msec()),
+                deadline: estimate(leader_deadline),
+                last_stable_timestamp: Some(SystemTime::now()),
             },
         }
     }

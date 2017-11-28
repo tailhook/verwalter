@@ -5,10 +5,11 @@ use cbor::{Encoder, Decoder, Config, DecodeResult};
 use cbor::{DecodeError, EncodeResult, opt};
 use cbor::types::Type;
 
-use shared::{Id};
-use super::{Capsule, Message, ScheduleStamp};
-use super::machine::Epoch;
+use id::{Id};
+use elect::{Capsule, Message, ScheduleStamp};
+use elect::machine::Epoch;
 use scheduler::Schedule;
+use frontend::serialize::ms_to_system_time;
 
 const PING: u8 = 1;
 const PONG: u8 = 2;
@@ -86,7 +87,7 @@ pub fn read_packet(buf: &[u8]) -> DecodeResult<Capsule> {
                     let hash = try!(dec.text());
                     let origin = try!(Id::decode(&mut dec));
                     Some(ScheduleStamp {
-                        timestamp: tstamp,
+                        timestamp: ms_to_system_time(tstamp),
                         hash: hash,
                         origin: origin,
                     })
