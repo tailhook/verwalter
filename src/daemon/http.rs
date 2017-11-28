@@ -16,20 +16,6 @@ use frontend;
 use shared::SharedState;
 
 
-fn service<S>(_: Request, mut e: Encoder<S>)
-    -> FutureResult<EncoderDone<S>, Error>
-{
-    const BODY: &'static str = "Hello World!";
-
-    e.status(Status::Ok);
-    e.add_length(BODY.as_bytes().len() as u64).unwrap();
-    e.add_header("Server", "verwalter").unwrap();
-    if e.done_headers().unwrap() {
-        e.write_body(BODY.as_bytes());
-    }
-    ok(e.done())
-}
-
 pub fn spawn_listener(ns: &abstract_ns::Router, addr: &str,
     state: &SharedState)
     -> Result<(), Box<::std::error::Error>>
