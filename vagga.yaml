@@ -105,7 +105,7 @@ commands:
           ports: {20001: 22682, 21001: 8379}
         run: |
           python3 util/fake-cantal.py \
-            --peers self:alpha beta gamma \
+            --peers self:n1 n2 n3 \
             --vagga-ips &
           RUST_LOG=debug,mio=warn,tokio_core=warn ./target/debug/verwalter \
             --config-dir=example-configs/pyapp --storage-dir=tmp/storage \
@@ -120,7 +120,7 @@ commands:
           ports: {20002: 22682, 21002: 8379}
         run: |
           python3 util/fake-cantal.py \
-            --peers alpha self:beta gamma \
+            --peers n1 self:n2 n3 \
             --vagga-ips &
           RUST_LOG=debug,mio=warn,tokio_core=warn ./target/debug/verwalter \
             --config-dir=example-configs/pyapp --storage-dir=tmp/storage \
@@ -135,7 +135,7 @@ commands:
           ports: {20003: 22682, 21003: 8379}
         run: |
           python3 util/fake-cantal.py \
-            --peers alpha beta self:gamma \
+            --peers n1 n2 self:n3 \
             --vagga-ips &
           RUST_LOG=debug,mio=warn,tokio_core=warn ./target/debug/verwalter \
             --config-dir=example-configs/pyapp --storage-dir=tmp/storage \
