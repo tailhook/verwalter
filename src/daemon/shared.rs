@@ -85,7 +85,6 @@ struct State {
     last_known_schedule: Option<Arc<Schedule>>,
     stable_schedule: Option<Arc<Schedule>>,
     owned_schedule: Option<Arc<Schedule>>,
-    // TODO(tailhook) rename schedule -> scheduleR
     last_scheduler_debug_info: Arc<Option<(SchedulerInput, String)>>,
     election: Arc<ElectionState>,
     actions: BTreeMap<u64, Arc<Json>>,
@@ -181,11 +180,6 @@ impl SharedState {
     pub fn failed_roles(&self) -> Arc<HashSet<String>> {
         self.lock().failed_roles.clone()
     }
-    /*
-    pub fn metrics(&self) -> Option<Arc<RemoteQuery>> {
-        self.lock().cantal.as_ref().unwrap().get_remote_query()
-    }
-    */
     // Setters
     pub fn set_peers(&self, time: SystemTime, peers: HashMap<Id, Peer>) {
         // all this logic seems to be very ugly
@@ -240,6 +234,10 @@ impl SharedState {
                 schedule.hash, schedule.origin);
         }
     }
+    pub fn reset_stable_schedule(&self) {
+        // owned schedule is reset in update_election handler
+        self.lock().stable_schedule = None
+    }
     pub fn set_schedule_by_leader(&self, cookie: LeaderCookie,
         val: Schedule, input: SchedulerInput, debug: String)
     {
@@ -268,7 +266,6 @@ impl SharedState {
             if guard.last_scheduler_debug_info.is_some() {
                 guard.last_scheduler_debug_info = Arc::new(None);
             }
-            // TODO(tailhook) clean stable schedule?
             let errors = Arc::make_mut(&mut guard.errors);
             errors.remove("reload_configs");
             errors.remove("scheduler_load");
@@ -293,7 +290,6 @@ impl SharedState {
         }
         return Some(LeaderCookie {
             epoch: guard.election.epoch,
-            // TODO(tailhook) get parent schedules from fetch machine
             parent_schedules: guard.parent_schedules.take()
               .unwrap_or(guard.stable_schedule.iter().cloned().collect()),
             actions: guard.actions.clone(),

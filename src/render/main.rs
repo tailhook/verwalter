@@ -19,7 +19,6 @@ extern crate indexed_log;
 extern crate verwalter_config as config;
 
 #[macro_use] mod macros;
-mod fs_util;
 mod apply;
 mod render;
 mod renderfile;

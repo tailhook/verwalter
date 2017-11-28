@@ -168,7 +168,6 @@ impl StateMachine for Fetch {
             Prefetching(pre) => match pre.poll(ctx)? {
                 A::NotReady(pre) => Prefetching(pre),
                 A::Ready(prefetch_data) => {
-                    // TODO(tailhook) send parent schedules
                     ctx.shared.set_parents(prefetch_data);
                     StableLeader
                 }
@@ -194,11 +193,9 @@ impl Fetch {
             S::Unstable => P::Unstable,
             S::StableLeader => P::StableLeader,
             S::Prefetching(Prefetch { state, .. } ) => P::Prefetching(state),
-            // TODO(tailhook) unpack replication state
             S::Replicating(Replica { ref leader, ref target, .. })
             => P::Replicating { leader: leader.clone(),
                                 schedule: target.clone() },
-            // TODO(tailhook) show failure in public state
         }
     }
     fn poll_messages(self, ctx: &mut Context) -> Self {
@@ -215,7 +212,7 @@ impl Fetch {
                 (Leader, StableLeader) => StableLeader,
                 (Leader, m @ Prefetching(..)) => m,
                 (Leader, _) => {
-                    // TODO(tailhook) drop schedule
+                    ctx.shared.reset_stable_schedule();
                     let mut schedules = HashMap::new();
                     if let Some(sch) = ctx.shared.schedule() {
                         schedules.insert(sch.hash.clone(), sch);
@@ -236,6 +233,7 @@ impl Fetch {
                     if repl.leader == leader {
                         Replicating(repl)
                     } else {
+                        ctx.shared.reset_stable_schedule();
                         Replicating(Replica {
                             leader: leader,
                             target: None,
@@ -244,6 +242,7 @@ impl Fetch {
                     }
                 }
                 (Follower(leader), _) => {
+                    ctx.shared.reset_stable_schedule();
                     Replicating(Replica {
                         leader: leader,
                         target: None,
@@ -252,7 +251,7 @@ impl Fetch {
                 }
                 (Election, Unstable) => Unstable,
                 (Election, _) => {
-                    // TODO(tailhook) drop schedule
+                    ctx.shared.reset_stable_schedule();
                     Unstable
                 }
                 (PeerSchedule(_, _), Unstable) => Unstable, // ignore
@@ -269,6 +268,7 @@ impl Fetch {
                         {
                             Replicating(repl)
                         } else {
+                            ctx.shared.reset_stable_schedule();
                             Replicating(Replica {
                                 target: Some(stamp.hash),
                                 ..repl
@@ -351,7 +351,6 @@ impl ReplicaConnState {
                         }
                     }
                 }
-                // TODO(tailhook) receive request
                 (Waiting(mut proto, mut chan), targ@&mut Some(_)) => {
                     let pro_poll = proto.poll_complete();
                     let chan_poll = chan.poll();

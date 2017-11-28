@@ -13,7 +13,6 @@ use inotify::ffi::{IN_MOVED_TO, IN_CREATE, IN_DELETE, IN_DELETE_SELF};
 use inotify::ffi::{IN_MOVE_SELF};
 use scan_dir::ScanDir;
 use lua::GcOption;
-//use rotor_cantal::{Dataset, Key, Value, Chunk};
 use libcantal::{Counter, Integer};
 use frontend::serialize::{serialize_opt_timestamp, serialize_timestamp};
 
@@ -88,107 +87,6 @@ fn watch_dir(notify: &mut INotify, path: &Path) {
         warn!("Error when scanning config directory: {:?}", e);
     }).ok();
 }
-/*
-
-fn convert_key(key: &Key) -> Json {
-    use rotor_cantal::KeyVisitor::{Key, Value};
-    let mut map = BTreeMap::new();
-    let mut item = None;
-    key.visit(|x| {
-        match x {
-            Key(k) => item = Some(k.to_string()),
-            Value(v) => {
-                map.insert(item.take().unwrap(), Json::String(v.into()));
-            }
-        }
-    });
-    return Json::Object(map);
-}
-
-fn convert_metrics(metrics: &HashMap<String, Dataset>) -> Json {
-    Json::Object(
-        metrics.iter()
-        .map(|(name, metric)| (name.to_string(), convert_metric(metric)))
-        .collect()
-    )
-}
-
-fn convert_chunk(value: &Chunk) -> Json {
-    use rotor_cantal::Chunk::*;
-    match *value {
-        Counter(ref vals) => vals.to_json(),
-        Integer(ref vals) => vals.to_json(),
-        Float(ref vals) => vals.to_json(),
-        State(_) => unimplemented!(),
-    }
-}
-
-fn convert_value(value: &Value) -> Json {
-    use rotor_cantal::Value::*;
-    match *value {
-        Counter(x) => Json::U64(x),
-        Integer(x) => Json::I64(x),
-        Float(x) => Json::F64(x),
-        State(_) => unimplemented!(),
-    }
-}
-
-fn convert_metric(metric: &Dataset) -> Json {
-    use rotor_cantal::Dataset::*;
-    match *metric {
-        SingleSeries(ref key, ref chunk, ref stamps) => {
-            Json::Object(vec![
-                ("type".into(), Json::String("single_series".into())),
-                ("key".into(), convert_key(key)),
-                ("values".into(), convert_chunk(chunk)),
-                ("timestamps".into(), stamps.to_json()),
-            ].into_iter().collect())
-        },
-        MultiSeries(ref items) => {
-            Json::Object(vec![
-                ("type".into(), Json::String("multi_series".into())),
-                ("items".into(), Json::Array(items.iter()
-                    .map(|&(ref key, ref chunk, ref stamps)| Json::Object(vec![
-                        ("key".into(), convert_key(key)),
-                        ("values".into(), convert_chunk(chunk)),
-                        ("timestamps".into(), stamps.to_json()),
-                        ].into_iter().collect()))
-                    .collect())),
-            ].into_iter().collect())
-        },
-        SingleTip(ref key, ref value, ref slc) => {
-            Json::Object(vec![
-                ("type".into(), Json::String("single_tip".into())),
-                ("key".into(), convert_key(key)),
-                ("value".into(), convert_value(value)),
-                ("old_timestamp".into(), slc.0.to_json()),
-                ("new_timestamp".into(), slc.1.to_json()),
-            ].into_iter().collect())
-        },
-        MultiTip(ref items) => {
-            Json::Object(vec![
-                ("type".into(), Json::String("multi_tip".into())),
-                ("items".into(), Json::Array(items.iter()
-                    .map(|&(ref key, ref value, ref timestamp)|
-                        Json::Object(vec![
-                            ("key".into(), convert_key(key)),
-                            ("value".into(), convert_value(value)),
-                            ("timestamp".into(), timestamp.to_json()),
-                            ].into_iter().collect()))
-                    .collect())),
-            ].into_iter().collect())
-        }
-        Chart(_) => unimplemented!(),
-        Empty => Json::Null,
-        Incompatible(_) => {
-            Json::Object(vec![
-                ("type".into(), Json::String("error".into())),
-                ("error".into(), Json::String("incompatible".into())),
-            ].into_iter().collect())
-        }
-    }
-}
-*/
 
 pub fn main(state: SharedState, settings: Settings) -> !
 {
