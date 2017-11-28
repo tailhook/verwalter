@@ -1,6 +1,7 @@
 use lua::{ThreadStatus, Type, Serde};
 use serde::Serialize;
 use serde_json::{Value as Json, from_str};
+use std::collections::VecDeque;
 
 use scheduler::{Scheduler, Error};
 
@@ -47,6 +48,17 @@ impl Scheduler {
             None => Err(Error::Conversion),
         };
         self.lua.pop(7);
+        if result.is_err() {
+            let mut vec = VecDeque::with_capacity(100);
+            for line in dbg.lines() {
+                if vec.len() > 100 {
+                    vec.pop_front();
+                }
+                vec.push_back(line);
+            }
+            let lines = Vec::from(vec).join("\n  lua: ");
+            warn!("Scheduler debug info (max 100 lines): {}", lines);
+        }
         return (result, dbg);
     }
 }
