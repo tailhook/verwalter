@@ -53,7 +53,7 @@ impl serde::Serialize for Parent {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where S: serde::Serializer
     {
-        self.0.serialize(serializer)
+        self.0.data.serialize(serializer)
     }
 }
 
