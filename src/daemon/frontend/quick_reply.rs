@@ -69,7 +69,6 @@ impl<F, S, V: DeserializeOwned> Codec<S> for ReadJson<F, V>
         -> Result<Async<usize>, Error>
     {
         assert!(end);
-        assert!(data.len() == 0);
         self.input = match from_slice(data) {
             Ok(x) => Some(x),
             Err(e) => {
@@ -77,7 +76,7 @@ impl<F, S, V: DeserializeOwned> Codec<S> for ReadJson<F, V>
                 return Err(Error::custom(e));
             }
         };
-        Ok(Async::Ready(0))
+        Ok(Async::Ready(data.len()))
     }
     fn start_response(&mut self, e: http::Encoder<S>) -> Reply<S> {
         let func = self.inner.take().expect("quick reply called only once");

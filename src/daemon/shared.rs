@@ -310,16 +310,10 @@ impl SharedState {
         self.apply_schedule.notify_all();
     }
     pub fn push_action(&self, data: Json) -> Result<u64, PushActionError> {
-        unimplemented!();
-        /*
-        use scheduler::State::{Following, Leading, Unstable};
         let mut guard = self.lock();
 
-        match *guard.schedule.clone() {
-            Unstable | Following(..) => {
-                return Err(PushActionError::NotALeader);
-            }
-            Leading(..) => {}
+        if !guard.election.is_leader {
+            return Err(PushActionError::NotALeader);
         }
 
         let millis = (get_time().sec * 1000) as u64;
@@ -337,7 +331,6 @@ impl SharedState {
             }
         }
         return Err(PushActionError::TooManyRequests);
-        */
     }
     pub fn check_action(&self, action: u64) -> bool {
         self.lock().actions.get(&action).is_some()
