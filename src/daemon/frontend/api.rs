@@ -151,6 +151,7 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                     name: String,
                     hostname: String,
                     addr: Option<String>,
+                    schedule: Option<&'a String>,
                 }
                 #[derive(Serialize)]
                 struct Status<'a> {
@@ -180,26 +181,36 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                 let election = state.election();
                 let schedule = state.schedule();
                 let stable_schedule = state.stable_schedule();
+                let owned_schedule;
+                let leader_peer;
                 let leader = if election.is_leader {
+                    owned_schedule = state.owned_schedule();
                     Some(LeaderInfo {
                         id: state.id(),
                         name: state.name.clone(),
                         hostname: state.hostname.clone(),
                         // TODO(tailhook) resolve listening address and show
                         addr: None,
+                        schedule: owned_schedule.as_ref().map(|x| &x.hash),
                     })
                 } else {
-                    election.leader.as_ref()
-                    .and_then(|id| peers.peers.get(id).map(|p| (id, p)))
-                    .map(|(id, peer)| {
-                        let p = peer.get();
-                        LeaderInfo {
-                            id: id,
-                            name: p.name.clone(),
-                            hostname: p.hostname.clone(),
-                            addr: p.addr.map(|x| x.to_string()),
+                    match election.leader.as_ref()
+                        .and_then(|id| peers.peers.get(id).map(|p| (id, p)))
+                    {
+                        Some((id, peer)) => {
+                            leader_peer = peer.get();
+                            Some(LeaderInfo {
+                                id: id,
+                                name: leader_peer.name.clone(),
+                                hostname: leader_peer.hostname.clone(),
+                                addr: leader_peer.addr
+                                    .map(|x| x.to_string()),
+                                schedule: leader_peer.schedule.as_ref()
+                                    .map(|x| &x.hash),
+                            })
                         }
-                    })
+                        None => None,
+                    }
                 };
                 let errors = state.errors();
                 let failed_roles = state.failed_roles();
