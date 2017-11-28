@@ -263,7 +263,7 @@ impl ElectionMachine {
                                 if let Some(ref stamp) = msg.schedule {
                                     self.fetcher.unbounded_send(
                                         fetch::Message::PeerSchedule(
-                                            info.id.clone(), stamp.clone(),
+                                            src.clone(), stamp.clone(),
                                         )).expect("fetcher always work");
                                 }
                                 peer.set(Arc::new(Peer {
