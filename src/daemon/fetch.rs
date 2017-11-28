@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 
 use abstract_ns;
 use futures::{Future, Stream, Sink, Async, AsyncSink};
-use futures::future::FutureResult;
+use futures::future::{FutureResult, ok};
 use futures::sync::mpsc::UnboundedReceiver;
 use futures::sync::oneshot;
 use rand::{thread_rng, Rng};
@@ -18,12 +18,14 @@ use valuable_futures::{Supply, StateMachine, Async as A, Async as VAsync};
 
 use elect::{self, ScheduleStamp};
 use id::Id;
-use scheduler::{Schedule, ScheduleId};
+use scheduler::{self, Schedule, ScheduleId};
+use serde_json;
 use shared::SharedState;
 use tk_easyloop::{self, timeout, timeout_at, handle};
 use void::{Void, unreachable};
 use tk_http::client::{Proto, Codec, Encoder, EncoderDone, Error, RecvMode};
 use tk_http::client::{Head, Config};
+use tk_http::{Version, Status};
 use failures::Blacklist;
 
 
@@ -34,6 +36,9 @@ const PREFETCH_MAX: u64 = PREFETCH_MIN + 60_000;
 const PREFETCH_OLD: u64 = 1000;
 /// This is randomized 0.5 - 1.5 of the value for randomized reconnects
 const PREFETCH_BLACKLIST: u64 = 200;
+
+
+type ScheduleRecv = oneshot::Receiver<Result<Arc<Schedule>, ReplicaError>>;
 
 
 pub enum Message {
@@ -82,7 +87,7 @@ enum ReplicaConnState {
     Failed(Timeout),
     Connecting(TcpStreamNew),
     KeepAlive(Proto<TcpStream, ReplicaCodec>),
-    Waiting(Proto<TcpStream, ReplicaCodec>, oneshot::Receiver<Arc<Schedule>>),
+    Waiting(Proto<TcpStream, ReplicaCodec>, ScheduleRecv),
 }
 
 struct FetchContext {
@@ -93,12 +98,24 @@ struct FetchContext {
 
 enum FetchState {
     Connecting(TcpStreamNew),
-    Waiting(Proto<TcpStream, ReplicaCodec>, oneshot::Receiver<Arc<Schedule>>)
+    Waiting(Proto<TcpStream, ReplicaCodec>, ScheduleRecv),
+}
+
+#[derive(Fail, Debug)]
+enum ReplicaError {
+    #[fail(display="invalid status {:?}", _0)]
+    InvalidStatus(Option<Status>),
+    #[fail(display="serde error: {:?}", _0)]
+    SerdeError(serde_json::Error),
+    #[fail(display="could not decode schedule: {}", _0)]
+    ScheduleError(String),
 }
 
 struct ReplicaCodec {
-    tx: Option<oneshot::Sender<Arc<Schedule>>>,
+    tx: Option<oneshot::Sender<Result<Arc<Schedule>, ReplicaError>>>,
 }
+
+
 
 pub struct Replica {
     leader: Id,
@@ -230,10 +247,16 @@ impl Fetch {
                 }
                 (PeerSchedule(peer, stamp), Replicating(repl)) => {
                     if repl.leader == peer {
-                        Replicating(Replica {
-                            target: Some(stamp.hash),
-                            ..repl
-                        })
+                        if repl.target == None &&
+                            ctx.shared.is_current(&stamp.hash)
+                        {
+                            Replicating(repl)
+                        } else {
+                            Replicating(Replica {
+                                target: Some(stamp.hash),
+                                ..repl
+                            })
+                        }
                     } else {
                         Replicating(repl)
                     }
@@ -316,8 +339,11 @@ impl ReplicaConnState {
                     let pro_poll = proto.poll_complete();
                     let chan_poll = chan.poll();
                     match chan_poll {
-                        Ok(Async::Ready(ref sched)) => {
+                        Ok(Async::Ready(Ok(ref sched))) => {
+                            println!("SCHEDULE RECEIVED {:?} / {:?}",
+                                sched.hash, targ);
                             if sched.hash == *targ.as_ref().unwrap() {
+                                println!("TARGET RESET");
                                 *targ = None;
                                 ctx.shared.set_schedule_by_follower(sched);
                             }
@@ -325,7 +351,12 @@ impl ReplicaConnState {
                         _ => {}
                     }
                     match (chan_poll, pro_poll) {
-                        (Ok(Async::Ready(_)), Ok(_)) => KeepAlive(proto),
+                        (Ok(Async::Ready(Ok(_))), Ok(_)) => KeepAlive(proto),
+                        (Ok(Async::Ready(Err(e))), Ok(_)) => {
+                            info!("Replica request error: {}. \
+                                   Will reconnect...", e);
+                            reconnect()
+                        }
                         (Ok(Async::NotReady), Ok(_)) => {
                             return Waiting(proto, chan)
                         }
@@ -492,7 +523,7 @@ pub fn spawn_fetcher(ns: &abstract_ns::Router, state: &SharedState,
 }
 
 impl ReplicaCodec {
-    fn new() -> (ReplicaCodec, oneshot::Receiver<Arc<Schedule>>) {
+    fn new() -> (ReplicaCodec, ScheduleRecv) {
         let (tx, rx) = oneshot::channel();
         (ReplicaCodec { tx: Some(tx) }, rx)
     }
@@ -500,11 +531,22 @@ impl ReplicaCodec {
 
 impl Codec<TcpStream> for ReplicaCodec {
     type Future = FutureResult<EncoderDone<TcpStream>, Error>;
-    fn start_write(&mut self, e: Encoder<TcpStream>) -> Self::Future {
-        unimplemented!();
+    fn start_write(&mut self, mut e: Encoder<TcpStream>) -> Self::Future {
+        e.request_line("GET", "/v1/schedule", Version::Http11);
+        // required by HTTP 1.1 spec
+        e.add_header("Host", "verwalter").unwrap();
+        e.done_headers().unwrap();
+        ok(e.done())
     }
     fn headers_received(&mut self, headers: &Head) -> Result<RecvMode, Error> {
-        unimplemented!();
+        if headers.status() == Some(Status::Ok) {
+            Ok(RecvMode::buffered(10 << 20))
+        } else {
+            self.tx.take().expect("data_received called once")
+                .send(Err(ReplicaError::InvalidStatus(headers.status())))
+                .ok();
+            Err(Error::custom("Invalid status"))
+        }
     }
     fn data_received(
         &mut self,
@@ -512,6 +554,13 @@ impl Codec<TcpStream> for ReplicaCodec {
         end: bool
     ) -> Result<Async<usize>, Error> {
         assert!(end);
-        unimplemented!();
+        self.tx.take().expect("data_received called once").send(
+            serde_json::from_slice(data).map_err(ReplicaError::SerdeError)
+            .and_then(|json| {
+                scheduler::from_json(json)
+                    .map(Arc::new)
+                    .map_err(ReplicaError::ScheduleError)
+            })).ok();
+        Ok(Async::Ready(data.len()))
     }
 }

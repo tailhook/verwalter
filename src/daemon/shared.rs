@@ -28,7 +28,7 @@ use fetch;
 use id::Id;
 use {Options};
 use peer::{Peer, Peers};
-use scheduler::{self, Schedule, MAX_PREFETCH_TIME, SchedulerInput};
+use scheduler::{self, Schedule, MAX_PREFETCH_TIME, SchedulerInput, ScheduleId};
 use time_util::ToMsec;
 
 
@@ -168,6 +168,9 @@ impl SharedState {
     pub fn stable_schedule(&self) -> Option<Arc<Schedule>> {
         self.lock().stable_schedule.clone()
     }
+    pub fn is_current(&self, hash: &ScheduleId) -> bool {
+        self.lock().stable_schedule.as_ref().map(|x| &x.hash) == Some(hash)
+    }
     pub fn owned_schedule(&self) -> Option<Arc<Schedule>> {
         self.lock().owned_schedule.clone()
     }
@@ -246,6 +249,7 @@ impl SharedState {
         let mut guard = self.lock();
         if guard.election.is_leader {
             let schedule = Arc::new(val);
+            guard.last_known_schedule = Some(schedule.clone());
             guard.owned_schedule = Some(schedule.clone());
             guard.stable_schedule = Some(schedule.clone());
             guard.last_scheduler_debug_info = Arc::new(Some((input, debug)));
