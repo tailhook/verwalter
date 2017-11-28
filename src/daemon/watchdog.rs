@@ -9,7 +9,7 @@ use tk_easyloop::handle;
 
 
 lazy_static! {
-    static ref watchdog_handle: Remote = handle().remote().clone();
+    static ref WATCHDOG_HANDLE: Remote = handle().remote().clone();
 }
 
 
@@ -17,7 +17,8 @@ lazy_static! {
 pub struct ExitOnReturn(pub i32);
 
 pub struct Alarm {
-    stop: Sender<()>,
+    // we rely that dropping Sender immediately sends Error on a channel
+    _stop: Sender<()>,
 }
 
 
@@ -28,7 +29,7 @@ impl Drop for ExitOnReturn {
 }
 
 pub fn init() {
-    watchdog_handle.clone(); // init handle
+    WATCHDOG_HANDLE.clone(); // init handle
 }
 
 fn spawn<F, R>(f: F)
@@ -36,7 +37,7 @@ fn spawn<F, R>(f: F)
             R: IntoFuture<Item = (), Error = ()>,
             R::Future: 'static
 {
-    watchdog_handle.spawn(f)
+    WATCHDOG_HANDLE.spawn(f)
 }
 
 impl Alarm {
@@ -63,7 +64,7 @@ impl Alarm {
             })
         });
         Alarm {
-            stop: tx,
+            _stop: tx,
         }
     }
 }

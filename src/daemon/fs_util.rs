@@ -25,8 +25,7 @@ pub fn ensure_dir(dir: &Path) -> Result<(), io::Error> {
 
 
 pub fn read_json(path: &Path) -> io::Result<Json> {
-    let mut buf = String::with_capacity(4096);
-    let mut file = File::open(path)?;
+    let file = File::open(path)?;
     // TODO(tailhook) better error wrapping
     from_reader(BufReader::new(file)).map_err(
         |_| io::Error::new(io::ErrorKind::InvalidData, "Can't decode json"))

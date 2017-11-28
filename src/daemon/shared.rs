@@ -28,7 +28,7 @@ use fetch;
 use id::Id;
 use {Options};
 use peer::{Peer, Peers};
-use scheduler::{self, Schedule, MAX_PREFETCH_TIME, SchedulerInput, ScheduleId};
+use scheduler::{self, Schedule, SchedulerInput, ScheduleId};
 use time_util::ToMsec;
 
 
@@ -65,7 +65,6 @@ pub struct SharedData {
     pub fetch_state: ArcCell<fetch::PublicState>,
     force_render: AtomicBool,
     apply_schedule: Condvar,
-    run_scheduler: Condvar,
     peers: ArcCell<Peers>,
     schedule_channel: slot::Sender<Arc<Schedule>>,
 }
@@ -121,7 +120,6 @@ impl SharedState {
                 sandbox,
                 force_render: AtomicBool::new(false),
                 apply_schedule: Condvar::new(),
-                run_scheduler: Condvar::new(),
                 peers: ArcCell::new(Arc::new(Peers::new())),
                 mainloop: mainloop.clone(),
                 fetch_state: ArcCell::new(
@@ -241,13 +239,12 @@ impl SharedState {
             debug!("Ingoring follower schedule {} from {}",
                 schedule.hash, schedule.origin);
         }
-        // TODO(tailhook) check if leader is still the same
     }
     pub fn set_schedule_by_leader(&self, cookie: LeaderCookie,
         val: Schedule, input: SchedulerInput, debug: String)
     {
         let mut guard = self.lock();
-        if guard.election.is_leader {
+        if guard.election.is_leader && guard.election.epoch == cookie.epoch {
             let schedule = Arc::new(val);
             guard.last_known_schedule = Some(schedule.clone());
             guard.owned_schedule = Some(schedule.clone());

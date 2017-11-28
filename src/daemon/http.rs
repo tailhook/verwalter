@@ -50,7 +50,9 @@ pub fn spawn_listener(ns: &abstract_ns::Router, addr: &str,
                     Proto::new(socket, &hcfg,
                        frontend::Dispatcher(state.clone()),
                        &handle())
-                    .map_err(|e| debug!("Http protocol error: {}", e))
+                    .map_err(move |e| {
+                        debug!("Http protocol error for {}: {}", saddr, e);
+                    })
                 })
                 .listen(500)
                 .then(move |res| -> Result<(), ()> {

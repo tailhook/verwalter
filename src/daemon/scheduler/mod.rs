@@ -13,19 +13,6 @@ pub use self::state::{Schedule, ScheduleId, from_json};
 pub use self::main::{main as run, Settings, SchedulerInput};
 
 
-pub type Hash = String;
-
-/// A number of milliseconds we are allowed to do prefeching of old data.
-///
-/// On the one hand, this value may be arbitrarily long, because if all data
-/// is fetched leader will do its job anyway.
-///
-/// On the flip side, leader election doesn't happen in perfectly working
-/// network. So some network issues are assumed when we have just elected.
-/// And it means there is quite a high chance that some data was just lost,
-/// and we will wait for this timeout.
-pub const MAX_PREFETCH_TIME: u64 = 10000;
-
 pub struct Scheduler {
     id: Id,
     hostname: String, // Is it the right place?

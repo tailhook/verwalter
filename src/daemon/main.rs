@@ -297,7 +297,7 @@ fn main() {
         let (fetch_tx, fetch_rx) = unbounded();
 
         http::spawn_listener(&ns, &listen_addr, &state)?;
-        fetch::spawn_fetcher(&ns, &state, fetch_rx)?;
+        fetch::spawn_fetcher(&state, fetch_rx)?;
         cantal::spawn_fetcher(&state, udp_port)?;
         elect::spawn_election(&ns, &listen_addr, &state, fetch_tx)?;
 

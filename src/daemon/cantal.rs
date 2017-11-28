@@ -25,7 +25,6 @@ pub fn spawn_fetcher(state: &SharedState, port: u16)
         .map_err(|_| { unreachable!() })
         .for_each(move |_| {
             let state = state.clone();
-            let time = SystemTime::now();
             conn.get_peers()
             .and_then(move |peers| {
                 // TODO(tailhook) check existing peers!
