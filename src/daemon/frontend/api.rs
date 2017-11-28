@@ -8,7 +8,7 @@ use futures::future::{FutureResult, ok, Future};
 use gron::json_to_gron;
 use serde::Serialize;
 use serde_json::{Value, to_writer, to_writer_pretty, to_value, from_str};
-use tk_http::Status::{self, NotImplemented, BadRequest};
+use tk_http::Status::{self, NotImplemented, BadRequest, NotFound};
 use tk_http::Status::{TooManyRequests, ServiceUnavailable};
 use tk_http::server::{Codec as CodecTrait, Dispatcher as DispatcherTrait};
 use tk_http::server::{Head, Encoder, EncoderDone, RecvMode, Error};
@@ -272,9 +272,8 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                     Box::new(respond(e, format, schedule))
                 }))
             } else {
-                // TODO(tailhook) Should we return error code instead ?
                 Ok(reply(move |e| {
-                    Box::new(respond(e, format, Value::Null))
+                    Box::new(error_page(NotFound, e))
                 }))
             }
         }
@@ -284,18 +283,23 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
             }))
         }
         SchedulerInput => {
-            let info = state.scheduler_debug_info();
             Ok(reply(move |e| {
-                    Box::new(respond(e, format,
-                        &(*info).as_ref().map(|x| &x.0)))
+                let info = state.scheduler_debug_info();
+                if let Some(ref info) = *info {
+                    Box::new(respond(e, format, &info.0))
+                } else {
+                    Box::new(error_page(NotFound, e))
+                }
             }))
         }
         SchedulerDebugInfo => {
-            let info = state.scheduler_debug_info();
             Ok(reply(move |e| {
-                    Box::new(respond_text(e, &(*info).as_ref()
-                        .map(|x| &x.1[..])
-                        .unwrap_or("")))
+                let info = state.scheduler_debug_info();
+                if let Some(ref info) = *info {
+                    Box::new(respond_text(e, &info.1[..]))
+                } else {
+                    Box::new(error_page(NotFound, e))
+                }
             }))
         }
         Election => {
