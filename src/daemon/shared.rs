@@ -243,6 +243,9 @@ impl SharedState {
     {
         let mut guard = self.lock();
         if guard.election.is_leader && guard.election.epoch == cookie.epoch {
+            for action in cookie.actions.keys() {
+                guard.actions.remove(action);
+            }
             let schedule = Arc::new(val);
             guard.last_known_schedule = Some(schedule.clone());
             guard.owned_schedule = Some(schedule.clone());
