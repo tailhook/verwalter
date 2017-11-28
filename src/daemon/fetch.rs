@@ -1,3 +1,4 @@
+use std::io;
 use std::cmp::max;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::mem;
@@ -11,7 +12,7 @@ use futures::{Future, Stream, Sink, Async, AsyncSink};
 use futures::future::{FutureResult, ok};
 use futures::sync::mpsc::UnboundedReceiver;
 use futures::sync::oneshot;
-use rand::{thread_rng, Rng};
+use rand::{thread_rng, Rng, sample};
 use tokio_core::reactor::Timeout;
 use tokio_core::net::{TcpStream, TcpStreamNew};
 use valuable_futures::{Supply, StateMachine, Async as A, Async as VAsync};
@@ -102,11 +103,13 @@ struct FetchContext {
     started: Instant,
     schedule: ScheduleId,
     addr: SocketAddr,
+    http_config: Arc<Config>,
 }
 
 enum FetchState {
     Connecting(TcpStreamNew),
-    Waiting(Proto<TcpStream, ReplicaCodec>, ScheduleRecv),
+    WaitRequest(Proto<TcpStream, ReplicaCodec>),
+    WaitResponse(Proto<TcpStream, ReplicaCodec>, ScheduleRecv),
 }
 
 #[derive(Fail, Debug)]
@@ -117,6 +120,12 @@ enum ReplicaError {
     SerdeError(serde_json::Error),
     #[fail(display="could not decode schedule: {}", _0)]
     ScheduleError(String),
+    #[fail(display="http error: {}", _0)]
+    Http(Error),
+    #[fail(display="IO error: {}", _0)]
+    Io(io::Error),
+    #[fail(display="oneshot was canceled")]
+    OneshotCancel,
 }
 
 struct ReplicaCodec {
@@ -275,9 +284,9 @@ impl Fetch {
     }
 }
 
-fn get_addr(shared: &SharedState, leader: &Id) -> Option<SocketAddr> {
+fn get_addr(shared: &SharedState, peer_id: &Id) -> Option<SocketAddr> {
     shared.peers()
-        .peers.get(leader)
+        .peers.get(peer_id)
         .and_then(|peer| peer.get().addr)
 }
 
@@ -348,10 +357,7 @@ impl ReplicaConnState {
                     let chan_poll = chan.poll();
                     match chan_poll {
                         Ok(Async::Ready(Ok(ref sched))) => {
-                            println!("SCHEDULE RECEIVED {:?} / {:?}",
-                                sched.hash, targ);
                             if sched.hash == *targ.as_ref().unwrap() {
-                                println!("TARGET RESET");
                                 *targ = None;
                                 ctx.shared.set_schedule_by_follower(sched);
                             }
@@ -415,7 +421,7 @@ impl Prefetch {
     fn get_state(&mut self) -> Vec<Arc<Schedule>> {
         self.schedules.drain().map(|(_, v)| v).collect()
     }
-    fn poll_futures(&mut self) {
+    fn poll_futures(&mut self, ctx: &mut Context) -> bool {
         struct ScheduleState {
             recent: Instant,
             fetching: HashSet<SocketAddr>,
@@ -454,26 +460,96 @@ impl Prefetch {
         }
 
         let too_old = Instant::now() - Duration::from_millis(PREFETCH_OLD);
+        let mut result = false;
         for (id, peers) in &self.waiting {
-            if let Some(state) = futures.get(id) {
+            let cur = if let Some(state) = futures.get(id) {
                 if state.recent > too_old {
                     continue; // all ok
                 }
-            }
+                Some(&state.fetching)
+            } else {
+                None
+            };
             // Issue a new connection
-            unimplemented!()
+            let addr = sample(&mut thread_rng(), peers.iter()
+                .filter_map(|id| get_addr(&ctx.shared, id))
+                .filter(|&a| !self.blacklist.is_failing(a))
+                .filter(|a| cur.map(|s| !s.contains(a)).unwrap_or(true)),
+                1);
+            if let Some(addr) = addr.into_iter().next() {
+                self.fetching.push_back((FetchContext {
+                    started: Instant::now(),
+                    schedule: id.clone(),
+                    addr: addr,
+                    http_config: ctx.http_config.clone(),
+                }, FetchState::Connecting(
+                    TcpStream::connect(&addr, &handle()))));
+                result = true;
+            }
         }
+        return result;
     }
 }
 
 impl StateMachine for FetchState {
     type Supply = FetchContext;
     type Item = Arc<Schedule>;
-    type Error = Error;
+    type Error = ReplicaError;
     fn poll(mut self, ctx: &mut FetchContext)
-        -> Result<VAsync<Self::Item, Self>, Error>
+        -> Result<VAsync<Self::Item, Self>, ReplicaError>
     {
-        unimplemented!();
+        use self::FetchState::*;
+        loop {
+            self = match self {
+                Connecting(mut conn) => match conn.poll() {
+                    Ok(Async::Ready(sock)) => {
+                        let proto = Proto::new(sock,
+                            &handle(), &ctx.http_config);
+                        WaitRequest(proto)
+                    }
+                    Ok(Async::NotReady) => {
+                        return Ok(VAsync::NotReady(Connecting(conn)));
+                    }
+                    Err(e) => return Err(ReplicaError::Io(e)),
+                },
+                WaitRequest(mut proto) => {
+                    let (codec, resp) = ReplicaCodec::new();
+                    match proto.start_send(codec) {
+                        Ok(AsyncSink::NotReady(_)) => {
+                            // should be ready, but might be proto impl
+                            // would change?
+                            return Ok(VAsync::NotReady(WaitRequest(proto)));
+                        }
+                        Ok(AsyncSink::Ready) => WaitResponse(proto, resp),
+                        Err(e) => return Err(ReplicaError::Http(e)),
+                    }
+                }
+                WaitResponse(mut proto, mut chan) => {
+                    let pro_poll = proto.poll_complete();
+                    let chan_poll = chan.poll();
+                    match (chan_poll, pro_poll) {
+                        (Ok(Async::Ready(Ok(sched))), Ok(_)) => {
+                            return Ok(VAsync::Ready(sched));
+                        }
+                        (Ok(Async::Ready(Err(e))), Ok(_)) => {
+                            return Err(e);
+                        }
+                        (Ok(Async::NotReady), Ok(_)) => {
+                            return Ok(VAsync::NotReady(
+                                WaitResponse(proto, chan)));
+                        }
+                        (_, Err(e)) => {
+                            debug!("Replica connection error: {}", e);
+                            return Err(ReplicaError::Http(e));
+                        }
+                        (Err(e), _) => {
+                            debug!("Request dropped unexpectedly: {}", e);
+                            return Err(ReplicaError::OneshotCancel);
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -485,7 +561,9 @@ impl StateMachine for Prefetch {
         -> Result<VAsync<Self::Item, Self>, Void>
     {
         while let Async::Ready(_) = self.blacklist.poll() { }
-        self.poll_futures();
+        while self.poll_futures(ctx) {
+            while let Async::Ready(_) = self.blacklist.poll() { }
+        }
         while let Async::Ready(_) = self.blacklist.poll() { }
 
         if self.state == PrefetchState::Fetching && self.waiting.len() == 0 {
