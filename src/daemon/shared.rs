@@ -21,7 +21,6 @@ use rustc_serialize::{Encodable, Encoder as RustcEncoder};
 use serde_json::Value as Json;
 use crossbeam::sync::ArcCell;
 
-use cell;
 use config::Sandbox;
 use elect::{ElectionState, ScheduleStamp, Epoch};
 use fetch;

@@ -29,9 +29,6 @@ struct Codec {
     fut: Option<CpuFuture<Output, Status>>,
 }
 
-struct Dispatcher {
-}
-
 fn common_headers<S>(e: &mut server::Encoder<S>) {
     e.format_header("Server",
         format_args!("verwalter/{}", env!("CARGO_PKG_VERSION"))).unwrap();

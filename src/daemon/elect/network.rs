@@ -12,7 +12,6 @@ use tokio_core::reactor::Timeout;
 use libcantal::{Counter, Integer};
 use tk_easyloop::{handle, spawn, timeout_at};
 
-use cell::Cell;
 use elect::action::Action;
 use elect::{Info};
 use elect::{encode};

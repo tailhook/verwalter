@@ -9,7 +9,7 @@ pub use self::settings::peers_refresh;
 pub use self::state::ElectionState;
 use id::Id;
 use peer::Peer;
-use frontend::serialize::{serialize_timestamp, deserialize_timestamp};
+use frontend::serialize::{serialize_timestamp};
 
 mod action;
 mod info;

@@ -71,7 +71,6 @@ use id::Id;
 
 mod apply;
 mod cantal;
-mod cell;
 mod elect;
 mod frontend;
 mod fs_util;
