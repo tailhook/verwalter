@@ -162,9 +162,7 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                     #[serde(serialize_with="serialize_opt_timestamp")]
                     peers_timestamp: Option<SystemTime>,
                     leader: Option<LeaderInfo<'a>>,
-                    //scheduler_state: &'static str,
                     roles: usize,
-                    election_epoch: Epoch,
                     #[serde(serialize_with="serialize_opt_timestamp")]
                     last_stable_timestamp: Option<SystemTime>,
                     num_errors: usize,
@@ -176,10 +174,12 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                     metrics: HashMap<&'static str, Value>,
                     fetch_state: Arc<fetch::PublicState>,
                     election_state: &'a Arc<ElectionState>,
+                    schedule_id: Option<&'a String>,
                 }
                 let peers = state.peers();
                 let election = state.election();
                 let schedule = state.schedule();
+                let stable_schedule = state.stable_schedule();
                 let leader = if election.is_leader {
                     Some(LeaderInfo {
                         id: state.id(),
@@ -219,8 +219,6 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                     peers_timestamp: Some(peers.timestamp),
                     leader: leader,
                     roles: schedule.map(|x| x.num_roles).unwrap_or(0),
-                    //scheduler_state: state.scheduler_state().describe(),
-                    election_epoch: election.epoch,
                     last_stable_timestamp: election.last_stable_timestamp,
                     num_errors: errors.len() + failed_roles.len(),
                     errors: &*errors,
@@ -231,6 +229,7 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                     metrics: get_metrics(),
                     fetch_state: state.fetch_state.get(),
                     election_state: &election,
+                    schedule_id: stable_schedule.as_ref().map(|x| &x.hash),
                 }))
             }))
         }
