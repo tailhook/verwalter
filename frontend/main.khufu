@@ -131,7 +131,9 @@ view _navbar(status, frontend_version, @expert_mode):
               <a.navbar-brand href=url>
                 status.leader.name
                 <div.subtext.text-muted>
-                  status.scheduler_state
+                  status.fetch_state.state
+                  ": "
+                  status.schedule_status
           elif status:
             <li.muted>
               <a.navbar-brand href="/v1/election">

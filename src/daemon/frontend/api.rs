@@ -176,6 +176,7 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                     fetch_state: Arc<fetch::PublicState>,
                     election_state: &'a Arc<ElectionState>,
                     schedule_id: Option<&'a String>,
+                    schedule_status: &'a str,
                 }
                 let peers = state.peers();
                 let election = state.election();
@@ -183,8 +184,10 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                 let stable_schedule = state.stable_schedule();
                 let owned_schedule;
                 let leader_peer;
+                let status;
                 let leader = if election.is_leader {
                     owned_schedule = state.owned_schedule();
+                    status = "ok";
                     Some(LeaderInfo {
                         id: state.id(),
                         name: state.name.clone(),
@@ -199,17 +202,26 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                     {
                         Some((id, peer)) => {
                             leader_peer = peer.get();
+                            let schedule_hash = leader_peer.schedule.as_ref()
+                                                .map(|x| &x.hash);
+                            status = match (schedule_hash, &stable_schedule) {
+                                (Some(h), &Some(ref s)) if h == &s.hash => "ok",
+                                (Some(_), _) => "fetching",
+                                (None, _) => "waiting",
+                            };
                             Some(LeaderInfo {
                                 id: id,
                                 name: leader_peer.name.clone(),
                                 hostname: leader_peer.hostname.clone(),
                                 addr: leader_peer.addr
                                     .map(|x| x.to_string()),
-                                schedule: leader_peer.schedule.as_ref()
-                                    .map(|x| &x.hash),
+                                schedule: schedule_hash,
                             })
                         }
-                        None => None,
+                        None => {
+                            status = "unstable";
+                            None
+                        }
                     }
                 };
                 let errors = state.errors();
@@ -241,6 +253,7 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                     fetch_state: state.fetch_state.get(),
                     election_state: &election,
                     schedule_id: stable_schedule.as_ref().map(|x| &x.hash),
+                    schedule_status: status,
                 }))
             }))
         }
