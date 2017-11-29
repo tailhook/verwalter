@@ -4,8 +4,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use cbor::{Encoder, EncodeResult, Decoder, DecodeResult};
-use rustc_serialize::hex::{FromHex, ToHex, FromHexError};
-use rustc_serialize::{Encodable, Encoder as RustcEncoder};
+use hex::{FromHex, ToHex, encode as hexlify, FromHexError};
 use serde::{Serialize, Serializer};
 
 
@@ -40,15 +39,9 @@ impl Id {
     }
     pub fn to_hex(&self) -> String {
         match self.0 {
-            InternalId::Good(ar) => ar.to_hex(),
-            InternalId::Bad(ref vec) => vec.to_hex(),
+            InternalId::Good(ar) => hexlify(ar),
+            InternalId::Bad(ref vec) => hexlify(&vec[..]),
         }
-    }
-}
-
-impl Encodable for Id {
-    fn encode<S: RustcEncoder>(&self, s: &mut S) -> Result<(), S::Error> {
-        self.to_hex().encode(s)
     }
 }
 
@@ -63,7 +56,8 @@ impl Serialize for Id {
 impl FromStr for Id {
     type Err = FromHexError;
     fn from_str(s: &str) -> Result<Id, Self::Err> {
-        s.from_hex().map(Id::new)
+        let ar: [u8; 16] = FromHex::from_hex(s.as_bytes())?;
+        Ok(Id::new(ar))
     }
 }
 
@@ -71,10 +65,10 @@ impl fmt::Display for Id {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match self.0 {
             InternalId::Good(ar) => {
-                write!(fmt, "{}", ar.to_hex())
+                ar.write_hex(fmt)
             }
             InternalId::Bad(ref vec) => {
-                write!(fmt, "{}", vec.to_hex())
+                vec.write_hex(fmt)
             }
         }
     }
@@ -84,10 +78,10 @@ impl fmt::Debug for Id {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match self.0 {
             InternalId::Good(ar) => {
-                write!(fmt, "Id({})", ar.to_hex())
+                write!(fmt, "Id({})", hexlify(ar))
             }
             InternalId::Bad(ref vec) => {
-                write!(fmt, "Id({})", vec.to_hex())
+                write!(fmt, "Id({})", hexlify(&vec[..]))
             }
         }
     }

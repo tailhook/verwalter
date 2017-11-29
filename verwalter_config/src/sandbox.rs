@@ -9,7 +9,7 @@ use quick_error::ResultExt;
 
 pub type QuireError = ErrorList;
 
-#[derive(RustcDecodable, Clone)]
+#[derive(Deserialize, Clone)]
 pub struct Sandbox {
     pub log_dirs: HashMap<String, PathBuf>,
 }

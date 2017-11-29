@@ -3,7 +3,7 @@ use std::io::Read;
 use std::fs::File;
 
 use nix::unistd::gethostname;
-use rustc_serialize::hex::FromHex;
+use hex::FromHex;
 
 use id::Id;
 
@@ -16,9 +16,9 @@ pub fn machine_id() -> io::Result<Id> {
         return Err(io::Error::new(io::ErrorKind::Other,
             "Wrong length of /etc/machine-id"));
     }
-    let bin = try!(FromHex::from_hex(&buf[..])
-        .or_else(|_| Err(io::Error::new(io::ErrorKind::Other,
-            "Error decoding /etc/machine-id. Should be hexadecimal."))));
+    let bin: [u8; 16] = FromHex::from_hex(&buf[..32])
+        .map_err(|_| io::Error::new(io::ErrorKind::Other,
+            "Error decoding /etc/machine-id. Should be hexadecimal."))?;
     Ok(Id::new(bin))
 }
 

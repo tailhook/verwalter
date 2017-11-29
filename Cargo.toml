@@ -17,7 +17,6 @@ handlebars = { version="0.26.1" }
 log = "0.3.2"
 env_logger = "0.4.3"
 tempfile = "2.1.5"
-rustc-serialize = "0.3.16"
 quire = "0.3.1"
 yaml-rust = "0.4.0"
 scan_dir = "0.3"
@@ -46,7 +45,6 @@ trimmer = "0.3.5"
 void = "1.0"
 async-slot = "0.1.0"
 valuable_futures = "0.1.1"
-
 abstract-ns = "0.4.2"
 ns-router = "0.1.2"
 tokio-core = "0.1.10"
@@ -62,6 +60,7 @@ self-meter-http = "0.4.1"
 failure = "0.1.0"
 failure_derive = "0.1.0"
 http-file-headers = "0.1.3"
+hex = "0.3.1"
 
 [dependencies.indexed_log]
 path = "./indexed_log"
