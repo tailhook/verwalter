@@ -2,14 +2,12 @@ use std::fs;
 use std::path::Path;
 
 use quire::validate as V;
-use rustc_serialize::json::{Json, ToJson};
 
 use apply::{Task, Error, Action};
 use apply::expand::Variables;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct PeekLog(String);
-tuple_struct_decode!(PeekLog);
 
 impl PeekLog {
     pub fn config() -> V::Scalar {
@@ -59,10 +57,4 @@ impl Action for PeekLog {
         Ok(())
     }
 
-}
-
-impl ToJson for PeekLog {
-    fn to_json(&self) -> Json {
-        Json::Array(vec!["PeekLog".to_json(), self.0.to_json()])
-    }
 }

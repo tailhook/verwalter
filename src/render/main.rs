@@ -5,7 +5,7 @@ extern crate libc;
 extern crate quire;
 extern crate rand;
 extern crate regex;
-extern crate rustc_serialize;
+extern crate serde;
 extern crate scan_dir;
 extern crate serde_json;
 extern crate tempfile;
@@ -13,12 +13,12 @@ extern crate tera;
 extern crate trimmer;
 extern crate yaml_rust;
 #[macro_use] extern crate lazy_static;
+#[macro_use] extern crate serde_derive;
 #[macro_use] extern crate quick_error;
 
 extern crate indexed_log;
 extern crate verwalter_config as config;
 
-#[macro_use] mod macros;
 mod apply;
 mod render;
 mod renderfile;

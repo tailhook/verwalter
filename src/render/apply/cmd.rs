@@ -1,14 +1,12 @@
 use std::process::Command;
 
 use quire::validate as V;
-use rustc_serialize::json::{Json, ToJson};
 
 use apply::{Task, Error, Action};
 use apply::expand::Variables;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct Cmd(Vec<String>);
-tuple_struct_decode!(Cmd);
 
 impl Cmd {
     pub fn config() -> V::Sequence<'static> {
@@ -45,10 +43,4 @@ impl Action for Cmd {
         }
     }
 
-}
-
-impl ToJson for Cmd {
-    fn to_json(&self) -> Json {
-        Json::Array(vec!["Cmd".to_json(), self.0.to_json()])
-    }
 }

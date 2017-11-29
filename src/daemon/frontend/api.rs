@@ -1,21 +1,20 @@
 use std::collections::{HashMap, HashSet};
 use std::io::BufWriter;
-use std::str::from_utf8;
 use std::sync::Arc;
 use std::time::SystemTime;
 
 use futures::future::{FutureResult, ok, Future};
 use gron::json_to_gron;
 use serde::Serialize;
-use serde_json::{Value, to_writer, to_writer_pretty, to_value, from_str};
-use tk_http::Status::{self, NotImplemented, BadRequest, NotFound};
+use serde_json::{Value, to_writer, to_writer_pretty, to_value};
+use tk_http::Status::{self, NotImplemented, NotFound};
 use tk_http::Status::{TooManyRequests, ServiceUnavailable};
-use tk_http::server::{Codec as CodecTrait, Dispatcher as DispatcherTrait};
-use tk_http::server::{Head, Encoder, EncoderDone, RecvMode, Error};
+use tk_http::server::{Codec as CodecTrait};
+use tk_http::server::{Encoder, EncoderDone, Error};
 
-use elect::{Epoch, ElectionState};
+use elect::{ElectionState};
 use fetch;
-use frontend::error_page::{serve_error_page, error_page};
+use frontend::error_page::{error_page};
 use frontend::routing::{ApiRoute, Format};
 use frontend::serialize::serialize_opt_timestamp;
 use frontend::to_json::ToJson;

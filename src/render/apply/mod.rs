@@ -1,12 +1,12 @@
 use std::io;
-use std::fmt::{Arguments, Debug};
+use std::fmt::{self, Arguments, Debug};
 use std::sync::Arc;
 use std::process::ExitStatus;
 use std::collections::HashMap;
 
+use serde::de::{Deserializer, Deserialize, Error as DeError, Visitor};
+use serde::de::{VariantAccess, EnumAccess};
 use tempfile::NamedTempFile;
-use rustc_serialize::{Decodable, Decoder};
-use rustc_serialize::json::{Json, ToJson};
 use indexed_log as log;
 
 use config::Sandbox;
@@ -29,6 +29,17 @@ const COMMANDS: &'static [&'static str] = &[
     "PeekLog",
 ];
 
+pub enum CommandName {
+    RootCommand,
+    Cmd,
+    Sh,
+    Copy,
+    PeekLog,
+}
+
+pub struct NameVisitor;
+pub struct CommandVisitor;
+
 pub struct Task<'a: 'b, 'b: 'c, 'c: 'd, 'd> {
     pub runner: &'d str,
     pub log: &'d mut log::Action<'a, 'b, 'c>,
@@ -37,7 +48,7 @@ pub struct Task<'a: 'b, 'b: 'c, 'c: 'd, 'd> {
     pub sandbox: &'d Sandbox,
 }
 
-trait Action: Debug + Send + ToJson + Sync {
+trait Action: Debug + Send + Sync {
     fn execute(&self, task: Task, variables: Variables)
         -> Result<(), Error>;
 }
@@ -77,38 +88,64 @@ quick_error!{
     }
 }
 
-fn cmd<T: Action + 'static, E>(val: Result<T, E>)
-    -> Result<Command, E>
-{
-    val.map(|x| Command(Arc::new(x) as Arc<Action>))
-}
-
-fn decode_command<D: Decoder>(cmdname: &str, d: &mut D)
-    -> Result<Command, D::Error>
-{
-    match cmdname {
-        "RootCommand" => cmd(self::root_command::RootCommand::decode(d)),
-        "Cmd" => cmd(self::cmd::Cmd::decode(d)),
-        "Sh" => cmd(self::shell::Sh::decode(d)),
-        "Copy" => cmd(self::copy::Copy::decode(d)),
-        "PeekLog" => cmd(self::peek_log::PeekLog::decode(d)),
-        _ => panic!("Command {:?} not implemented", cmdname),
+impl<'a> Deserialize<'a> for CommandName {
+    fn deserialize<D: Deserializer<'a>>(d: D) -> Result<CommandName, D::Error>
+    {
+        d.deserialize_identifier(NameVisitor)
     }
 }
 
-impl Decodable for Command {
-    fn decode<D: Decoder>(d: &mut D) -> Result<Command, D::Error> {
-        Ok(try!(d.read_enum("Action", |d| {
-            d.read_enum_variant(&COMMANDS, |d, index| {
-                decode_command(COMMANDS[index], d)
-            })
-        })))
+impl<'a> Visitor<'a> for NameVisitor {
+    type Value = CommandName;
+    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "command is one of {}", COMMANDS.join(", "))
+    }
+    fn visit_str<E: DeError>(self, val: &str) -> Result<CommandName, E> {
+        use self::CommandName::*;
+        let res = match val {
+            "RootCommand" => RootCommand,
+            "Cmd" => Cmd,
+            "Sh" => Sh,
+            "Copy" => Copy,
+            "PeekLog" => PeekLog,
+            _ => return Err(E::custom("invalid command")),
+        };
+        Ok(res)
     }
 }
 
-impl ToJson for Command {
-    fn to_json(&self) -> Json {
-        self.0.to_json()
+fn decode<'x, T, V>(v: V)
+    -> Result<Command, V::Error>
+    where
+        T: Action + Deserialize<'x> + 'static,
+        V: VariantAccess<'x>,
+{
+    v.newtype_variant::<T>().map(|x| Command(Arc::new(x) as Arc<Action>))
+}
+
+impl<'a> Visitor<'a> for CommandVisitor {
+    type Value = Command;
+    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "command is one of {}", COMMANDS.join(", "))
+    }
+    fn visit_enum<A>(self, data: A) -> Result<Command, A::Error>
+        where A: EnumAccess<'a>,
+    {
+        use self::CommandName::*;
+        let (tag, v) = data.variant()?;
+        match tag {
+            RootCommand => decode::<root_command::RootCommand, _>(v),
+            Cmd => decode::<cmd::Cmd, _>(v),
+            Sh => decode::<shell::Sh, _>(v),
+            Copy => decode::<copy::Copy, _>(v),
+            PeekLog => decode::<peek_log::PeekLog, _>(v),
+        }
+    }
+}
+
+impl<'a> Deserialize<'a> for Command {
+    fn deserialize<D: Deserializer<'a>>(d: D) -> Result<Command, D::Error> {
+        d.deserialize_enum("Command", COMMANDS, CommandVisitor)
     }
 }
 

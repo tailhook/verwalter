@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use futures::Async;
 use tk_http::server::{Error, Codec, RecvMode, Encoder};
 use tk_http::server as http;

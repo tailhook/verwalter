@@ -3,14 +3,11 @@ use std::process::exit;
 use std::path::Path;
 use std::sync::Arc;
 
-use abstract_ns::{self, Resolver};
+use ns_router::Router as NsRouter;
 use futures::{Future, Stream};
-use futures::future::{FutureResult, ok};
 use tk_easyloop::{handle, spawn};
 use tk_http;
-use tk_http::{Status};
-use tk_http::server::buffered::{Request, BufferedDispatcher};
-use tk_http::server::{self, Encoder, EncoderDone, Proto, Error};
+use tk_http::server::{Proto};
 use tokio_core::net::TcpListener;
 use tk_listen::ListenExt;
 
@@ -18,7 +15,7 @@ use frontend;
 use shared::SharedState;
 
 
-pub fn spawn_listener(ns: &abstract_ns::Router, addr: &str,
+pub fn spawn_listener(ns: &NsRouter, addr: &str,
     state: &SharedState, static_dir: &Path)
     -> Result<(), Box<::std::error::Error>>
 {
@@ -37,7 +34,7 @@ pub fn spawn_listener(ns: &abstract_ns::Router, addr: &str,
         .output_body_whole_timeout(Duration::new(10, 0))  // max 65k bytes
         .done();
 
-    spawn(ns.resolve(addr).map(move |addresses| {
+    spawn(ns.resolve_auto(addr, 8379).map(move |addresses| {
         for addr in addresses.at(0).addresses() {
             info!("Listening on {}", addr);
             let listener = TcpListener::bind(&addr, &handle())

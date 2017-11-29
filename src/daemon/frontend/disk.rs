@@ -1,14 +1,10 @@
-use std::time::Duration;
-use std::path::{Path, PathBuf};
+use std::path::{PathBuf};
 use std::sync::Arc;
 
-use futures::{Future, Stream, Async};
+use futures::{Future, Async};
 use futures::future::{ok, FutureResult, Either, loop_fn, Loop};
 use futures_cpupool::{CpuPool, CpuFuture};
-use tk_listen::ListenExt;
 use tokio_io::AsyncWrite;
-use tokio_core::net::TcpListener;
-use tokio_core::reactor::Core;
 use tk_http::server;
 use tk_http::Status;
 use http_file_headers::{Input, Output, Config};

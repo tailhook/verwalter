@@ -18,7 +18,7 @@ use indexed_log::Role;
 use renderfile::{self as config, TemplateError};
 
 
-#[derive(RustcDecodable, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct Renderer {
     pub templates: HashMap<String, PathBuf>,
     pub commands: Vec<Command>,

@@ -1,10 +1,9 @@
-use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::process::exit;
 use std::sync::{Mutex, Arc};
 use std::time::{SystemTime, Instant, Duration};
 
-use abstract_ns::{self, Resolver};
+use ns_router::Router as NsRouter;
 use futures::{Async, Future};
 use futures::sync::mpsc::UnboundedSender;
 use tokio_core::net::UdpSocket;
@@ -282,13 +281,13 @@ impl ElectionMachine {
     }
 }
 
-pub fn spawn_election(ns: &abstract_ns::Router, addr: &str,
+pub fn spawn_election(ns: &NsRouter, addr: &str,
     state: &SharedState, fetcher_tx: UnboundedSender<fetch::Message>)
     -> Result<(), Box<::std::error::Error>>
 {
     let str_addr = addr.to_string();
     let state = state.clone();
-    spawn(ns.resolve(addr).map(move |address| {
+    spawn(ns.resolve_auto(addr, 8379).map(move |address| {
         let socks = address.at(0).addresses().map(|a| {
                 UdpSocket::bind(&a, &handle())
                 .map_err(move |e| {

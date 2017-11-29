@@ -1,17 +1,16 @@
 use std::io::{self, Read, Seek};
 use std::fs::{File, metadata};
-use std::path::{Path, PathBuf};
+use std::path::{PathBuf};
 
-use futures::future::{FutureResult, ok, Future};
+use futures::future::{ok, Future};
 use tk_http::Status;
-use tk_http::server::{Codec as CodecTrait, Dispatcher as DispatcherTrait};
-use tk_http::server::{Head, Encoder, EncoderDone, RecvMode, Error};
+use tk_http::server::{Codec as CodecTrait};
+use tk_http::server::{EncoderDone, Error};
 
 use frontend::reply;
 use frontend::routing::{LogRoute, Range};
 use routing_util::path_component;
 use shared::SharedState;
-use quick_error::ResultExt;
 
 
 const MAX_LOG_RESPONSE: u64 = 1048576;

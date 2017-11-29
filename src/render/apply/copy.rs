@@ -3,12 +3,11 @@ use std::path::Path;
 use std::os::unix::fs::PermissionsExt;
 
 use quire::validate as V;
-use rustc_serialize::json::{Json, ToJson};
 
 use apply::{Task, Error, Action};
 use apply::expand::Variables;
 
-#[derive(RustcDecodable, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct Copy {
     src: String,
     dest: String,
@@ -65,14 +64,4 @@ impl Action for Copy {
         }
     }
 
-}
-
-impl ToJson for Copy {
-    fn to_json(&self) -> Json {
-        Json::Object(vec![
-            ("__command__".to_string(), "Copy".to_json()),
-            ("src".to_string(), self.src.to_json()),
-            ("dest".to_string(), self.dest.to_json()),
-        ].into_iter().collect())
-    }
 }

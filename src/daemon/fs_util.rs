@@ -1,4 +1,4 @@
-use std::io::{self, Write, Read, BufWriter, BufReader};
+use std::io::{self, Write, BufWriter, BufReader};
 use std::path::Path;
 use std::io::ErrorKind::{NotFound, AlreadyExists};
 use std::fs::{File, OpenOptions, remove_file, create_dir, rename, metadata};

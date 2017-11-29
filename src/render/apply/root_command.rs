@@ -2,14 +2,12 @@ use std::process::Command;
 
 use libc::geteuid;
 use quire::validate as V;
-use rustc_serialize::json::{Json, ToJson};
 
 use apply::{Task, Error, Action};
 use apply::expand::Variables;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct RootCommand(Vec<String>);
-tuple_struct_decode!(RootCommand);
 
 impl RootCommand {
     pub fn config() -> V::Sequence<'static> {
@@ -54,10 +52,4 @@ impl Action for RootCommand {
         }
     }
 
-}
-
-impl ToJson for RootCommand {
-    fn to_json(&self) -> Json {
-        Json::Array(vec!["RootCommand".to_json(), self.0.to_json()])
-    }
 }

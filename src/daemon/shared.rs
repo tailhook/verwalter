@@ -1,34 +1,24 @@
-use std::io::{Read, Write};
 use std::ops::Deref;
-use std::str::FromStr;
-use std::net::SocketAddr;
 use std::sync::{Arc, Mutex, Condvar, MutexGuard};
 use std::sync::atomic::Ordering::SeqCst;
 use std::sync::atomic::AtomicBool;
-use std::time::{Duration, SystemTime, Instant};
+use std::time::{SystemTime};
 use std::collections::{HashMap, BTreeMap, HashSet};
 use std::collections::btree_map::Entry::{Occupied, Vacant};
 
 use async_slot as slot;
-use futures::Future;
-use futures::sync::oneshot;
-use futures::sync::mpsc::UnboundedSender;
 use tokio_core::reactor::Remote;
-use time::{SteadyTime, Timespec, Duration as Dur, get_time};
-use cbor::{Encoder, EncodeResult, Decoder, DecodeResult};
-use rustc_serialize::hex::{FromHex, ToHex, FromHexError};
-use rustc_serialize::{Encodable, Encoder as RustcEncoder};
+use time::{get_time};
 use serde_json::Value as Json;
 use crossbeam::sync::ArcCell;
 
 use config::Sandbox;
-use elect::{ElectionState, ScheduleStamp, Epoch};
+use elect::{ElectionState, Epoch};
 use fetch;
 use id::Id;
 use {Options};
 use peer::{Peer, Peers};
-use scheduler::{self, Schedule, SchedulerInput, ScheduleId};
-use time_util::ToMsec;
+use scheduler::{Schedule, SchedulerInput, ScheduleId};
 
 
 /// Things that are shared across the application threads

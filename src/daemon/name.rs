@@ -1,7 +1,12 @@
-use abstract_ns::{Router, RouterBuilder};
-use ns_std_threaded::ThreadedResolver;
+use std::time::Duration;
+
+use abstract_ns::HostResolve;
+use ns_router::{self, SubscribeExt, Router};
+use ns_std_threaded;
 use futures_cpupool::Builder;
 use self_meter_http::Meter;
+use tk_easyloop::handle;
+
 
 pub fn init(meter: &Meter) -> Router {
     let ns_pool = {
@@ -15,8 +20,10 @@ pub fn init(meter: &Meter) -> Router {
         .before_stop(move || m2.untrack_current_thread())
         .create()
     };
-    let ns = ThreadedResolver::new(ns_pool);
-    let mut rb = RouterBuilder::new();
-    rb.add_default(ns);
-    rb.into_resolver()
+    ns_router::Router::from_config(&ns_router::Config::new()
+        .set_fallthrough(ns_std_threaded::ThreadedResolver::use_pool(ns_pool)
+            .null_service_resolver()
+            .interval_subscriber(Duration::new(1, 0), &handle()))
+        .done(),
+        &handle())
 }

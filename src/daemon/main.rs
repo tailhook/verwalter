@@ -1,4 +1,3 @@
-#![allow(unused_imports)]  // temporary
 extern crate abstract_ns;
 extern crate argparse;
 extern crate async_slot;
@@ -17,6 +16,7 @@ extern crate libc;
 extern crate libcantal;
 extern crate nix;
 extern crate ns_std_threaded;
+extern crate ns_router;
 extern crate quire;
 extern crate rand;
 extern crate regex;
@@ -42,28 +42,21 @@ extern crate yaml_rust;
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate log;
 #[macro_use] extern crate lua;
-#[macro_use] extern crate matches;
 #[macro_use] extern crate quick_error;
 #[macro_use] extern crate serde_derive;
+#[cfg(test)] #[macro_use] extern crate matches;
 
 extern crate indexed_log;
 extern crate verwalter_config as config;
 
 use std::io::{stderr, Write};
-use std::net::ToSocketAddrs;
 use std::path::PathBuf;
-use std::time::Duration;
-use std::sync::{Arc, Mutex};
 use std::process::exit;
-use std::sync::mpsc::{channel, sync_channel};
 use std::thread;
 
-use abstract_ns::Resolver;
-use futures::Future;
 use futures::sync::mpsc::unbounded;
 use time::now_utc;
-use tk_easyloop::{run_forever, spawn, handle};
-use tk_listen::ListenExt;
+use tk_easyloop::{run_forever};
 
 use shared::SharedState;
 use config::Sandbox;

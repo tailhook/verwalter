@@ -3,7 +3,7 @@ use std::process::exit;
 
 use futures::{IntoFuture, Future};
 use futures::future::Either;
-use futures::sync::oneshot::{channel, Sender, Receiver};
+use futures::sync::oneshot::{channel, Sender};
 use tokio_core::reactor::{Remote, Handle, Timeout};
 use tk_easyloop::handle;
 

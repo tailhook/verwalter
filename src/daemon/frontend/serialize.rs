@@ -1,7 +1,6 @@
-use std::time::{SystemTime, Duration, Instant, UNIX_EPOCH};
+use std::time::{SystemTime, Duration, UNIX_EPOCH};
 
 use serde::Serializer;
-use serde::de::{self, Deserialize, Deserializer};
 
 
 fn tstamp_to_ms(tm: SystemTime) -> u64 {

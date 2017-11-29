@@ -1,12 +1,7 @@
-use std::sync::{Arc, Mutex};
-use std::time::Instant;
-
 use serde_json::Value as Json;
-use serde::{Serialize, Serializer};
 
 use hash::hash;
 use id::Id;
-use time_util::ToMsec;
 use itertools::Itertools;
 
 pub type ScheduleId = String; // temporarily

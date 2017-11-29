@@ -1,9 +1,7 @@
 use std::error::Error;
 use std::str::FromStr;
-use std::time::{SystemTime, Duration};
 use std::net::SocketAddr;
 
-use tk_http;
 use tk_cantal;
 use tk_easyloop;
 

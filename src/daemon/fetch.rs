@@ -1,13 +1,11 @@
 use std::io;
 use std::cmp::max;
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::mem;
 use std::net::SocketAddr;
 use std::process::exit;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use abstract_ns;
 use futures::{Future, Stream, Sink, Async, AsyncSink};
 use futures::future::{FutureResult, ok};
 use futures::sync::mpsc::UnboundedReceiver;
@@ -17,7 +15,7 @@ use tokio_core::reactor::Timeout;
 use tokio_core::net::{TcpStream, TcpStreamNew};
 use valuable_futures::{Supply, StateMachine, Async as A, Async as VAsync};
 
-use elect::{self, ScheduleStamp};
+use elect::{ScheduleStamp};
 use id::Id;
 use scheduler::{self, Schedule, ScheduleId};
 use serde_json;
