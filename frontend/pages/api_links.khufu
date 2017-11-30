@@ -31,7 +31,6 @@ view main():
       ["status", "Status"],
       ["peers", "Peers"],
       ["schedule", "Schedule"],
-      ["scheduler", "Scheduler"],
       ["scheduler_input", "Scheduler Input"],
       ["election", "Election"],
       ["pending actions", "Pending Actions"],

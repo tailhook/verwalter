@@ -7,7 +7,7 @@ use futures::future::{FutureResult, ok, Future};
 use gron::json_to_gron;
 use serde::Serialize;
 use serde_json::{Value, to_writer, to_writer_pretty, to_value};
-use tk_http::Status::{self, NotImplemented, NotFound};
+use tk_http::Status::{self, NotFound};
 use tk_http::Status::{TooManyRequests, ServiceUnavailable};
 use tk_http::server::{Codec as CodecTrait};
 use tk_http::server::{Encoder, EncoderDone, Error};
@@ -288,11 +288,6 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                     Box::new(error_page(NotFound, e))
                 }))
             }
-        }
-        Scheduler => {
-            Ok(reply(move |e| {
-                    Box::new(error_page(NotImplemented, e))
-            }))
         }
         SchedulerInput => {
             Ok(reply(move |e| {
