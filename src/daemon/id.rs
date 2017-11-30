@@ -56,8 +56,12 @@ impl Serialize for Id {
 impl FromStr for Id {
     type Err = FromHexError;
     fn from_str(s: &str) -> Result<Id, Self::Err> {
-        let ar: [u8; 16] = FromHex::from_hex(s.as_bytes())?;
-        Ok(Id::new(ar))
+        let ar: Vec<u8> = FromHex::from_hex(s.as_bytes())?;
+        if ar.len() == 16 {
+            Ok(Id::new(ar))
+        } else {
+            Ok(Id(InternalId::Bad(Arc::new(ar.into()))))
+        }
     }
 }
 
