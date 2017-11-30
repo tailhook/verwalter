@@ -217,6 +217,7 @@ impl SharedState {
         if !guard.election.is_leader &&
             guard.election.leader.as_ref() == Some(&schedule.origin)
         {
+            guard.last_known_schedule = Some(schedule.clone());
             guard.stable_schedule = Some(schedule.clone());
         } else {
             debug!("Ingoring follower schedule {} from {}",
