@@ -263,6 +263,10 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                 primary_addr: Option<String>,
                 name: String,
                 hostname: String,
+                #[serde(with="::serde_millis")]
+                known_since: SystemTime,
+                #[serde(with="::serde_millis")]
+                last_report_direct: Option<SystemTime>,
             }
             Ok(reply(move |e| {
                 Box::new(respond(e, format,
@@ -273,6 +277,8 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                             name: peer.name.clone(),
                             hostname: peer.hostname.clone(),
                             primary_addr: peer.addr.map(|x| x.to_string()),
+                            known_since: peer.known_since,
+                            last_report_direct: peer.last_report_direct,
                         }
                     }).collect::<Vec<_>>()
                 ))

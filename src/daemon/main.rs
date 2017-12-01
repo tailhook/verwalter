@@ -25,6 +25,7 @@ extern crate scan_dir;
 extern crate self_meter_http;
 extern crate serde;
 extern crate serde_json;
+extern crate serde_millis;
 extern crate sha1;
 extern crate tempfile;
 extern crate time;

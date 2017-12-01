@@ -14,9 +14,8 @@ pub struct Peer {
     pub hostname: String,
     #[serde(skip_deserializing)]
     pub schedule: Option<ScheduleStamp>,
-    // pub addressses: Vec<SocketAddr>,  // TODO(tailhook)
-    // pub known_since: SystemTime,  // TODO(tailhook)
-    // pub last_report_direct: Option<SystemTime>,  // TODO(tailhook)
+    pub known_since: SystemTime,
+    pub last_report_direct: Option<SystemTime>,
 }
 
 #[derive(Debug)]

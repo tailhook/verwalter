@@ -36,7 +36,8 @@ pub fn spawn_fetcher(state: &SharedState, port: u16)
                             name: p.name,
                             hostname: p.hostname,
                             schedule: None,
-                            // last_report: None, // TODO(tailhook)
+                            known_since: p.known_since,
+                            last_report_direct: p.last_report_direct,
                         }))
                     }).collect());
                 ok(())
