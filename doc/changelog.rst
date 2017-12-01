@@ -1,6 +1,22 @@
 Verwalter Changes by Version
 ============================
 
+.. _changelog-0.9.2:
+
+Verwalter 0.9.2
+---------------
+
+* Fix bug in showing old schedule at ``/api/v1/schedule`` api
+* Logs now served by newer library, so bigger subset of requests supported
+  (last modified, no range, ...)
+
+.. _changelog-0.9.1:
+
+Verwalter 0.9.1
+---------------
+
+* Release packaging fixes and few dependencies upgraded
+
 
 .. _changelog-0.9.0:
 
