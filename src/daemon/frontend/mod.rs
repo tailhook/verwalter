@@ -49,7 +49,7 @@ impl<S: AsyncWrite + Send + 'static> DispatcherTrait<S> for Dispatcher {
                 api::serve(&self.state, route, fmt)
             }
             Log(ref route) => {
-                log::serve(&self.state, route)
+                log::serve(headers, &self.state, route)
             }
             NotFound => {
                 serve_error_page(Status::NotFound)

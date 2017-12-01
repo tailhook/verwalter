@@ -16,6 +16,10 @@ lazy_static! {
     static ref CONFIG: Arc<Config> = Config::new()
         .add_index_file("index.html")
         .done();
+    static ref LOG_CONFIG: Arc<Config> = Config::new()
+        .no_encodings()
+        .content_type(false)  // so we don't serve logs as JS or HTML
+        .done();
 }
 
 type ResponseFuture<S> = Box<Future<Item=server::EncoderDone<S>,
@@ -154,6 +158,23 @@ pub fn common_response<S>(head: &server::Head, path: String,
     let fut = POOL.spawn_fn(move || {
         inp.probe_file(&path).map_err(|e| {
             error!("Error reading file {:?}: {}", path, e);
+            Status::InternalServerError
+        })
+    });
+    Ok(Box::new(Codec {
+        fut: Some(fut),
+    }))
+}
+
+pub fn log_response<S>(head: &server::Head, full_path: PathBuf)
+    -> Result<Request<S>, server::Error>
+    where S: AsyncWrite + Send + 'static
+{
+    let inp = Input::from_headers(&*LOG_CONFIG, head.method(), head.headers());
+    // path is validated for ".." in routing
+    let fut = POOL.spawn_fn(move || {
+        inp.probe_file(&full_path).map_err(|e| {
+            error!("Error reading log file {:?}: {}", full_path, e);
             Status::InternalServerError
         })
     });

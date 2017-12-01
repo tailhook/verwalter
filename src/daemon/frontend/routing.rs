@@ -1,5 +1,3 @@
-use std::ascii::AsciiExt;
-use std::str::from_utf8;
 use std::path::Path;
 use std::path::Component::Normal;
 
@@ -20,21 +18,13 @@ pub enum ApiRoute {
     ForceRenderAll,
 }
 
-#[derive(Clone, Copy, Debug)]
-pub enum Range {
-    FromTo(u64, u64),
-    AllFrom(u64),
-    Last(u64),
-}
-
-
 #[derive(Clone, Debug)]
 pub enum LogRoute {
-    Index(String, Range),
-    Global(String, Range),
-    Changes(String, Range),
-    Role(String, Range),
-    External(String, Range),
+    Index(String),
+    Global(String),
+    Changes(String),
+    Role(String),
+    External(String),
 }
 
 #[derive(Clone, Debug, Copy)]
@@ -86,55 +76,6 @@ fn api_suffix(path: &str) -> Format {
     }
 }
 
-fn parse_range_bytes(x: &str) -> Option<Range> {
-    use self::Range::*;
-    let mut iter = x.splitn(2, "-");
-    match (iter.next(), iter.next()) {
-        (_, None) | (None, _) => return None,
-        (Some(""), Some(neg)) => neg.parse().ok().map(Last),
-        (Some(st), Some("")) => st.parse().ok().map(AllFrom),
-        (Some(start), Some(end)) => {
-            start.parse().and_then(
-                |start| end.parse().map(|end| FromTo(start, end))
-            ).ok()
-        }
-    }
-}
-
-fn parse_range(head: &Head) -> Option<(&'static str, Range)> {
-    let mut result = None;
-    for (name, value) in head.headers() {
-        if name.eq_ignore_ascii_case("Range") {
-            let s = match from_utf8(value) {
-                Ok(s) => s,
-                // TODO(tailhook) implement 416 or 400
-                Err(..) => return None,
-            };
-            if result.is_some() {
-                // TODO(tailhook) implement 416 or 400
-                return None;
-            }
-            if s.trim().starts_with("bytes=") {
-                match parse_range_bytes(&s[6..]) {
-                    Some(x) => result = Some(("bytes", x)),
-                    // TODO(tailhook) implement 400
-                    None => return None,
-                }
-            } else if s.trim().starts_with("records=") {
-                match parse_range_bytes(&s[8..]) {
-                    Some(x) => result = Some(("records", x)),
-                    // TODO(tailhook) implement 400
-                    None => return None,
-                }
-            } else {
-                // TODO(tailhook) implement 400
-                return None;
-            }
-        }
-    }
-    return result;
-}
-
 fn validate_path<P: AsRef<Path>>(path: P) -> bool {
     for cmp in Path::new(path.as_ref()).components(){
         match cmp {
@@ -145,26 +86,23 @@ fn validate_path<P: AsRef<Path>>(path: P) -> bool {
     return true;
 }
 
-fn parse_log_route(path: &str, head: &Head) -> Option<LogRoute> {
+fn parse_log_route(path: &str) -> Option<LogRoute> {
     use self::LogRoute::*;
     if !validate_path(path) {
         // TODO(tailhook) implement 400
         return None;
     }
-    // TODO(tailhook) implement 416
-    parse_range(head).and_then(|(typ, rng)| {
-        match (path_component(path), typ) {
-            (("index", tail), "bytes") => Some(Index(tail.into(), rng)),
-            (("global", tail), "bytes") => Some(Global(tail.into(), rng)),
-            (("changes", tail), "bytes") => Some(Changes(tail.into(), rng)),
-            (("role", tail), "bytes") => Some(Role(tail.into(), rng)),
-            (("external", tail), "bytes") => Some(External(tail.into(), rng)),
-            _ => None,
-        }
-    })
+    match path_component(path) {
+        ("index", tail) => Some(Index(tail.into())),
+        ("global", tail) => Some(Global(tail.into())),
+        ("changes", tail) => Some(Changes(tail.into())),
+        ("role", tail) => Some(Role(tail.into())),
+        ("external", tail) => Some(External(tail.into())),
+        _ => None,
+    }
 }
 
-fn parse_api(path: &str, head: &Head) -> Option<Route> {
+fn parse_api(path: &str) -> Option<Route> {
     use self::Route::*;
     use self::ApiRoute::*;
     use self::Format::Plain;
@@ -183,7 +121,7 @@ fn parse_api(path: &str, head: &Head) -> Option<Route> {
             }).ok()
         }
         ("pending_actions", "") => Some(Api(PendingActions, api_suffix(path))),
-        ("log", tail) => parse_log_route(tail, &head).map(Log),
+        ("log", tail) => parse_log_route(tail).map(Log),
         _ => None,
     }
 }
@@ -201,7 +139,7 @@ pub fn route(head: &Head) -> Route {
     };
     let route = match path_component(&path[..]) {
         ("", _) => Some(Index),
-        ("v1", suffix) => parse_api(suffix, &head),
+        ("v1", suffix) => parse_api(suffix),
         ("common", path) => {
             if !validate_path(path) {
                 // TODO(tailhook) implement 400
