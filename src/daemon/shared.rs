@@ -219,6 +219,8 @@ impl SharedState {
         {
             guard.last_known_schedule = Some(schedule.clone());
             guard.stable_schedule = Some(schedule.clone());
+            self.0.schedule_channel.swap(schedule.clone())
+                .expect("apply channel is alive");
         } else {
             debug!("Ingoring follower schedule {} from {}",
                 schedule.hash, schedule.origin);
