@@ -30,7 +30,8 @@ impl Environ {
                 hostname: format!("{}", id),
                 name: format!("{}", id),
                 schedule: None,
-                //last_report: Some(Instant::now()),
+                last_report_direct: Some(SystemTime::now()),
+                known_since: SystemTime::now(),
             })))].into_iter().collect(),
             now: Instant::now(),
             tspec: Instant::now(),
@@ -66,7 +67,8 @@ impl Environ {
             hostname: format!("{}", id),
             name: format!("{}", id),
             schedule: None,
-            // last_report: Some(self.tspec),
+            last_report_direct: Some(SystemTime::now()),
+            known_since: SystemTime::now(),
         })));
         id
     }
