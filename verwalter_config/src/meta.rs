@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::Read;
+use std::io::{Read, BufReader};
 use std::str::FromStr;
 use std::path::Path;
 use std::path::Component::Normal;
@@ -72,10 +72,10 @@ fn read_entry(path: &Path, ext: &str)
         }
         "json" => {
             debug!("Reading JSON metadata from {:?}", path);
-            let mut f = try!(File::open(path)
-                .map_err(|e| FileRead(e, path.to_path_buf())));
-            Some(try!(serde_json::from_reader(&mut f)
-                .map_err(|e| JsonParse(e, path.to_path_buf()))))
+            let f = File::open(path)
+                .map_err(|e| FileRead(e, path.to_path_buf()))?;
+            Some(serde_json::from_reader(BufReader::new(f))
+                .map_err(|e| JsonParse(e, path.to_path_buf()))?)
         }
         "txt" => {
             debug!("Reading text metadata from {:?}", path);
