@@ -43,6 +43,7 @@ fn spawn<F, R>(f: F)
 impl Alarm {
     pub fn new(delay: Duration, name: &'static str) -> Alarm {
         let (tx, rx) = channel();
+        debug!("Alarm {:?} started with delay of {:?}", name, delay);
         let deadline = Instant::now() + delay;
         spawn(move |handle| {
             Timeout::new_at(deadline, handle)

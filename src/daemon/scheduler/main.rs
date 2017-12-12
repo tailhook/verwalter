@@ -226,6 +226,8 @@ pub fn main(state: SharedState, settings: Settings) -> !
             };
 
             let hash = hash(json.to_string());
+            info!("New schedule {}, done in {} ms", hash,
+                SCHEDULING_TIME.get());
             state.set_schedule_by_leader(cookie, Schedule {
                 num_roles: num_roles(&json),
                 timestamp: timestamp.to_msec(),
