@@ -180,7 +180,7 @@ pub fn main(state: SharedState, settings: Settings) -> !
 
             let timestamp = SystemTime::now();
             let instant = Instant::now();
-            let _alarm = Alarm::new(Duration::new(1, 0), "scheduler");
+            let _alarm = Alarm::new(Duration::new(5, 0), "scheduler");
 
             let input = SchedulerInput {
                 now: timestamp,
