@@ -1,6 +1,33 @@
 Verwalter Changes by Version
 ============================
 
+
+.. _changelog-0.9.5:
+
+Verwalter 0.9.5
+---------------
+
+* Bugfix: because we used unbuffered reading of runtime, it was too slow,
+  effectively preventing scheduler to start on larger schedules
+* Settings tweak: scheduler watchdog timeout is increased to 5 sec
+
+
+.. _changelog-0.9.4:
+
+Verwalter 0.9.4
+---------------
+
+* Bugfix: follower was unable to render templates (only leader)
+
+
+.. _changelog-0.9.3:
+
+Verwalter 0.9.3
+---------------
+
+* Peer info (known since, last ping) is now visible again (broken in 0.9.0)
+
+
 .. _changelog-0.9.2:
 
 Verwalter 0.9.2
