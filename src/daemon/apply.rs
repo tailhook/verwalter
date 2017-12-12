@@ -257,7 +257,7 @@ pub fn run(state: SharedState, settings: Settings,
         if schedule.hash == prev_schedule {
             continue;
         }
-        let _alarm = watchdog::Alarm::new(Duration::new(180, 0));
+        let _alarm = watchdog::Alarm::new(Duration::new(180, 0), "apply");
         write_file(&settings.schedule_file, &*schedule)
             .map_err(|e| error!("Writing schedule failed: {:?}", e)).ok();
         apply_schedule(&schedule.hash, prev_schedule != schedule.hash,

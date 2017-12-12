@@ -21,7 +21,7 @@ use scheduler::Schedule;
 use scheduler::state::num_roles;
 use shared::{SharedState};
 use time_util::ToMsec;
-use watchdog;
+use watchdog::{self, Alarm};
 
 
 lazy_static! {
@@ -92,7 +92,7 @@ pub fn main(state: SharedState, settings: Settings) -> !
     let mut inotify_buf = vec![0u8; 8192];
     let _guard = watchdog::ExitOnReturn(92);
     let mut scheduler = {
-        let _alarm = watchdog::Alarm::new(Duration::new(10, 0));
+        let _alarm = Alarm::new(Duration::new(10, 0), "initial lua load");
         watch_dir(&mut inotify, &settings.config_dir.join("scheduler"));
         match super::read(settings.id.clone(),
                           settings.hostname.clone(),
@@ -106,7 +106,7 @@ pub fn main(state: SharedState, settings: Settings) -> !
         }
     };
     let mut runtime = {
-        let _alarm = watchdog::Alarm::new(Duration::new(2, 0));
+        let _alarm = Alarm::new(Duration::new(2, 0), "runtime load");
         watch_dir(&mut inotify, &settings.config_dir.join("runtime"));
         config::read_runtime(&settings.config_dir.join("runtime"))
     };
@@ -129,7 +129,7 @@ pub fn main(state: SharedState, settings: Settings) -> !
             if events > 0 {
                 debug!("Inotify events, waiting to become stable");
                 {
-                    let _alarm = watchdog::Alarm::new(Duration::new(10, 0));
+                    let _alarm = Alarm::new(Duration::new(10, 0), "inotify");
                     while events > 0 {
                         // Since we rescan every file anyway, it's negligible
                         // to just rescan the whole directory tree for inotify
@@ -150,7 +150,8 @@ pub fn main(state: SharedState, settings: Settings) -> !
 
                 debug!("Directories stable. Reading configs");
                 {
-                    let _alarm = watchdog::Alarm::new(Duration::new(10, 0));
+                    let _alarm = Alarm::new(Duration::new(10, 0),
+                                            "scheduler reload");
                     match super::read(settings.id.clone(),
                                       settings.hostname.clone(),
                                       &settings.config_dir)
@@ -167,7 +168,8 @@ pub fn main(state: SharedState, settings: Settings) -> !
                     }
                 }
                 {
-                    let _alarm = watchdog::Alarm::new(Duration::new(2, 0));
+                    let _alarm = Alarm::new(Duration::new(2, 0),
+                                            "runtime reload");
                     runtime = config::read_runtime(
                         &settings.config_dir.join("runtime"))
                 }
@@ -178,7 +180,7 @@ pub fn main(state: SharedState, settings: Settings) -> !
 
             let timestamp = SystemTime::now();
             let instant = Instant::now();
-            let _alarm = watchdog::Alarm::new(Duration::new(1, 0));
+            let _alarm = Alarm::new(Duration::new(1, 0), "scheduler");
 
             let input = SchedulerInput {
                 now: timestamp,

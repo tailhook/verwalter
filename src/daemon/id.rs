@@ -49,6 +49,7 @@ impl Serialize for Id {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where S: Serializer
     {
+        // TODO(tailhook) bytes on is_human_readable() == false
         self.to_hex().serialize(serializer)
     }
 }

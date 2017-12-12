@@ -41,7 +41,7 @@ fn spawn<F, R>(f: F)
 }
 
 impl Alarm {
-    pub fn new(delay: Duration) -> Alarm {
+    pub fn new(delay: Duration, name: &'static str) -> Alarm {
         let (tx, rx) = channel();
         let deadline = Instant::now() + delay;
         spawn(move |handle| {
@@ -49,14 +49,15 @@ impl Alarm {
             .expect("can always add a timeout")
             .map_err(|_| { unreachable!(); })
             .select2(rx)
-            .then(|res| {
+            .then(move |res| {
                 match res {
                     Ok(Either::A(((), _))) => {
-                        error!("Alarm failed. Exiting with exit code 91");
+                        error!("Alarm {:?} failed. Exiting with exit code 91",
+                            name);
                         exit(91);
                     }
                     Err(Either::B((_, _))) => {
-                        debug!("Alarm canceled. That's fine");
+                        debug!("Alarm {:?} canceled. That's fine", name);
                         Ok(())
                     }
                     _ => unreachable!(),
