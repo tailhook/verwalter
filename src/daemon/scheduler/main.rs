@@ -106,7 +106,7 @@ pub fn main(state: SharedState, settings: Settings) -> !
         }
     };
     let mut runtime = {
-        let _alarm = Alarm::new(Duration::new(2, 0), "runtime load");
+        let _alarm = Alarm::new(Duration::new(5, 0), "runtime load");
         watch_dir(&mut inotify, &settings.config_dir.join("runtime"));
         config::read_runtime(&settings.config_dir.join("runtime"))
     };
@@ -168,7 +168,7 @@ pub fn main(state: SharedState, settings: Settings) -> !
                     }
                 }
                 {
-                    let _alarm = Alarm::new(Duration::new(2, 0),
+                    let _alarm = Alarm::new(Duration::new(5, 0),
                                             "runtime reload");
                     runtime = config::read_runtime(
                         &settings.config_dir.join("runtime"))

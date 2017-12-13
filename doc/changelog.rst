@@ -2,6 +2,14 @@ Verwalter Changes by Version
 ============================
 
 
+.. _changelog-0.9.6:
+
+Verwalter 0.9.6
+---------------
+
+* Settings tweak: runtime load watchdog timeout is increased to 5 sec
+
+
 .. _changelog-0.9.5:
 
 Verwalter 0.9.5
