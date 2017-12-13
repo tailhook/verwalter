@@ -1,5 +1,5 @@
 use std::ops::Deref;
-use std::sync::{Arc, Mutex, Condvar, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::sync::atomic::Ordering::SeqCst;
 use std::sync::atomic::AtomicBool;
 use std::time::{SystemTime};
@@ -53,7 +53,6 @@ pub struct SharedData {
     pub mainloop: Remote,
     pub fetch_state: ArcCell<fetch::PublicState>,
     force_render: AtomicBool,
-    apply_schedule: Condvar,
     peers: ArcCell<Peers>,
     schedule_channel: slot::Sender<Arc<Schedule>>,
 }
@@ -107,7 +106,6 @@ impl SharedState {
                 options,
                 sandbox,
                 force_render: AtomicBool::new(false),
-                apply_schedule: Condvar::new(),
                 peers: ArcCell::new(Arc::new(Peers::new())),
                 mainloop: mainloop.clone(),
                 fetch_state: ArcCell::new(
@@ -300,9 +298,15 @@ impl SharedState {
             return false;
         }
     }
+    pub fn read_force_render(&self) -> bool {
+        self.force_render.swap(false, SeqCst)
+    }
     pub fn force_render(&self) {
         self.force_render.store(true, SeqCst);
-        self.apply_schedule.notify_all();
+        if let Some(x) = self.stable_schedule() {
+            self.0.schedule_channel.swap(x)
+                .expect("apply channel is alive");
+        }
     }
     pub fn push_action(&self, data: Json) -> Result<u64, PushActionError> {
         let mut guard = self.lock();

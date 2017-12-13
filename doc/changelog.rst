@@ -8,6 +8,7 @@ Verwalter 0.9.6
 ---------------
 
 * Settings tweak: runtime load watchdog timeout is increased to 5 sec
+* Bugfix: fix "rerender all roles" button (broken in 0.9.0)
 
 
 .. _changelog-0.9.5:

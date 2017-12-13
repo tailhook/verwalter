@@ -254,7 +254,7 @@ pub fn run(state: SharedState, settings: Settings,
     let mut prev_schedule = String::new();
     for schedule in schedules.wait() {
         let schedule = schedule.unwrap_or_else(|_| exit(93));
-        if schedule.hash == prev_schedule {
+        if !state.read_force_render() && schedule.hash == prev_schedule {
             continue;
         }
         let _alarm = watchdog::Alarm::new(Duration::new(180, 0), "apply");
