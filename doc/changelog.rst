@@ -2,6 +2,14 @@ Verwalter Changes by Version
 ============================
 
 
+.. _changelog-0.9.7:
+
+Verwalter 0.9.7
+---------------
+
+* Bugfix: when request to cantal failed, verwalter would never reconnect
+
+
 .. _changelog-0.9.6:
 
 Verwalter 0.9.6

@@ -23,28 +23,32 @@ pub fn spawn_fetcher(state: &SharedState, port: u16)
         .map_err(|_| { unreachable!() })
         .for_each(move |_| {
             let state = state.clone();
-            conn.get_peers()
-            .and_then(move |peers| {
-                // TODO(tailhook) check existing peers!
-                state.set_peers(peers.requested, peers.peers.into_iter()
-                    .filter_map(|p| {
-                        let id = Id::from_str(&p.id);
-                        id.ok().map(move |id| (id, Peer {
-                            addr: p.primary_addr
-                                .and_then(|x| x.parse::<SocketAddr>().ok())
-                                .map(|x| SocketAddr::new(x.ip(), port)),
-                            name: p.name,
-                            hostname: p.hostname,
-                            schedule: None,
-                            known_since: p.known_since,
-                            last_report_direct: p.last_report_direct,
-                        }))
-                    }).collect());
+            conn.get_peers().then(move |res| {
+                match res {
+                    Ok(peers) => {
+                        // TODO(tailhook) check existing peers!
+                        state.set_peers(peers.requested, peers.peers.into_iter()
+                            .filter_map(|p| {
+                                let id = Id::from_str(&p.id);
+                                id.ok().map(move |id| (id, Peer {
+                                    addr: p.primary_addr
+                                        .and_then(|x| x.parse::<SocketAddr>().ok())
+                                        .map(|x| SocketAddr::new(x.ip(), port)),
+                                    name: p.name,
+                                    hostname: p.hostname,
+                                    schedule: None,
+                                    known_since: p.known_since,
+                                    last_report_direct: p.last_report_direct,
+                                }))
+                            }).collect());
+                    }
+                    Err(e) => {
+                        error!("Error fetching cantal data: {}", e);
+                    }
+                }
                 ok(())
             })
-            .map_err(|e| {
-                error!("Error fetching cantal data: {}", e);
-            })
-        }));
+        })
+        .then(|_| -> Result<(), ()> { panic!("cantal loop exits") }));
     Ok(())
 }
