@@ -1,9 +1,4 @@
 import {go} from 'khufu-routing'
-import {main as roles} from './pages/roles.khufu'
-import {main as api_links} from './pages/api_links.khufu'
-import {main as peers} from './pages/peers.khufu'
-import {main as services} from './pages/services.khufu'
-import {main as logs} from './pages/logs.khufu'
 import {plain, refresher, fast_refresh_json, json} from './middleware/request'
 import json_store from './stores/json'
 import text_store from './stores/text'
@@ -14,6 +9,12 @@ import {format_error_hint, format_error_badge} from './util/format_err'
 import * as self_meter from './blocks/self_meter.khufu'
 import * as metrics from './blocks/metrics.khufu'
 
+import {main as roles} from './pages/roles.khufu'
+import {main as api_links} from './pages/api_links.khufu'
+import {main as peers} from './pages/peers.khufu'
+import {main as services} from './pages/services.khufu'
+import {main as logs} from './pages/logs.khufu'
+import {main as backups} from './pages/backups.khufu'
 
 style:
   .subtext
@@ -67,6 +68,11 @@ view _navbar(status, frontend_version, @expert_mode, router):
             <a href="/logs">
               link {click} go(event) -> @router
               "Logs"
+          if @expert_mode:
+            <li.active?(router.at('backups'))>
+              <a href="/backups">
+                link {click} go(event) -> @router
+                "Backups"
         <ul.nav.navbar-nav.navbar-right>
           store @self_meter = bool | init(false)
 
@@ -163,3 +169,5 @@ view main(router, version):
         services(@status, @expert_mode, sub)
       elif let sub = router.at('logs'):
         logs(@status, @expert_mode, sub)
+      elif let sub = router.at('backups'):
+        backups(@status, @expert_mode, sub)

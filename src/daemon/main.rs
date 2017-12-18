@@ -280,7 +280,7 @@ fn main() {
             hostname: hostname.clone(),
             log_dir: options.log_dir.clone(),
             config_dir: options.config_dir.clone(),
-            schedule_dir,
+            schedule_dir: schedule_dir.clone(),
         };
         let apply_state = state.clone();
         let m1 = meter.clone();
@@ -295,7 +295,7 @@ fn main() {
         let (fetch_tx, fetch_rx) = unbounded();
 
         http::spawn_listener(&ns, &listen_addr, &state,
-            &options.config_dir.join("frontend"))?;
+            &options.config_dir.join("frontend"), &schedule_dir)?;
         fetch::spawn_fetcher(&state, fetch_rx)?;
         cantal::spawn_fetcher(&state, udp_port)?;
         elect::spawn_election(&ns, &listen_addr, &state, fetch_tx)?;

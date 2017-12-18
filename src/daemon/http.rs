@@ -16,12 +16,13 @@ use shared::SharedState;
 
 
 pub fn spawn_listener(ns: &NsRouter, addr: &str,
-    state: &SharedState, static_dir: &Path)
+    state: &SharedState, static_dir: &Path, schedule_dir: &Path)
     -> Result<(), Box<::std::error::Error>>
 {
     let str_addr = addr.to_string();
     let state = state.clone();
     let static_dir = Arc::new(static_dir.to_path_buf());
+    let schedule_dir = Arc::new(schedule_dir.to_path_buf());
     let hcfg = tk_http::server::Config::new()
         .inflight_request_limit(2)
         .inflight_request_prealoc(0)
@@ -45,6 +46,7 @@ pub fn spawn_listener(ns: &NsRouter, addr: &str,
             let hcfg = hcfg.clone();
             let state = state.clone();
             let static_dir = static_dir.clone();
+            let schedule_dir = schedule_dir.clone();
             spawn(listener.incoming()
                 .sleep_on_error(Duration::from_millis(100), &handle())
                 .map(move |(socket, saddr)| {
@@ -52,6 +54,7 @@ pub fn spawn_listener(ns: &NsRouter, addr: &str,
                         frontend::Dispatcher {
                             state: state.clone(),
                             dir: static_dir.clone(),
+                            schedule_dir: schedule_dir.clone(),
                         },
                         &handle())
                     .map_err(move |e| {

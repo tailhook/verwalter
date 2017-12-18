@@ -12,6 +12,8 @@ pub enum ApiRoute {
     SchedulerInput,
     SchedulerDebugInfo,
     Election,
+    Backups,
+    Backup(String),
     PushAction,
     ActionIsPending(u64),
     PendingActions,
@@ -113,6 +115,14 @@ fn parse_api(path: &str) -> Option<Route> {
         ("scheduler_input", "") => Some(Api(SchedulerInput, api_suffix(path))),
         ("scheduler_debug_info", "") => Some(Api(SchedulerDebugInfo, Plain)),
         ("election", "") => Some(Api(Election, api_suffix(path))),
+        ("backups", "") => Some(Api(Backups, api_suffix(path))),
+        ("backup", name) => {
+            if name.chars().all(|x| x.is_alphanumeric() || x == '-') {
+                Some(Api(Backup(name.to_string()), api_suffix(path)))
+            } else {
+                None
+            }
+        }
         ("action", "") => Some(Api(PushAction, api_suffix(path))),
         ("force_render_all", "") => Some(Api(ForceRenderAll, Plain)),
         ("action_is_pending", tail) => {

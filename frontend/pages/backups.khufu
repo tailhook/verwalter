@@ -1,0 +1,12 @@
+import {refresher, json} from '../middleware/request'
+import {entries, repr, pretty, is_string} from '../util/object'
+import json_store from '../stores/json'
+
+
+view main():
+  <ul>
+    store @backups = json_store | refresher | json('/v1/backups')
+    for name of @backups:
+      <li>
+        <a href=`/v1/backup/${name}`>
+          name

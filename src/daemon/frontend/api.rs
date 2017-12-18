@@ -365,5 +365,6 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                 }))
             }))
         }
+        Backup(..) | Backups => unreachable!(),
     }
 }

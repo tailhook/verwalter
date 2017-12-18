@@ -1,6 +1,7 @@
 use std::path::{PathBuf};
 use std::sync::Arc;
 
+use capturing_glob::{glob_with, MatchOptions};
 use futures::{Future, Async};
 use futures::future::{ok, FutureResult, Either, loop_fn, Loop};
 use futures_cpupool::{CpuPool, CpuFuture};
@@ -10,6 +11,9 @@ use tk_http::Status;
 use http_file_headers::{Input, Output, Config};
 
 use frontend::Request;
+use frontend::routing::Format;
+use frontend::quick_reply::{reply};
+use frontend::api::{respond};
 
 lazy_static! {
     static ref POOL: CpuPool = CpuPool::new(8);
@@ -20,6 +24,10 @@ lazy_static! {
         .no_encodings()
         .content_type(false)  // so we don't serve logs as JS or HTML
         .done();
+    static ref BACKUPS_CONFIG: Arc<Config> = Config::new()
+        .no_encodings()       // always encoded
+        .content_type(false)  // we replace content type
+        .done();
 }
 
 type ResponseFuture<S> = Box<Future<Item=server::EncoderDone<S>,
@@ -27,11 +35,26 @@ type ResponseFuture<S> = Box<Future<Item=server::EncoderDone<S>,
 
 struct Codec {
     fut: Option<CpuFuture<Output, Status>>,
+    kind: Kind,
 }
 
-fn common_headers<S>(e: &mut server::Encoder<S>) {
+#[derive(Clone, Copy, Debug)]
+enum Kind {
+    Asset,
+    Log,
+    Backup,
+}
+
+fn common_headers<S>(e: &mut server::Encoder<S>, kind: Kind) {
     e.format_header("Server",
         format_args!("verwalter/{}", env!("CARGO_PKG_VERSION"))).unwrap();
+    match kind {
+        Kind::Backup => {
+            e.add_header("Content-Encoding", "gzip").unwrap();
+            e.add_header("Content-Type", "application/json").unwrap();
+        }
+        _ => {}
+    }
 }
 
 fn respond_error<S: 'static>(status: Status, mut e: server::Encoder<S>)
@@ -40,7 +63,7 @@ fn respond_error<S: 'static>(status: Status, mut e: server::Encoder<S>)
     let body = format!("{} {}", status.code(), status.reason());
     e.status(status);
     e.add_length(body.as_bytes().len() as u64).unwrap();
-    common_headers(&mut e);
+    common_headers(&mut e, Kind::Asset);
     if e.done_headers().unwrap() {
         e.write_body(body.as_bytes());
     }
@@ -61,6 +84,7 @@ impl<S: AsyncWrite + Send + 'static> server::Codec<S> for Codec {
     fn start_response(&mut self, mut e: server::Encoder<S>)
         -> Self::ResponseFuture
     {
+        let kind = self.kind;
         Box::new(self.fut.take().unwrap().then(move |result| {
             match result {
                 Ok(Output::File(outf)) | Ok(Output::FileRange(outf)) => {
@@ -70,7 +94,7 @@ impl<S: AsyncWrite + Send + 'static> server::Codec<S> for Codec {
                         e.status(Status::Ok);
                     }
                     e.add_length(outf.content_length()).unwrap();
-                    common_headers(&mut e);
+                    common_headers(&mut e, kind);
                     for (name, val) in outf.headers() {
                         e.format_header(name, val).unwrap();
                     }
@@ -104,7 +128,7 @@ impl<S: AsyncWrite + Send + 'static> server::Codec<S> for Codec {
                         e.status(Status::Ok);
                         e.add_length(head.content_length()).unwrap();
                     }
-                    common_headers(&mut e);
+                    common_headers(&mut e, kind);
                     for (name, val) in head.headers() {
                         e.format_header(name, val).unwrap();
                     }
@@ -144,6 +168,7 @@ pub fn index_response<S>(head: &server::Head, base: &Arc<PathBuf>)
     });
     Ok(Box::new(Codec {
         fut: Some(fut),
+        kind: Kind::Asset,
     }) as Request<S>)
 }
 
@@ -163,6 +188,7 @@ pub fn common_response<S>(head: &server::Head, path: String,
     });
     Ok(Box::new(Codec {
         fut: Some(fut),
+        kind: Kind::Asset,
     }))
 }
 
@@ -180,5 +206,64 @@ pub fn log_response<S>(head: &server::Head, full_path: PathBuf)
     });
     Ok(Box::new(Codec {
         fut: Some(fut),
+        kind: Kind::Log,
     }))
+}
+
+pub fn list_backups<S>(schedule_dir: &Arc<PathBuf>, format: Format)
+    -> Result<Request<S>, server::Error>
+    where S: AsyncWrite + Send + 'static
+{
+    let schedule_dir = schedule_dir.clone();
+    Ok(reply(move |e| {
+        Box::new(POOL.spawn_fn(move || {
+            let dir = schedule_dir.to_str()
+                .expect("schedule_dir is utf-8");
+            let items = glob_with(
+                &format!("{}/(*-*).json.gz", dir), &MatchOptions {
+                    case_sensitive: true,
+                    require_literal_separator: true,
+                    require_literal_leading_dot: true,
+                })
+                .map(|items| {
+                    items.filter_map(|e| {
+                        e.map_err(|e| {
+                            error!("Error listing backups: {}", e);
+                        }).ok()
+                    })
+                    .filter_map(|e| {
+                        e.group(1)
+                        .and_then(|x| x.to_str())
+                        .map(|x| x.to_string())
+                    })
+                    .collect::<Vec<_>>()
+                })
+                .unwrap_or_else(|e| {
+                    error!("Error listing backups: {}", e);
+                    Vec::new()
+                });
+            Ok(items)
+        })
+        .and_then(move |items| respond(e, format, items)))
+    }))
+}
+
+pub fn serve_backup<S>(name: String, head: &server::Head,
+    schedule_dir: &Arc<PathBuf>)
+    -> Result<Request<S>, server::Error>
+    where S: AsyncWrite + Send + 'static
+{
+    let inp = Input::from_headers(&*BACKUPS_CONFIG,
+        head.method(), head.headers());
+    let path = schedule_dir.join(&format!("{}.json.gz", name));
+    let fut = POOL.spawn_fn(move || {
+        inp.probe_file(&path).map_err(|e| {
+            error!("Error reading file {:?}: {}", path, e);
+            Status::InternalServerError
+        })
+    });
+    Ok(Box::new(Codec {
+        fut: Some(fut),
+        kind: Kind::Backup,
+    }) as Request<S>)
 }

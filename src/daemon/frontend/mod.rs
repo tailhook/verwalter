@@ -30,6 +30,7 @@ pub type Reply<S> = Box<Future<Item=EncoderDone<S>, Error=Error>>;
 pub struct Dispatcher {
     pub state: SharedState,
     pub dir: Arc<PathBuf>,
+    pub schedule_dir: Arc<PathBuf>,
 }
 
 impl<S: AsyncWrite + Send + 'static> DispatcherTrait<S> for Dispatcher {
@@ -38,12 +39,19 @@ impl<S: AsyncWrite + Send + 'static> DispatcherTrait<S> for Dispatcher {
         -> Result<Self::Codec, Error>
     {
         use self::Route::*;
+        use frontend::routing::ApiRoute::{Backup, Backups};
         match route(headers) {
             Index => {
                 disk::index_response(headers, &self.dir)
             }
             Static(path) => {
                 disk::common_response(headers, path, &self.dir)
+            }
+            Api(Backups, fmt) => {
+                disk::list_backups(&self.schedule_dir, fmt)
+            }
+            Api(Backup(name), _) => {
+                disk::serve_backup(name, headers, &self.schedule_dir)
             }
             Api(ref route, fmt) => {
                 api::serve(&self.state, route, fmt)
