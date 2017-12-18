@@ -1,8 +1,10 @@
 extern crate abstract_ns;
 extern crate argparse;
 extern crate async_slot;
+extern crate capturing_glob;
 extern crate cbor;
 extern crate crossbeam;
+extern crate deflate;
 extern crate env_logger;
 extern crate hex;
 extern crate failure;
@@ -230,7 +232,8 @@ fn main() {
     let meter = self_meter_http::Meter::new();
     meter.track_current_thread_by_name();
 
-    let schedule_file = options.storage_dir.join("schedule/schedule.json");
+    let schedule_dir = options.storage_dir.join("schedule");
+    let schedule_file = schedule_dir.join("schedule.json");
     debug!("Loading old schedule from {:?}", schedule_file);
     let old_schedule = match fs_util::read_json(&schedule_file)
         .map(scheduler::from_json)
@@ -277,7 +280,7 @@ fn main() {
             hostname: hostname.clone(),
             log_dir: options.log_dir.clone(),
             config_dir: options.config_dir.clone(),
-            schedule_file: schedule_file,
+            schedule_dir,
         };
         let apply_state = state.clone();
         let m1 = meter.clone();
