@@ -4,15 +4,15 @@
   "keywords": ["verwalter", "containers", "orchestration"],
   "main": "index.js",
   "dependencies": {
-    "khufu-runtime": "0.4.5",
-    "redux": "3.1.3",
-    "incremental-dom": "0.3.0",
+    "khufu-runtime": "0.5.1",
+    "khufu-routing": "0.1.2",
+    "redux": "3.7.2",
+    "incremental-dom": "0.5.1",
     "redux-logger": "3.0.6",
-    "babel-es6-polyfill": "1.0.1",
-    "whatwg-fetch": "2.0.3"
+    "babel-es6-polyfill": "1.1.0"
   },
   "devDependencies": {
-    "webpack": "2.2.1",
+    "webpack": "3.10.0",
     "babel-loader": "6.4.1",
     "babel-plugin-transform-object-rest-spread": "6.23.0",
     "babel-plugin-transform-strict-mode": "6.22.0",
@@ -22,15 +22,13 @@
     "babel-plugin-transform-es2015-arrow-functions": "6.22.0",
     "babel-plugin-transform-es2015-block-scoped-functions": "6.22.0",
     "babel-core": "6.24.1",
-    "babili": "0.0.12",
-    "babili-webpack-plugin": "0.0.11",
-    "khufu": "0.4.5"
+    "babel-minify": "0.2.0",
+    "babel-minify-webpack-plugin": "0.2.0",
+    "khufu": "0.5.1"
   },
   "optionalDependencies": {
     "webpack-dev-server": "// For hot reload, with dependencies",
-    "webpack-dev-server": "2.1.0-beta.0",
-    "jison": "0.4.15",
-    "postcss": "5.0.14"
+    "webpack-dev-server": "2.9.7"
   },
   "scripts": {
     "webpack": "webpack"

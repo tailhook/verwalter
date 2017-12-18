@@ -243,12 +243,15 @@ containers:
 
   js:
     setup:
-    - !Alpine v3.5
-    - !NpmDependencies
-      file: "frontend/package.json"
+    - !Alpine v3.7
+    - !NpmConfig
+      yarn_version: 1.3.2
+    - !YarnDependencies
+      dir: "frontend"
       optional: true
     environ:
       NODE_PATH: "/usr/lib/node_modules"
+      HOME: /tmp
 
   xenial:
     setup:

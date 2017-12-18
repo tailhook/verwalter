@@ -1,13 +1,11 @@
-import 'whatwg-fetch'
-
 import {createStore, applyMiddleware} from 'redux'
-import khufu from 'khufu-runtime'
+import {attach} from 'khufu-runtime'
 
 import {main} from './main.khufu'
 import {router} from './util/routing'
 
 
-let khufu_instance = khufu(document.getElementById('app'), main(VERSION), {
+let khufu_instance = attach(document.getElementById('app'), main(VERSION), {
     store(reducer, middleware, state) {
         let mid = middleware.filter(x => typeof x === 'function')
         if(DEBUG) {

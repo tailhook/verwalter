@@ -12,7 +12,6 @@ export function variables(state={types: {}, values: {}}, action) {
                 values: values,
                 types: state.types,
             }
-            return nresult
         case 'set_types':
             let nvalues = {}
             for(let key in action.types) {

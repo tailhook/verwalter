@@ -1,5 +1,5 @@
 var webpack = require('webpack')
-var BabiliPlugin = require('babili-webpack-plugin')
+var MinifyPlugin = require('babel-minify-webpack-plugin')
 var DEV = process.env['NODE_ENV'] != 'production';
 module.exports = {
     context: __dirname,
@@ -75,7 +75,7 @@ module.exports = {
             DEBUG: DEV,
         }),
     ].concat(DEV ? [] : [
-        new BabiliPlugin({}),
+        new MinifyPlugin({}),
     ]),
 }
 
