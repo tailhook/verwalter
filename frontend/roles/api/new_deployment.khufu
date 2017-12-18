@@ -40,7 +40,7 @@ view new_group(role, role_name, role_state, @actions,
 
       <div.form-group>
         <label> "Initial version"
-        version(role, -> @new_group_version)
+        version(role, new_group_version)
 
       let api_call = {"button": {role: role_name,
                                  action: "create_group",
@@ -71,7 +71,7 @@ view new_process(role, role_name, role_state, @actions,
       store @group_name = value | init('')
       store @name = value | init('')
       store @service = value | init('')
-      store @servers = uniqueset | init({})
+      store @selected_servers = uniqueset | init({})
       store @number_per_server = value | init('1')
       store @variables = variables
       store @show_api = bool | init(false)
@@ -131,8 +131,8 @@ view new_process(role, role_name, role_state, @actions,
           <div.btn-group>
             for srv of servers key srv.id:
               <button.btn.btn-default.btn-xs
-                     .active?(@servers[srv.hostname])>
-                link {click} toggleunique(srv.hostname) -> @servers
+                     .active?(@selected_servers[srv.hostname])>
+                link {click} toggleunique(srv.hostname) -> @selected_servers
                 srv.hostname
 
       <div.form-group>
@@ -146,7 +146,7 @@ view new_process(role, role_name, role_state, @actions,
         group: @group_name,
         new_name: @name,
         service: @service,
-        servers: keys(@servers),
+        servers: keys(@selected_servers),
         number_per_server: parse_int(@number_per_server),
         variables: @variables.values,
       }}

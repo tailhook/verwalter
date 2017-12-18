@@ -119,7 +119,7 @@ view migration({status_title, original, target, progress, buttons,
         " ago, at "
         format_time(from_ms(start_time))
 
-view main(role, role_name, {role_state, schedule, system_status}):
+view main(role, role_name, {role_state, schedule, system_status, router}):
   <div>
     store @actions = pending_actions | refresher
       | json('/v1/pending_actions')
@@ -157,8 +157,8 @@ view main(role, role_name, {role_state, schedule, system_status}):
     logs(role_name)
 
     if is_leader(system_status):
-      versions(-> @actions, role, role_name)
-      global_actions(-> @actions, role, role_name)
+      versions(-> @actions, role, role_name, router)
+      global_actions(-> @actions, role, role_name, router)
 
     else:
       show_leaders("Actions are Only Available on Leader",

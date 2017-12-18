@@ -2,10 +2,9 @@ import {entries} from '../util/object'
 import {execute} from '../util/action'
 import pending_actions from '../stores/actions'
 import {refresher, json} from '../middleware/request'
-import {value, set, init} from '../stores/simple'
-import {url_query, smart_query} from '../util/routing'
 import {filter_versions} from '../util/version'
-
+import {set as rtrset, input} from 'khufu-routing'
+import {value, set} from '../stores/simple'
 
 style:
   .rotate
@@ -37,23 +36,23 @@ style:
     margin: 8px
 
 
-view main(@actions, role, role_name):
+view main(@actions, role, role_name, router):
   <div>
     <h2> "Available Versions"
-    store @trunc = value | url_query('trunc') | init('')
-    store @filter = value | smart_query('versions') | init('')
+    store @trunc = router.query('trunc')
+    store @filter = router.query('versions')
 
     <div.input-group.panel>
       <div.input-group-btn>
         <button.btn.btn-default.active?(@trunc == 'no')>
-          link {click} set(@trunc == 'no' ? '' : 'no') -> @trunc
+          link {click} rtrset(@trunc == 'no' ? '' : 'no') -> @trunc
           "Show All"
       <input.form-control placeholder=`Filter Versions` value=@filter>
-        link {input} set(this.value) -> @filter
+        link {input} input(this.value) -> @filter
       if @filter:
         <div.input-group-btn>
           <button.btn.btn-default>
-            link {click} set('') -> @filter
+            link {click} rtrset('') -> @filter
             <span.glyphicon.glyphicon-remove>
 
     <div.versions>

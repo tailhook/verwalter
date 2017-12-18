@@ -1,10 +1,8 @@
-import {@router, go} from '../util/routing'
+import {go, set, input} from 'khufu-routing'
 import {refresher, json} from '../middleware/request'
 import {format_uptime, format_diff, till_now_ms, from_ms} from '../util/time'
 import {entries, keys, repr} from '../util/object'
 import json_store from '../stores/json'
-import {value, set, init} from '../stores/simple'
-import {url_query, smart_query} from '../util/routing'
 import {role_nodes} from '../util/services'
 import {number_formatter} from '../util/format'
 import {names_filter} from '../util/filters'
@@ -135,24 +133,24 @@ view render_shortinfo(values):
           <pre.bad-row>
             repr(item)
 
-view main():
+view main(status, expert_mode, router):
   <div>
-    store @by = value | url_query('by') | init('host')
-    store @empty = value | url_query('empty') | init('show')
-    store @filter = value | smart_query('filter') | init('')
+    store @by = router.query('by')
+    store @empty = router.query('empty')
+    store @filter = router.query('filter')
     <div.input-group.panel>
       <div.input-group-btn>
-        <button.btn.btn-default.active?(@by == 'host')>
+        <button.btn.btn-default.active?(@by == 'host' or not @by)>
           link {click} set('host') -> @by
           "By Host"
         <button.btn.btn-default.active?(@by == 'role')>
           link {click} set('role') -> @by
           "By Role"
         <button.btn.btn-default.active?(@empty == 'hide')>
-          link {click} set(@empty == 'show' ? 'hide' : 'show') -> @empty
+          link {click} set(@empty == 'hide' ? '' : 'hide') -> @empty
           "Hide Empty"
       <input.form-control placeholder=`Filter ${@by}` value=@filter>
-        link {input} set(this.value) -> @filter
+        link {input} input(this.value) -> @filter
       if @filter:
         <div.input-group-btn>
           <button.btn.btn-default>
@@ -161,7 +159,7 @@ view main():
     <div.nodes>
       store @schedule = json_store | refresher | json('/v1/schedule')
       if @schedule:
-        if @by == 'host':
+        if @by == 'host' or not @by:
           for [node_name, info] of entries(@schedule.data.nodes) key node_name:
             if names_filter(@filter, node_name):
               <div.node>
@@ -170,7 +168,7 @@ view main():
                 <div.roles>
                   for [role_name, role] of entries(info.roles or {}) key role_name:
                     let daemons = entries(role.daemons or {})
-                    if daemons.length > 0 or @empty == 'show':
+                    if daemons.length > 0 or @empty != 'hide':
                       <span.role>
                         <span.role-name>
                           role_name
@@ -204,7 +202,7 @@ view main():
                 <div.roles>
                   for [node_name, role] of entries(nodes) key node_name:
                     let daemons = entries(role.daemons or {})
-                    if daemons.length > 0 or @empty == 'show':
+                    if daemons.length > 0 or @empty != 'hide':
                       <span.role>
                         <span.role-name>
                           node_name

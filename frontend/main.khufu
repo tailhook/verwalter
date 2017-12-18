@@ -1,4 +1,4 @@
-import {@router, go} from './util/routing'
+import {go} from 'khufu-routing'
 import {main as roles} from './pages/roles.khufu'
 import {main as api_links} from './pages/api_links.khufu'
 import {main as peers} from './pages/peers.khufu'
@@ -27,7 +27,7 @@ style:
     color: red
     font-weight: bold
 
-view _navbar(status, frontend_version, @expert_mode):
+view _navbar(status, frontend_version, @expert_mode, router):
   <nav.navbar.navbar-default>
     <div.container-fluid>
       <div.navbar-header>
@@ -43,27 +43,27 @@ view _navbar(status, frontend_version, @expert_mode):
               status and status.version or "???"
       <div.collapse.navbar-collapse>
         <ul.nav.navbar-nav>
-          <li.active?(@router.path[0] == 'roles')>
+          <li.active?(router.at('roles'))>
             <a href="/roles">
               link {click} go(event) -> @router
               "Roles"
               if status:
                 ` [${status.roles}]`
-          <li.active?(@router.path[0] == 'peers')>
+          <li.active?(router.at('peers'))>
             <a href="/peers">
               link {click} go(event) -> @router
               "Servers"
               if status:
                 ` [${status.peers}]`
-          <li.active?(@router.path[0] == 'services')>
+          <li.active?(router.at('services'))>
             <a href="/services">
               link {click} go(event) -> @router
               "Services"
-          <li.active?(@router.path[0] == 'api_links')>
+          <li.active?(router.at('api_links'))>
             <a href="/api_links">
               link {click} go(event) -> @router
               "API Links"
-          <li.active?(@router.path[0] == 'logs')>
+          <li.active?(router.at('logs'))>
             <a href="/logs">
               link {click} go(event) -> @router
               "Logs"
@@ -127,7 +127,7 @@ view _navbar(status, frontend_version, @expert_mode):
           if status and status.leader:
             <li>
               let url = (set_port(status.leader.name, status.leader.addr)
-                         + '/' +  @router.path.join('/'))
+                         + '/' +  router.rel('.'))
               <a.navbar-brand href=url>
                 status.leader.name
                 <div.subtext.text-muted>
@@ -145,19 +145,21 @@ view _navbar(status, frontend_version, @expert_mode):
               <a.navbar-brand href="/v1/election">
                 "Loading..."
 
-view main(version):
+view main(router, version):
   <div>
     store @status = json_store | refresher | fast_refresh_json('/v1/status')
     store @expert_mode = bool | init(false)
-    _navbar(@status or {}, version, -> @expert_mode)
+    _navbar(@status or {}, version, expert_mode, router)
     <div class="container-fluid">
-      if @router.path[0] == 'roles' or @router.path[0] == 'role':
-        roles(@status, @expert_mode)
-      elif @router.path[0] == 'api_links':
-        api_links(@status, @expert_mode)
-      elif @router.path[0] == 'peers':
-        peers(@status, @expert_mode)
-      elif @router.path[0] == 'services':
-        services(@status, @expert_mode)
-      elif @router.path[0] == 'logs':
-        logs(@status, @expert_mode)
+      if let sub = router.at('roles'):
+        roles(@status, @expert_mode, sub)
+      elif let sub = router.at('role'):
+        roles(@status, @expert_mode, sub)
+      elif let sub = router.at('api_links'):
+        api_links(@status, @expert_mode, sub)
+      elif let sub = router.at('peers'):
+        peers(@status, @expert_mode, sub)
+      elif let sub = router.at('services'):
+        services(@status, @expert_mode, sub)
+      elif let sub = router.at('logs'):
+        logs(@status, @expert_mode, sub)

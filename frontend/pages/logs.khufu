@@ -3,21 +3,20 @@ import {refresher} from '../middleware/request'
 import {index, fetch_indexes} from '../stores/logs'
 import {bool, enable, disable} from '../stores/simple'
 import {init, value, set} from '../stores/simple'
-import {smart_query} from '../util/routing'
 import {log, view_from, show_mark, matches_filter, filtered} from '../stores/logs'
 
 style:
   .RoleFinish
     border-bottom: solid silver 2px
 
-view main():
+view main(status, expert_mode, router):
   <h1> "Logs"
   <div>
     <h2> "Index"
     store @log = log | refresher
     store @index = index | refresher | fetch_indexes
     store @hardcore = bool | init(false)
-    store @role_filter = value | smart_query('filter') | init('')
+    store @role_filter = router.query('filter')
     if @index.items:
       <table.table.table-hover>
         <thead>

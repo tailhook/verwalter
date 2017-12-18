@@ -1,8 +1,8 @@
 import {entries, repr, pretty, is_string} from '../util/object'
-import {@router, go} from '../util/routing'
 import {refresher, json} from '../middleware/request'
 import json_store from '../stores/json'
 import {preloader, action} from '../util/global_actions'
+import {go} from 'khufu-routing'
 
 // Frontend kinds
 import {main as example} from '../roles/example.khufu'
@@ -29,13 +29,13 @@ style:
   .wide
     width: 100%
 
-view _leftmenu(schedule):
+view _leftmenu(schedule, router):
   <ul.nav.nav-pills.nav-stacked.col-lg-2>
     if schedule and schedule.roles:
       for [name, role] of entries(schedule.roles) key name:
         if role.frontend:
-          <li.active?(@router.path[1] == name) role="presentation">
-            <a href=`/role/${name}`>
+          <li.active?(router.at(name)) role="presentation">
+            <a href=router.rel(name)>
               link {click} go(event) -> @router
               name
               " "
@@ -48,19 +48,18 @@ view _leftmenu(schedule):
         link {click} action('force_render_all') -> @preloader
         "Rerender all roles"
 
-view main(status, expert_mode):
+view main(status, expert_mode, router):
   <div.canvas>
     store @schedule = json_store | refresher | json('/v1/schedule')
-    _leftmenu(@schedule and @schedule.data)
+    _leftmenu(@schedule and @schedule.data, router)
 
     <div.wide>
       if not @schedule or not @schedule.data:
         <div.panel.panel-default>
           <div.panel-body>
             "Loading..."
-      elif @router.path[1]:
+      elif let [role_name, sub] = router.value():
         let schedule = @schedule.data
-        let role_name = @router.path[1]
         let role = schedule.roles[role_name]
         let role_state = schedule.state and schedule.state[role_name]
         let frontend = (role and role.frontend and role.frontend.kind or
@@ -76,6 +75,7 @@ view main(status, expert_mode):
                 schedule: @schedule.data,
                 system_status: status,
                 expert_mode: expert_mode,
+                router: sub,
               })
           elif frontend == 'version':
               version(role, role_name, {
@@ -83,6 +83,7 @@ view main(status, expert_mode):
                 schedule: @schedule.data,
                 system_status: status,
                 expert_mode: expert_mode,
+                router: sub,
               })
           elif frontend == 'migration':
               migration(role, role_name, {
@@ -90,6 +91,7 @@ view main(status, expert_mode):
                 schedule: @schedule.data,
                 system_status: status,
                 expert_mode: expert_mode,
+                router: sub,
               })
           elif frontend == 'api':
               api(role, role_name, {
@@ -97,6 +99,7 @@ view main(status, expert_mode):
                 schedule: @schedule.data,
                 system_status: status,
                 expert_mode: expert_mode,
+                router: sub,
               })
           else:
             <div.panel.panel-warning>
