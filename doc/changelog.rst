@@ -2,6 +2,15 @@ Verwalter Changes by Version
 ============================
 
 
+.. _changelog-0.9.8:
+
+Verwalter 0.9.8
+---------------
+
+* Keeps few backups of old schedules
+* Updates dependencies of frontend
+
+
 .. _changelog-0.9.7:
 
 Verwalter 0.9.7
