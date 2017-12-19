@@ -76,7 +76,6 @@ mod id;
 mod info;
 mod name;
 mod peer;
-mod routing_util;
 mod scheduler;
 mod shared;
 mod time_util;

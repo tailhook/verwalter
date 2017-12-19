@@ -45,7 +45,7 @@ pub enum Route {
     NotFound,
 }
 
-fn path_component(path: &str) -> (&str, &str) {
+pub fn path_component(path: &str) -> (&str, &str) {
     let path = if path.starts_with('/') {
         &path[1..]
     } else {

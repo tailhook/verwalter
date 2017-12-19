@@ -1,14 +1,14 @@
-use std::io;
-
 use futures::future::{Future};
 use tokio_io::AsyncWrite;
 use tk_http::server::{Codec as CodecTrait};
+use tk_http::{Status};
 use tk_http::server::{self, EncoderDone, Error};
 
 use frontend::routing::{LogRoute};
-use routing_util::path_component;
+use frontend::error_page::serve_error_page;
 use shared::SharedState;
 use frontend::disk;
+use frontend::routing::path_component;
 
 
 pub type Request<S> = Box<CodecTrait<S, ResponseFuture=Reply<S>>>;
@@ -30,9 +30,7 @@ pub fn serve<S>(head: &server::Head, state: &SharedState, route: &LogRoute)
             let (name, suffix) = path_component(tail);
             match state.sandbox.log_dirs.get(name) {
                 Some(path) => path.join(suffix),
-                None => return Err(Error::custom(
-                    io::Error::new(io::ErrorKind::NotFound,
-                    "directory not found in sandbox"))),
+                None => return serve_error_page(Status::Forbidden),
             }
         }
     };
