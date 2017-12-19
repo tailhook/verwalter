@@ -129,7 +129,7 @@ impl Machine {
             debug!("Hosts aren't fresh {:?}. Waiting...",
                 SystemTime::now().duration_since(info.hosts_timestamp.unwrap()));
             report(&BAD_HOSTS_NO, &BAD_HOSTS_TM);
-            return pass(self)
+            return waiting_hosts(self, now)
         }
 
         // Everything here assumes that deadline is definitely already passed
@@ -293,6 +293,18 @@ fn follow(leader: Id, epoch: Epoch, now: Instant)
 fn pass(me: Machine) -> (Machine, ActionList) {
     let deadline = me.current_deadline();
     return (me, Action::wait(deadline));
+}
+
+fn waiting_hosts(_: Machine, now: Instant) -> (Machine, ActionList) {
+    // to be sure that we don't do anything dumb, lets reset state back
+    // to a starting one. Most commonly we will be picked up by existing leader
+    // as soon as there is a network, and hosts are refreshed.
+    //
+    // Also, note that we don't do any time-based stuff, like starting new
+    // election in this case, but we still receive events (i.e. will accept
+    // a new leader and even confirm the election if needed)
+    let deadline = now + start_timeout();
+    (Machine::Starting { leader_deadline: deadline }, Action::wait(deadline))
 }
 
 fn minimum_votes(total_peers: usize) -> usize {
