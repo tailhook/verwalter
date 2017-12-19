@@ -1,4 +1,3 @@
 export function is_leader(status) {
-    // TODO(tailhook) Isn't this is ugly check?
-    return status.election_state.is_leader;
+    return status && status.election_state && status.electin_state.is_leader;
 }
