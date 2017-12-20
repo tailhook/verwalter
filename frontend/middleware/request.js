@@ -105,7 +105,9 @@ export var refresher = store => next => {
                 break;
             case CANCEL:
                 stop()
+                break;
             default:
+                break;
         }
         return next(action)
     }

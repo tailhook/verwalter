@@ -15,6 +15,7 @@ import {main as peers} from './pages/peers.khufu'
 import {main as services} from './pages/services.khufu'
 import {main as logs} from './pages/logs.khufu'
 import {main as backups} from './pages/backups.khufu'
+import {main as tail} from './pages/tail.khufu'
 
 style:
   .subtext
@@ -171,3 +172,5 @@ view main(router, version):
         logs(@status, @expert_mode, sub)
       elif let sub = router.at('backups'):
         backups(@status, @expert_mode, sub)
+      elif let sub = router.at('tail'):
+        tail(@status, @expert_mode, sub)

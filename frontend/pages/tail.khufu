@@ -1,0 +1,22 @@
+import {tail, tailer, follow, load_previous} from '../stores/tail'
+
+
+view main(status, expert_mode, router):
+  <div>
+    store @log = tail | tailer('/v1/log/' + router._tail.join('/'))
+    let path = router._tail.join('/')
+    <div>
+      // TODO(tailhook) expose API in khufu routing
+      <code> path
+      ` Offset: ${@log.str_offset or '?'}-${@log.str_end or '?'}/${@log.total}`
+      <button.btn.btn-default.btn-xs>
+        link {click} load_previous() -> @log
+        "Load previous"
+      <button.btn.btn-default.btn-xs.active?(@log.follow)>
+        link {click} follow(not @log.follow) -> @log
+        "Follow"
+    if @log.loading:
+      "Loading..."
+    if @log.string != null:
+      <pre>
+        @log.string
