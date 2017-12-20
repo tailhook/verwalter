@@ -32,3 +32,16 @@ impl Peers {
         }
     }
 }
+
+impl Peer {
+    pub fn needs_refresh(&self, remote: &Peer) -> bool {
+        let &Peer {
+            ref addr, ref name, ref hostname,
+            ref known_since, ref last_report_direct,
+            schedule: _,  // ensure that only schedule is skipped
+        } = self;
+        return addr != &remote.addr || name != &remote.name ||
+           hostname != &remote.hostname || known_since != &remote.known_since ||
+           last_report_direct != &remote.last_report_direct;
+    }
+}

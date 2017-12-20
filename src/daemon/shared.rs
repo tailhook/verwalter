@@ -176,10 +176,7 @@ impl SharedState {
         for (id, peer) in &peers {
             if let Some(ref mut old) = old_peers.peers.get(&id) {
                 let oldp = old.get();
-                if oldp.addr != peer.addr ||
-                   oldp.name != peer.name ||
-                   oldp.hostname != peer.hostname
-                {
+                if oldp.needs_refresh(&peer) {
                     let new = Peer {
                         schedule: oldp.schedule.clone(),
                         .. peer.clone()
