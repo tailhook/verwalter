@@ -25,7 +25,7 @@ view main(status, expert_mode, router):
         <button.btn.btn-default.btn-xs.active?(@log.follow)>
           link {click} follow(not @log.follow) -> @log
           "Follow"
-        <a.btn.btn-default.btn-xs href=`/v1/log/${path}`> "Raw"
+        <a.btn.btn-default.btn-xs href=`/v1/log/${path}`> "Full Raw"
         <a.btn.btn-default.btn-xs download href=`/v1/log/${path}`> "Download"
         <button.btn.btn-default.btn-xs download href=`/v1/log/${path}`>
           link {click} set(not @show_curl) -> @show_curl

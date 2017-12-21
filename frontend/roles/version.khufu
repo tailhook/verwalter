@@ -50,7 +50,7 @@ view main(role, role_name, {role_state, schedule, system_status, router}):
                 value
 
     processes(-> @actions, schedule, role, role_name, is_leader(system_status))
-    logs(role_name)
+    logs(role_name, router)
 
     if is_leader(system_status):
       <div>

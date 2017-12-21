@@ -8,6 +8,7 @@ import {is_leader} from '../util/status'
 import {new_group, new_process} from './api/new_deployment.khufu'
 import {main as current_groups} from './api/groups.khufu'
 import {show_leaders} from '../util/leaders.khufu'
+import {logs} from './logs.khufu'
 
 
 style:
@@ -16,7 +17,8 @@ style:
     margin-bottom: 16px
 
 
-view main(role, role_name, {role_state, schedule, system_status, expert_mode}):
+view main(role, role_name,
+          {role_state, schedule, system_status, expert_mode, router}):
   <div>
     store @actions = pending_actions | refresher
       | json('/v1/pending_actions')
@@ -64,3 +66,5 @@ view main(role, role_name, {role_state, schedule, system_status, expert_mode}):
       show_leaders(
         "Actions are Only Available on Leader",
         `/role/${role_name}`, system_status)
+
+    logs(role_name, router)

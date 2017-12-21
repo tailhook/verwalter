@@ -112,26 +112,35 @@ export function show_mark(mark) {
     }
 }
 
-export function view_from(mark) {
-    let url;
+export function log_path(mark) {
+    return log_path_off(mark)[0]
+}
+
+export function log_path_off(mark) {
+    let path;
     let off;
     if(mark.variant == 'Global') {
-        url = "/v1/log/global/log." + mark.fields[0] + ".txt";
+        path = "global/log." + mark.fields[0] + ".txt";
         off = mark.fields[1];
     } else if(mark.variant == 'Changes') {
-        url = "/v1/log/changes/log." + mark.fields[0] + ".txt";
+        path = "changes/log." + mark.fields[0] + ".txt";
         off = mark.fields[1];
     } else if(mark.variant == 'Role') {
-        url = "/v1/log/role/" + mark.fields[0] +
+        path = "role/" + mark.fields[0] +
                 "/log." + mark.fields[1] + ".txt";
         off = mark.fields[2];
     } else if(mark.variant == 'External') {
-        url = "/v1/log/external/" + mark.fields[0];
+        path = "external/" + mark.fields[0];
         off = mark.fields[1];
     }
+    return [path, off]
+}
+
+export function view_from(mark) {
+    let [path, off] = log_path_off(mark)
     return {
         type: UPDATE_REQUEST,
-        url: url,
+        url: '/v1/log/' + path,
         response_type: 'text',
         headers: {'Range': 'bytes=' + off + '-' + (off + 65536)},
         decoder: x => x,

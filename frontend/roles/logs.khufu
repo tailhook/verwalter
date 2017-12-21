@@ -1,7 +1,8 @@
 import {refresher} from '../middleware/request'
 import {repr} from '../util/object'
 import {enumerate} from '../util/iter'
-import {role_messages, fetch_indexes} from '../stores/logs'
+import {go, set as setq} from 'khufu-routing'
+import {role_messages, fetch_indexes, log_path_off} from '../stores/logs'
 import {value, bool, set, init, toggle} from '../stores/simple'
 
 
@@ -13,13 +14,13 @@ style:
     text-overflow: ellipsis
 
 
-view logs(role_name):
+view logs(role_name, router):
   <div>
-    store @show = bool | init(false)
+    store @show = router.query('logs')
     <h2>
       "Logs "
       <button.btn.btn-default.btn-xs>
-        link {click} toggle(@show) -> @show
+        link {click} setq(@show ? '' : 'true') -> @show
         if @show:
           <span.glyphicons.glyphicon-minus>
         else:
@@ -43,10 +44,14 @@ view logs(role_name):
                 <td>
                   if dep.start and dep.finish:
                     let bytes = dep.finish[2].fields[2] - dep.start[2].fields[2]
-                    <a href="#">
+                    let [path, pos] = log_path_off(dep.start[2])
+                    <a href=router.rel(`/tail/${ path }`)
+                       title=`${ path } at ${ pos }`>
+                      link {click} go(event) -> @router
                       `render(${ bytes }b)`
                   for [i, pair] of enumerate(dep.externals.entries()) key pair[0]:
-                    let [fname, mark] = pair
-                    let pos = mark[2].fields[1]
-                    <a href="#" title=`${ fname } at ${ pos }`>
+                    let [path, pos] = log_path_off(pair[1][2])
+                    <a href=router.rel(`/tail/${ path }`)
+                       title=`${ path } at ${ pos }`>
+                      link {click} go(event) -> @router
                       ` [${ i+1 }]`

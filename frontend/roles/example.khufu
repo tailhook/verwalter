@@ -22,7 +22,7 @@ style:
     animation-timing-function: linear
 
 
-view main(role, role_name, {schedule, system_status}):
+view main(role, role_name, {schedule, system_status, router}):
   <div>
     store @actions = pending_actions | refresher
       | json('/v1/pending_actions')
@@ -43,7 +43,7 @@ view main(role, role_name, {schedule, system_status}):
                 value
 
     processes(-> @actions, schedule, role, role_name, is_leader(system_status))
-    logs(role_name)
+    logs(role_name, router)
     if is_leader(system_status):
       global_actions(-> @actions, role, role_name)
     else:
