@@ -74,6 +74,7 @@ mod hash;
 mod http;
 mod id;
 mod info;
+mod metrics;
 mod name;
 mod peer;
 mod scheduler;
@@ -261,8 +262,8 @@ fn main() {
     // note this port is expected to be the same across cluster
     let udp_port = options.listen_port;
 
-
-
+    let metrics = metrics::all();
+    let _guard = libcantal::start(&metrics);
 
     run_forever(move || -> Result<(), Box<::std::error::Error>> {
 

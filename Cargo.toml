@@ -34,7 +34,7 @@ itertools = "0.7.3"
 gron = "0.4.0"
 self-meter = "0.6.0"
 quick-error = "1.1.0"
-libcantal = "0.3.0"
+libcantal = "0.3.2"
 tera = "0.10.5"
 error-chain = "0.10.0"  # for tera
 serde = {version="1.0.0", features=["rc"]}

@@ -18,8 +18,17 @@ use fetch;
 use id::Id;
 use {Options};
 use peer::{Peer, Peers};
+use metrics::{Integer, List, Counter, Metric};
 use scheduler::{Schedule, SchedulerInput, ScheduleId};
 
+lazy_static! {
+    static ref ACTIONS_EXECUTED: Counter = Counter::new();
+    static ref FAILED_ROLES: Counter = Counter::new();
+    static ref ERRORED: Counter = Counter::new();
+    static ref ERRORS: Integer = Integer::new();
+    static ref FAILING_ROLES: Integer = Integer::new();
+    static ref PEERS: Integer = Integer::new();
+}
 
 /// Things that are shared across the application threads
 ///
@@ -196,6 +205,7 @@ impl SharedState {
         for (id, peer) in to_insert {
             new_peers.insert(id.clone(), ArcCell::new(Arc::new(peer.clone())));
         }
+        PEERS.set(new_peers.len() as i64);
         self.peers.set(Arc::new(Peers {
             timestamp: time,
             peers: new_peers,
@@ -243,10 +253,17 @@ impl SharedState {
         }
     }
     pub fn set_error(&self, domain: &'static str, value: String) {
-        Arc::make_mut(&mut self.lock().errors).insert(domain, value);
+        let mut lock = self.lock();
+        let errs = Arc::make_mut(&mut lock.errors);
+        errs.insert(domain, value);
+        ERRORS.set(errs.len() as i64);
+        ERRORED.incr(1);
     }
     pub fn clear_error(&self, domain: &'static str) {
-        Arc::make_mut(&mut self.lock().errors).remove(domain);
+        let mut lock = self.lock();
+        let errs = Arc::make_mut(&mut lock.errors);
+        errs.remove(domain);
+        ERRORS.set(errs.len() as i64);
     }
     pub fn update_election(&self, elect: ElectionState) {
         let mut guard = self.lock();
@@ -311,6 +328,7 @@ impl SharedState {
         if !guard.election.is_leader {
             return Err(PushActionError::NotALeader);
         }
+        ACTIONS_EXECUTED.incr(1);
 
         let millis = (get_time().sec * 1000) as u64;
 
@@ -336,9 +354,27 @@ impl SharedState {
         let ref mut role_errors = Arc::make_mut(&mut lock.failed_roles);
         if !role_errors.contains(role_name) {
             role_errors.insert(role_name.to_string());
+            FAILING_ROLES.set(role_errors.len() as i64);
         }
+        FAILED_ROLES.incr(1);
     }
     pub fn reset_role_failure(&self, role_name: &str) {
-        Arc::make_mut (&mut self.lock().failed_roles).remove(role_name);
+        let mut lock = self.lock();
+        let role_errors = Arc::make_mut(&mut lock.failed_roles);
+        role_errors.remove(role_name);
+        FAILING_ROLES.set(role_errors.len() as i64);
     }
+}
+
+pub fn metrics() -> List {
+    let global = "global";
+    let peers = "peers";
+    return vec![
+        (Metric(global, "actions_executed"), &*ACTIONS_EXECUTED),
+        (Metric(global, "errors_occured"), &*ERRORED),
+        (Metric(global, "roles_failed"), &*FAILED_ROLES),
+        (Metric(global, "current_errors"), &*ERRORS),
+        (Metric(global, "current_failing"), &*FAILING_ROLES),
+        (Metric(peers, "known"), &*PEERS),
+    ]
 }
