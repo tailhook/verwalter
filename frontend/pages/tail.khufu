@@ -1,21 +1,38 @@
+import {value, set} from '../stores/simple'
 import {tail, tailer, follow, load_previous, if_null} from '../stores/tail'
+
+style:
+  .offset
+    margin-left: 8px
+    margin-right: 8px
 
 
 view main(status, expert_mode, router):
   <div>
     store @log = tail | tailer('/v1/log/' + router._tail.join('/'))
+    store @show_curl = value
     let path = router._tail.join('/')
     <div>
       // TODO(tailhook) expose API in khufu routing
       <code> path
-      ` Offset: ${if_null(@log.str_offset)}-${if_null(@log.str_end)}`
-      `/${if_null(@log.total)}`
-      <button.btn.btn-default.btn-xs>
-        link {click} load_previous() -> @log
-        "Load previous"
-      <button.btn.btn-default.btn-xs.active?(@log.follow)>
-        link {click} follow(not @log.follow) -> @log
-        "Follow"
+      <span.offset>
+        ` Offset: ${if_null(@log.str_offset)}-${if_null(@log.str_end)}`
+        `/${if_null(@log.total)}`
+      <div.btn-group>
+        <button.btn.btn-default.btn-xs>
+          link {click} load_previous() -> @log
+          "Load previous"
+        <button.btn.btn-default.btn-xs.active?(@log.follow)>
+          link {click} follow(not @log.follow) -> @log
+          "Follow"
+        <a.btn.btn-default.btn-xs href=`/v1/log/${path}`> "Raw"
+        <a.btn.btn-default.btn-xs download href=`/v1/log/${path}`> "Download"
+        <button.btn.btn-default.btn-xs download href=`/v1/log/${path}`>
+          link {click} set(not @show_curl) -> @show_curl
+          <span.caret>
+      if @show_curl:
+        <pre>
+          `curl -H 'Range: bytes=${@log.str_offset}-${@log.str_end-1}' http://${status.name}:8379/v1/log/${path}`
     if @log.loading:
       "Loading..."
     if @log.string != null:
