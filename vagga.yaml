@@ -54,7 +54,8 @@ commands:
       verw: !Command
         container: xenial
         environ:
-          RUST_LOG: info
+          # disable errors on our fake IP addresses
+          RUST_LOG: info,verwalter::elect::network=off
         run:
         - ./target/debug/verwalter
         - --config-dir=/work/example-configs/pyapp
