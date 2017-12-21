@@ -21,8 +21,31 @@ export function tail(state=log_state(), action) {
         case CHUNK:
             // TODO(tailhook) concat
             let nbytes = new Uint8Array(action.bytes)
+            let chunklen = nbytes.length;
             let noffset = action.offset
-            let nsoffset = action.offset
+
+            let old_off = state.byte_offset
+            if(old_off != null) {
+                if(noffset < old_off) { // previous chunk
+                    if(noffset + chunklen >= old_off) {
+                        let total_len = old_off + state.bytes.length - noffset;
+                        nbytes = new Uint8Array(total_len)
+                        nbytes.set(new Uint8Array(action.bytes));
+                        nbytes.set(state.bytes, old_off - noffset);
+                    } // else: can't join chunks, just show the new part
+                } else { // next chunk
+                    if(noffset <= old_off + state.bytes.length) {
+                        let total_len = noffset + chunklen - old_off
+                        nbytes = new Uint8Array(total_len)
+                        nbytes.set(state.bytes)
+                        nbytes.set(new Uint8Array(action.bytes),
+                                   action.offset - old_off)
+                        noffset = state.byte_offset
+                    } // else: can't join chunks, just show the new part
+                }
+            }
+
+            let nsoffset = noffset
             let line_off = 0
             if(nsoffset != 0) {
                 line_off = nbytes.findIndex(c => c == 10)
@@ -38,7 +61,7 @@ export function tail(state=log_state(), action) {
                 loading: false,
                 byte_offset: noffset,
                 str_offset: nsoffset,
-                str_end: noffset + nbytes.length - line_off,
+                str_end: noffset + nbytes.length,
                 total: action.total,
                 bytes: nbytes,
                 string: nstr,
@@ -105,7 +128,6 @@ export var tailer = uri => store => next => {
                     cur_off == null ? load_before + CHUNK_SIZE : cur_off-1 ));
             load_before = null;
         } else if(cur_off != null) {
-            console.log(end_off)
             request.setRequestHeader('Range',
                 'bytes='+(end_off > 0 ? end_off-1 : 0)+'-'+ (end_off + CHUNK_SIZE));
         } else {
@@ -154,4 +176,8 @@ export function follow(val) {
 
 export function load_previous() {
     return {type: LOAD_PREVIOUS}
+}
+
+export function if_null(x) {
+    return x == null ? '?' : x
 }

@@ -1,4 +1,4 @@
-import {tail, tailer, follow, load_previous} from '../stores/tail'
+import {tail, tailer, follow, load_previous, if_null} from '../stores/tail'
 
 
 view main(status, expert_mode, router):
@@ -8,7 +8,8 @@ view main(status, expert_mode, router):
     <div>
       // TODO(tailhook) expose API in khufu routing
       <code> path
-      ` Offset: ${@log.str_offset or '?'}-${@log.str_end or '?'}/${@log.total}`
+      ` Offset: ${if_null(@log.str_offset)}-${if_null(@log.str_end)}`
+      `/${if_null(@log.total)}`
       <button.btn.btn-default.btn-xs>
         link {click} load_previous() -> @log
         "Load previous"
