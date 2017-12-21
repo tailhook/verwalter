@@ -2,9 +2,18 @@ Verwalter Changes by Version
 ============================
 
 
-.. _changelog-0.9.8:
+.. _changelog-0.9.10:
 
-Verwalter 0.9.8
+Verwalter 0.9.10
+----------------
+
+* Add nicer log tailing UI and activate link in role log list
+* Add some cantal metrics
+* Bugfix: list of peers did not display correct timestamps
+
+.. _changelog-0.9.9:
+
+Verwalter 0.9.9
 ---------------
 
 * Bugfix: external logs were not served properly
