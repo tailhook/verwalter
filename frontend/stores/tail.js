@@ -12,7 +12,7 @@ function log_state() {
         total: 0,
         bytes: new Uint8Array(),
         string: null,
-        follow: true,
+        follow: false,
     }
 }
 
@@ -77,7 +77,9 @@ export var tailer = uri => store => next => {
     var request
     var timeout
     var follow
+    var stick
     var load_before
+    var scroll_timeout
 
     function start() {
         if(timeout) {
@@ -115,6 +117,9 @@ export var tailer = uri => store => next => {
                     total: parseInt(total),
                     latency: lcy,
                 })
+                if(stick && !scroll_timeout) {
+                    scroll_timeout = setTimeout(follow_bottom, 16)
+                }
             } catch(e) {
                 next({type: ERROR, exception: e, latency: lcy})
             }
@@ -145,6 +150,22 @@ export var tailer = uri => store => next => {
             clearTimeout(timeout)
             timeout = null
         }
+        if(scroll_timeout) {
+            clearTimeout(scroll_timeout)
+            scroll_timeout = null
+        }
+    }
+    function follow_bottom() {
+        if(scroll_timeout) {
+            clearTimeout(scroll_timeout);
+            scroll_timeout = null
+        }
+        if(stick) {
+            window.scrollTo(window.scrollX, window.scrollMaxY)
+        }
+    }
+    function follow_scroll(event) {
+        stick = window.scrollY == window.scrollMaxY
     }
     start()
     return action => {
@@ -152,7 +173,15 @@ export var tailer = uri => store => next => {
             case FOLLOW:
                 follow = action.enable
                 if(follow && !request) {
+                    if(!stick) {
+                        stick = true;
+                        follow_bottom()
+                        window.addEventListener('scroll', follow_scroll)
+                    }
                     start()
+                } else {
+                    stick = false;
+                    window.removeEventListener('scroll', follow_scroll)
                 }
                 break;
             case LOAD_PREVIOUS:
@@ -163,6 +192,7 @@ export var tailer = uri => store => next => {
                 }
                 break;
             case CANCEL:
+                window.removeEventListener('scroll', follow_scroll)
                 stop();
                 break;
         }
