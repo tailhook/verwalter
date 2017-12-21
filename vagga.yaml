@@ -53,7 +53,7 @@ commands:
     children:
       verw: !Command
         container: xenial
-        environ:
+        environ: &fake_rust_log
           # disable errors on our fake IP addresses
           RUST_LOG: info,verwalter::elect::network=off
         run:
@@ -62,7 +62,7 @@ commands:
         - --storage-dir=tmp/storage
         - --log-dir=/tmp/logs
         - --override-machine-id=77985419c732412ea38b94db00000000
-        - --hostname=alpha
+        - --hostname=beta
         - --debug-force-leader
       cantal: &fake_cantal !Command
         container: util
@@ -209,8 +209,7 @@ commands:
     children:
       verw: !Command
         container: xenial
-        environ:
-          RUST_LOG: info
+        environ: *fake_rust_log
         run:
         - ./target/debug/verwalter
         - --config-dir=/work/example-configs/api_scheduler
@@ -227,8 +226,7 @@ commands:
     children:
       verw: !Command
         container: xenial
-        environ:
-          RUST_LOG: info
+        environ: *fake_rust_log
         run:
         - ./target/debug/verwalter
         - --config-dir=/work/example-configs/minimal
