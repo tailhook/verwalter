@@ -2,7 +2,7 @@ export const FOLLOW = '@@tail/follow'
 export const LOAD_PREVIOUS = '@@tail/load_previous'
 export const ERROR = '@@tail/error'
 export const CHUNK = '@@tail/chunk'
-const CHUNK_SIZE = 512
+const CHUNK_SIZE = 16384
 
 function log_state() {
     return {
