@@ -233,7 +233,7 @@ view main(role, role_name, role_state, @actions,
                            expert_mode: expert_mode})
                       else:
                         repr(value)
-            if is_leader(system_status) and expert_mode:
+            if is_leader(system_status) and expert_mode and not group.update:
 
               let delete_call = {"button": {
                 role: role_name,
