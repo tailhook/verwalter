@@ -9,6 +9,7 @@ import {new_group, new_process} from './api/new_deployment.khufu'
 import {main as current_groups} from './api/groups.khufu'
 import {show_leaders} from '../util/leaders.khufu'
 import {logs} from './logs.khufu'
+import {set_error, error, clear} from '../stores/errors'
 
 
 style:
@@ -26,12 +27,21 @@ view main(role, role_name,
     store @show_json = bool | init(false)
     store @show_new_group = bool | init(false)
     store @show_new_process = bool | init(false)
+    store @err_store = error
     let server_list = servers(@peers, system_status)
 
 
-    current_groups(role, role_name, role_state, -> @actions,
-      {system_status: system_status, servers: server_list,
-       expert_mode: expert_mode})
+    if not @err_store:
+      catch * set_error("render error") -> @err_store:
+        current_groups(role, role_name, role_state, -> @actions,
+          {system_status: system_status, servers: server_list,
+           expert_mode: expert_mode})
+    else:
+      <div>
+          `Error ocurred: ${ @err_store }`
+          <button>
+              link {click} clear() -> @err_store
+              "Retry"
 
     <div.btn-group.actions>
       if expert_mode and is_leader(system_status):
