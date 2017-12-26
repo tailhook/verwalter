@@ -52,6 +52,9 @@ style:
     margin-right: 0.2ex
   .force-version-on-update
     margin: 16px
+  .invalid-update
+    margin-left: 0.2ex
+    color: red
 
 view action_button(action, icon, color, title,
                    @actions, {group_name, role_name, update}):
@@ -69,62 +72,62 @@ view action_button(action, icon, color, title,
 
 view update_buttons(up, @actions, kw):
   <div>
-    let [step, step_idx] = step_and_index(up.pipeline, up.step)
     store @show_repr = bool | init(false)
     store @show_force_update = bool | init(false)
     <div>
       <div.btn-group>
-
-        if is_leader(kw.system_status):
-          if up.direction == 'forward':
-            if step.forward_mode == 'time' or step.forward_mode == 'smooth':
-              action_button('pause', 'pause', 'default',
-                "Temporarily pause update process",
-                -> @actions, kw)
-            elif step.forward_mode == 'manual':
-              action_button('revert', 'backward', 'danger',
-                "Continue update process",
-                -> @actions, kw)
-              action_button('proceed', 'play', 'success',
-                "Continue update process",
-                -> @actions, kw)
-            elif step.forward_mode == 'ack':
+        if let [step, _] = step_and_index(up.pipeline, up.step):
+          if is_leader(kw.system_status):
+            if up.direction == 'forward':
+              if step.forward_mode == 'time' or step.forward_mode == 'smooth':
+                action_button('pause', 'pause', 'default',
+                  "Temporarily pause update process",
+                  -> @actions, kw)
+              elif step.forward_mode == 'manual':
+                action_button('revert', 'backward', 'danger',
+                  "Continue update process",
+                  -> @actions, kw)
+                action_button('proceed', 'play', 'success',
+                  "Continue update process",
+                  -> @actions, kw)
+              elif step.forward_mode == 'ack':
+                action_button('revert', 'backward', 'danger',
+                  "Revert the update",
+                  -> @actions, kw)
+            elif up.direction == 'backward':
+              if step.backward_mode == 'time' or step.forward_mode == 'smooth':
+                action_button('pause', 'pause', 'default',
+                  "Pause revert process",
+                  -> @actions, kw)
+              elif step.backward_mode == 'manual':
+                action_button('revert', 'backward', 'default',
+                  "Continue revert process",
+                  -> @actions, kw)
+            elif up.direction == 'error':
               action_button('revert', 'backward', 'danger',
                 "Revert the update",
                 -> @actions, kw)
-          elif up.direction == 'backward':
-            if step.backward_mode == 'time' or step.forward_mode == 'smooth':
-              action_button('pause', 'pause', 'default',
-                "Pause revert process",
+              action_button('skip', 'forward', 'danger',
+                "Skip this step and continue",
                 -> @actions, kw)
-            elif step.backward_mode == 'manual':
-              action_button('revert', 'backward', 'default',
-                "Continue revert process",
+            else:
+              action_button('revert', 'backward', 'danger',
+                "Revert the update",
                 -> @actions, kw)
-          elif up.direction == 'error':
-            action_button('revert', 'backward', 'danger',
-              "Revert the update",
-              -> @actions, kw)
-            action_button('skip', 'forward', 'danger',
-              "Skip this step and continue",
-              -> @actions, kw)
-          else:
-            action_button('revert', 'backward', 'danger',
-              "Revert the update",
-              -> @actions, kw)
-            action_button('resume', 'play', 'default',
-              "Continue update process",
-              -> @actions, kw)
-            action_button('skip', 'forward', 'danger',
-              "Skip this step and continue",
-              -> @actions, kw)
+              action_button('resume', 'play', 'default',
+                "Continue update process",
+                -> @actions, kw)
+              action_button('skip', 'forward', 'danger',
+                "Skip this step and continue",
+                -> @actions, kw)
 
-        <button.btn.btn-info title="Push this if something is terribly wrong">
-          link {click} toggle(@show_force_update) -> @show_force_update
-          <span.glyphicon.glyphicon-fire>
-        <button.btn.btn-default>
-          link {click} toggle(@show_repr) -> @show_repr
-          <span.caret>
+        if is_leader(kw.system_status):
+          <button.btn.btn-info title="Push this if something is terribly wrong">
+            link {click} toggle(@show_force_update) -> @show_force_update
+            <span.glyphicon.glyphicon-fire>
+          <button.btn.btn-default>
+            link {click} toggle(@show_repr) -> @show_repr
+            <span.caret>
 
       <span.timers>
         <span.timer-name>
@@ -227,33 +230,37 @@ view show_force_update_buttons(@actions, {role, role_name, group_name}):
 
 view show_title(group):
   let up = group.update
-  let [step, step_idx] = step_and_index(up.pipeline, up.step)
-  <div.title-addon>
-    <div.stack>
-      <div.versions>
-        <span.glyphicon.glyphicon-menu-left.title>
-        up.source_ver
-        " "
-        if up.auto:
-          <span.glyphicon.glyphicon-forward.title>
-        else:
-          <span.glyphicon.glyphicon-arrow-right.title>
-        " "
-        up.target_ver
-        <span.glyphicon.glyphicon-menu-right.title>
-        " "
-        if up.direction != 'forward':
-          <span.paused>
-            <span.glyphicon.glyphicon-exclamation-sign>
-            " "
-            up.direction
-      <div.step-name>
-        up.step
-        if up.smooth_step:
-          <span.substep>
-            up.smooth_step
-            " / "
-            step.substeps
-    if up.direction == 'forward':
-      if step.forward_mode == 'manual':
-        <span.glyphicon.glyphicon-hourglass>
+  if let [step, step_idx] = step_and_index(up.pipeline, up.step):
+    <div.title-addon>
+      <div.stack>
+        <div.versions>
+          <span.glyphicon.glyphicon-menu-left.title>
+          up.source_ver
+          " "
+          if up.auto:
+            <span.glyphicon.glyphicon-forward.title>
+          else:
+            <span.glyphicon.glyphicon-arrow-right.title>
+          " "
+          up.target_ver
+          <span.glyphicon.glyphicon-menu-right.title>
+          " "
+          if up.direction != 'forward':
+            <span.paused>
+              <span.glyphicon.glyphicon-exclamation-sign>
+              " "
+              up.direction
+        <div.step-name>
+          up.step
+          if up.smooth_step:
+            <span.substep>
+              up.smooth_step
+              " / "
+              step.substeps
+      if up.direction == 'forward':
+        if step.forward_mode == 'manual':
+          <span.glyphicon.glyphicon-hourglass>
+  else:
+    <span.invalid-update>
+      <span.glyphicon.glyphicon-exclamation-sign>
+      "invalid update"

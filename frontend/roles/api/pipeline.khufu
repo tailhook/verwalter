@@ -39,6 +39,9 @@ style:
   .progress-mark
     margin-left: 4px
     margin-right: 4px
+  .invalid-update
+    font-size: 240%
+    color: red
 
 
 view preview(pipeline):
@@ -62,40 +65,42 @@ view preview(pipeline):
 
 view progress(update):
   let pipeline = update.pipeline
-  let [step, step_idx] = step_and_index(update.pipeline, update.step)
-  <p.pipeline>
-    <div.stage.start.bg-success>
-      <div.title> "Start"
-    for [idx, stage] of enumerate(pipeline) key stage.name:
-      <div.stage.now.bg-success?(idx < step_idx).bg-warning?(idx==step_idx)>
-        store @show_repr = bool | init(false)
-        <div.title>
-          stage.name
-          <button.btn.btn-xs.btn-default>
-            link {click} toggle(@show_repr) -> @show_repr
-            <span.caret>
-        if stage.name == step.name:
-          if step.forward_mode == 'ack' or step.forward_mode == 'manual':
-            <span.glyphicon.glyphicon-hourglass.rotate>
-          else:
-            let active = update.direction != 'pause'
-            let spent = till_now_ms(from_ms(update.change_ts))
-            let progress = (update.smooth_step ?
-              (update.smooth_step / step.substeps) :
-              (spent / (update.forward_time*1000)))
-            <div.progress-bar-base>
-              <div.progress>
-                <div.progress-bar.progress-bar-striped.active?(active)
-                    role="progressbar" aria-valuenow="40"
-                    aria-valuemin="0" aria-valuemax="100"
-                    style={width: `${ progress*100 }%`}>
-                  if update.direction == 'backward':
-                    <span.progress-mark.glyphicon.glyphicon-backward>
-                  `${ (progress*100).toFixed(0) }%`
-                  if update.direction == 'forward':
-                    <span.progress-mark.glyphicon.glyphicon-forward>
-        if @show_repr:
-          <pre>
-            pretty_json(stage)
-    <div.stage.done>
-      <div.title> "Done"
+  if let [step, step_idx] = step_and_index(update.pipeline, update.step):
+    <p.pipeline>
+      <div.stage.start.bg-success>
+        <div.title> "Start"
+      for [idx, stage] of enumerate(pipeline) key stage.name:
+        <div.stage.now.bg-success?(idx < step_idx).bg-warning?(idx==step_idx)>
+          store @show_repr = bool | init(false)
+          <div.title>
+            stage.name
+            <button.btn.btn-xs.btn-default>
+              link {click} toggle(@show_repr) -> @show_repr
+              <span.caret>
+          if stage.name == step.name:
+            if step.forward_mode == 'ack' or step.forward_mode == 'manual':
+              <span.glyphicon.glyphicon-hourglass.rotate>
+            else:
+              let active = update.direction != 'pause'
+              let spent = till_now_ms(from_ms(update.change_ts))
+              let progress = (update.smooth_step ?
+                (update.smooth_step / step.substeps) :
+                (spent / (update.forward_time*1000)))
+              <div.progress-bar-base>
+                <div.progress>
+                  <div.progress-bar.progress-bar-striped.active?(active)
+                      role="progressbar" aria-valuenow="40"
+                      aria-valuemin="0" aria-valuemax="100"
+                      style={width: `${ progress*100 }%`}>
+                    if update.direction == 'backward':
+                      <span.progress-mark.glyphicon.glyphicon-backward>
+                    `${ (progress*100).toFixed(0) }%`
+                    if update.direction == 'forward':
+                      <span.progress-mark.glyphicon.glyphicon-forward>
+          if @show_repr:
+            <pre>
+              pretty_json(stage)
+      <div.stage.done>
+        <div.title> "Done"
+  else:
+    <div.invalid-update> "Invalid update"
