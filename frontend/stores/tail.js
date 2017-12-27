@@ -106,7 +106,11 @@ export var tailer = uri => store => next => {
                 next({type: ERROR, request: req, latency: lcy})
                 return;
             }
-            let [range, total] = req.getResponseHeader('Content-Range').split('/');
+            let [bytes_tag, rng_txt] = req.getResponseHeader('Content-Range')
+                .split(' ');
+            console.assert(bytes_tag == 'bytes', "Bad content range",
+                req.getResponseHeader('Content-Range'))
+            let [range, total] = rng_txt.split('/');
             let [chunk_start, end] = range.split('-');
             try {
                 next({
