@@ -1,7 +1,7 @@
 import {value, bool, set, init, toggle} from '../../stores/simple'
 import {variables, set as set_var, set_types} from '../../stores/variables'
 import {uniqueset, toggleunique} from '../../stores/simple'
-import {repr, entries_sorted, keys, pretty_json} from '../../util/object'
+import {sorted, entries_sorted, keys, pretty_json} from '../../util/object'
 import {refresher, json} from '../../middleware/request'
 import {section} from '../../blocks/title.khufu'
 import {main as version} from '../../blocks/version_select.khufu'
@@ -129,7 +129,7 @@ view new_process(role, role_name, role_state, @actions,
         <label> "Servers"
         <div>
           <div.btn-group>
-            for srv of servers key srv.id:
+            for srv of sorted(servers, 'id') key srv.id:
               <button.btn.btn-default.btn-xs
                      .active?(@selected_servers[srv.hostname])>
                 link {click} toggleunique(srv.hostname) -> @selected_servers

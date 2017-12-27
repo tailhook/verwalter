@@ -8,6 +8,12 @@ export function entries_sorted(x) {
     return keys.map(k => [k, x[k]])
 }
 
+export function sorted(x, key) {
+    let values = Object.values(x)
+    values.sort((a, b) => a[key].localeCompare(b[key]))
+    return values
+}
+
 export function keys(x) {
     return Object.keys(x)
 }
