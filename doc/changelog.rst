@@ -2,6 +2,15 @@ Verwalter Changes by Version
 ============================
 
 
+.. _changelog-0.9.11:
+
+Verwalter 0.9.11
+----------------
+
+* Bugfix: Content-Range headers on logs were invalid
+* Api-frontend: sorted server list
+* Api-frontend: no "delete daemon" when update is active
+
 .. _changelog-0.9.10:
 
 Verwalter 0.9.10
