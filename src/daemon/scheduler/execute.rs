@@ -3,7 +3,8 @@ use serde::Serialize;
 use serde_json::{Value as Json, from_str};
 use std::collections::VecDeque;
 
-use scheduler::{Scheduler, Error};
+use scheduler::{Error};
+use scheduler::luatic::Scheduler;
 
 
 impl Scheduler {
