@@ -9,7 +9,6 @@ use serde;
 use serde_json::{Value as Json};
 use inotify::{Inotify};
 use scan_dir::ScanDir;
-use lua::GcOption;
 use libcantal::{Counter, Integer};
 use frontend::serialize::{serialize_timestamp};
 
@@ -17,9 +16,8 @@ use config;
 use hash::hash;
 use id::Id;
 use peer::Peer;
-use scheduler::Schedule;
+use scheduler::{self, Schedule};
 use scheduler::state::num_roles;
-use scheduler::luatic;
 use shared::{SharedState};
 use time_util::ToMsec;
 use watchdog::{self, Alarm};
@@ -95,10 +93,7 @@ pub fn main(state: SharedState, settings: Settings) -> !
     let mut scheduler = {
         let _alarm = Alarm::new(Duration::new(10, 0), "initial lua load");
         watch_dir(&mut inotify, &settings.config_dir.join("scheduler"));
-        match luatic::read(settings.id.clone(),
-                          settings.hostname.clone(),
-                          &settings.config_dir)
-        {
+        match scheduler::read(&settings.config_dir) {
             Ok(s) => s,
             Err(e) => {
                 error!("Scheduler load failed: {}", e);
@@ -153,10 +148,7 @@ pub fn main(state: SharedState, settings: Settings) -> !
                 {
                     let _alarm = Alarm::new(Duration::new(10, 0),
                                             "scheduler reload");
-                    match luatic::read(settings.id.clone(),
-                                      settings.hostname.clone(),
-                                      &settings.config_dir)
-                    {
+                    match scheduler::read(&settings.config_dir) {
                         Ok(s) => {
                             scheduler = s;
                             state.clear_error("scheduler_load");
@@ -185,8 +177,8 @@ pub fn main(state: SharedState, settings: Settings) -> !
 
             let input = SchedulerInput {
                 now: timestamp,
-                current_host: scheduler.hostname.clone(),
-                current_id: scheduler.id.clone(),
+                current_host: settings.hostname.clone(),
+                current_id: settings.id.clone(),
                 parents: cookie.parent_schedules.iter()
                   .map(|x| Parent(x.clone())).collect(),
                 actions: cookie.actions.clone(),
@@ -234,16 +226,8 @@ pub fn main(state: SharedState, settings: Settings) -> !
                 timestamp: timestamp.to_msec(),
                 hash: hash,
                 data: json,
-                origin: scheduler.id.clone(),
+                origin: settings.id.clone(),
             }, input, dbg);
-
-            // We execute GC after every scheduler run, we are going to
-            // sleep for quite a long time now, so don't care performance
-            debug!("Garbage before collection: {}Kb, stack top: {}",
-                scheduler.lua.gc(GcOption::Count, 0), scheduler.lua.get_top());
-            scheduler.lua.gc(GcOption::Collect, 0);
-            info!("Garbage after collection: {}Kb",
-                scheduler.lua.gc(GcOption::Count, 0));
             break;
         }
     }
