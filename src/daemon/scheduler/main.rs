@@ -19,6 +19,7 @@ use id::Id;
 use peer::Peer;
 use scheduler::Schedule;
 use scheduler::state::num_roles;
+use scheduler::luatic;
 use shared::{SharedState};
 use time_util::ToMsec;
 use watchdog::{self, Alarm};
@@ -94,7 +95,7 @@ pub fn main(state: SharedState, settings: Settings) -> !
     let mut scheduler = {
         let _alarm = Alarm::new(Duration::new(10, 0), "initial lua load");
         watch_dir(&mut inotify, &settings.config_dir.join("scheduler"));
-        match super::read(settings.id.clone(),
+        match luatic::read(settings.id.clone(),
                           settings.hostname.clone(),
                           &settings.config_dir)
         {
@@ -152,7 +153,7 @@ pub fn main(state: SharedState, settings: Settings) -> !
                 {
                     let _alarm = Alarm::new(Duration::new(10, 0),
                                             "scheduler reload");
-                    match super::read(settings.id.clone(),
+                    match luatic::read(settings.id.clone(),
                                       settings.hostname.clone(),
                                       &settings.config_dir)
                     {
