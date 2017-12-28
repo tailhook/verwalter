@@ -7,7 +7,6 @@ extern crate crossbeam;
 extern crate deflate;
 extern crate env_logger;
 extern crate hex;
-extern crate failure;
 extern crate futures;
 extern crate futures_cpupool;
 extern crate gron;
@@ -41,7 +40,7 @@ extern crate valuable_futures;
 extern crate void;
 extern crate yaml_rust;
 
-#[macro_use] extern crate failure_derive;
+#[macro_use] extern crate failure;
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate log;
 #[macro_use] extern crate lua;
