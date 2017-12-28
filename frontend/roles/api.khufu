@@ -32,7 +32,7 @@ view main(role, role_name,
 
 
     if not @err_store:
-      catch * set_error("render error") -> @err_store:
+      catch * set_error(error) -> @err_store:
         current_groups(role, role_name, role_state, -> @actions,
           {system_status: system_status, servers: server_list,
            expert_mode: expert_mode})
