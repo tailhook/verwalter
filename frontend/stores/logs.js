@@ -13,7 +13,6 @@ export var role_messages = role => (state={}, action) => {
         case DATA:
             let items = parse_log(action.data, action.req)
             let deploys = new Map()
-            let myitems = []
             // TODO(tailhook) use computed `record.role` produced
             // by `parse_log`
             let in_role = false
@@ -39,7 +38,9 @@ export var role_messages = role => (state={}, action) => {
                         break;
                 }
             }
-            return {deploys: deploys}
+            let list = Array.from(deploys.entries())
+            list.reverse()
+            return {deploys: new Map(list)}
     }
     return {}
 }
