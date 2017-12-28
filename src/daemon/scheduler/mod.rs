@@ -1,36 +1,41 @@
-use lua::{ThreadStatus, Type};
+use std::path::Path;
 
-mod luatic;
+use failure::Error;
+use serde_json::{Value as Json};
+
 mod execute;
 mod state;
 pub mod main;  // pub for making counters visible
+mod luatic;
+mod wasm;
 
 pub use self::state::{Schedule, ScheduleId, from_json};
 pub use self::main::{main as run, Settings, SchedulerInput};
 
+enum Scheduler {
+    Lua(self::luatic::Scheduler),
+    Wasm(self::wasm::Scheduler),
+}
 
-quick_error! {
-    #[derive(Debug)]
-    pub enum Error {
-        Lua(err: ThreadStatus, msg: String) {
-            display("running lua script {:?}: {}", err, msg)
-            description("error running scheduler")
+impl Scheduler {
+    fn execute(&mut self, input: &SchedulerInput)
+        -> (Result<Json, Error>, String)
+    {
+        use self::Scheduler::*;
+        match *self {
+            Lua(ref mut scheduler) => scheduler.execute(&input),
+            Wasm(ref mut scheduler) => scheduler.execute(&input),
         }
-        FunctionNotFound(name: &'static str, typ: Type) {
-            display("Main expected to export {:?} expected {:?} found",
-                name, typ)
-            description("scheduler function not found")
-        }
-        /*
-        WrongValue(val: AnyLuaValue) {
-            display("script returned non-string value: {:?}", val)
-        }
-        */
-        UnexpectedYield {
-            description("scheduler function should not yield")
-        }
-        Conversion {
-            description("Scheduler returned unconvertible value")
-        }
+    }
+}
+
+pub(in scheduler) fn read(base_dir: &Path)
+    -> Result<Scheduler, Error>
+{
+    let ref dir = &base_dir.join("scheduler/v1");
+    if dir.join("scheduler.wasm").exists() {
+        Ok(Scheduler::Wasm(self::wasm::read(dir)?))
+    } else {
+        Ok(Scheduler::Lua(self::luatic::read(dir)?))
     }
 }
