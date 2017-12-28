@@ -2241,15 +2241,15 @@ khufu-routing@0.1.2:
   version "0.1.2"
   resolved "https://registry.yarnpkg.com/khufu-routing/-/khufu-routing-0.1.2.tgz#9f59617cbe8b614f8c06f6871878b3f4daa62b40"
 
-khufu-runtime@0.5.1:
-  version "0.5.1"
-  resolved "https://registry.yarnpkg.com/khufu-runtime/-/khufu-runtime-0.5.1.tgz#e42e0eca2f511758e2f9139cb70fdaaa809bcc13"
+khufu-runtime@0.5.2:
+  version "0.5.2"
+  resolved "https://registry.yarnpkg.com/khufu-runtime/-/khufu-runtime-0.5.2.tgz#dd50206024f8817a4d218c27d20a6a3663a1f438"
   dependencies:
     incremental-dom "0.5.1"
 
-khufu@0.5.1:
-  version "0.5.1"
-  resolved "https://registry.yarnpkg.com/khufu/-/khufu-0.5.1.tgz#9eea0b80a94faeaa8241865765d77c8af93afe64"
+khufu@0.5.2:
+  version "0.5.2"
+  resolved "https://registry.yarnpkg.com/khufu/-/khufu-0.5.2.tgz#c761c056d0d2026c6c02ef08ddabd590240c215a"
   dependencies:
     babel-cli "^6.26.0"
     babel-core "^6.26.0"

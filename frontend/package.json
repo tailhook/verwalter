@@ -4,7 +4,7 @@
   "keywords": ["verwalter", "containers", "orchestration"],
   "main": "index.js",
   "dependencies": {
-    "khufu-runtime": "0.5.1",
+    "khufu-runtime": "0.5.2",
     "khufu-routing": "0.1.2",
     "redux": "3.7.2",
     "incremental-dom": "0.5.1",
@@ -24,7 +24,7 @@
     "babel-core": "6.24.1",
     "babel-minify": "0.2.0",
     "babel-minify-webpack-plugin": "0.2.0",
-    "khufu": "0.5.1"
+    "khufu": "0.5.2"
   },
   "optionalDependencies": {
     "webpack-dev-server": "// For hot reload, with dependencies",
