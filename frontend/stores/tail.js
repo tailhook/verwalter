@@ -67,6 +67,16 @@ export function tail(state=log_state(), action) {
                 total: action.total,
                 bytes: nbytes,
                 string: nstr,
+                error: false,
+                exception: null,
+                err_request: null,
+            }
+        case ERROR:
+            return {...state,
+                loading: false,
+                error: true,
+                exception: action.exception,
+                err_request: action.request,
             }
         case FOLLOW:
             return {...state, follow: action.enable}
@@ -108,13 +118,17 @@ export var tailer = uri => store => next => {
                 next({type: ERROR, request: req, latency: lcy})
                 return;
             }
-            let [bytes_tag, rng_txt] = req.getResponseHeader('Content-Range')
-                .split(' ');
-            console.assert(bytes_tag == 'bytes', "Bad content range",
-                req.getResponseHeader('Content-Range'))
-            let [range, total] = rng_txt.split('/');
-            let [chunk_start, end] = range.split('-');
             try {
+                let [bytes_tag, rng_txt] = req.getResponseHeader('Content-Range')
+                    .split(' ');
+                console.assert(bytes_tag == 'bytes',
+                    "Bad content range",
+                    req.getResponseHeader('Content-Range'))
+                let [range, total] = rng_txt.split('/');
+                if(range == '*') {
+                    throw Error("file is empty")
+                }
+                let [chunk_start, end] = range.split('-');
                 next({
                     type: CHUNK,
                     bytes: req.response,

@@ -35,6 +35,13 @@ view main(status, expert_mode, router):
           `curl -H 'Range: bytes=${@log.str_offset}-${@log.str_end-1}' http://${status.name}:8379/v1/log/${path}`
     if @log.loading:
       "Loading..."
+    if @log.error:
+      if @log.err_request:
+        <pre.bg-danger>
+          `${@log.err_request.status} ${@log.err_request.statusText}`
+      else:
+        <pre.bg-danger>
+          `${@log.exception}`
     if @log.string != null:
       <pre>
         @log.string
