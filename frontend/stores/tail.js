@@ -1,3 +1,5 @@
+import {CANCEL} from 'khufu-runtime'
+
 export const FOLLOW = '@@tail/follow'
 export const LOAD_PREVIOUS = '@@tail/load_previous'
 export const ERROR = '@@tail/error'
