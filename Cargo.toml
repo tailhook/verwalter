@@ -60,7 +60,7 @@ ns-std-threaded = "0.3.0"
 self-meter-http = "0.4.1"
 failure = "0.1.0"
 failure_derive = "0.1.0"
-http-file-headers = "0.1.5"
+http-file-headers = "0.1.6"
 hex = "0.3.1"
 deflate = {version="0.7.17", features=["gzip"]}
 capturing-glob = "0.1.0"
