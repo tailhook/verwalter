@@ -85,6 +85,7 @@ export function index(state={}, action) {
     switch(action.type) {
         case DATA:
             let items = parse_log(action.data, action.req)
+            items.reverse()
             state = {...state, 'items': items};
             break;
     }
