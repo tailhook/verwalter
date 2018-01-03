@@ -1,9 +1,10 @@
+import {go} from 'khufu-routing'
 import {repr} from '../util/object'
 import {refresher} from '../middleware/request'
 import {index, fetch_indexes} from '../stores/logs'
 import {bool, enable, disable} from '../stores/simple'
 import {init, value, set} from '../stores/simple'
-import {log, view_from, show_mark, matches_filter, filtered} from '../stores/logs'
+import {log, log_path_off, matches_filter, filtered} from '../stores/logs'
 
 style:
   .RoleFinish
@@ -71,15 +72,8 @@ view main(status, expert_mode, router):
                     else:
                       record[3]
                 <td>
-                  <a href="#log">
-                    link {click} view_from(record[2]) -> @log
-                    link {click} show_mark(record[2]) -> @log
+                  let [path, off] = log_path_off(record[2])
+                  <a href=router.rel('/tail/' + path + '?offset=' + off)>
+                    link {click} go(event) -> @router
                     "View from here"
-    <h2 id="log"> "Logview"
-    <div>
-      <span>"Fetching"
-      <code>
-        repr(@log.fetching)
-    <pre>
-      @log.text
 

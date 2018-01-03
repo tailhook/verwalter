@@ -1,5 +1,6 @@
 import {value, set} from '../stores/simple'
 import {tail, tailer, follow, load_previous, if_null} from '../stores/tail'
+import {track_offset} from '../stores/tail'
 
 style:
   .offset
@@ -9,11 +10,12 @@ style:
 
 view main(status, expert_mode, router):
   <div>
-    store @log = tail | tailer('/v1/log/' + router._tail.join('/'))
+    store @log = tail
+      | tailer('/v1/log/' + router._tail.join('/'), router)
     store @show_curl = value
+    // TODO(tailhook) expose API in khufu routing
     let path = router._tail.join('/')
     <div>
-      // TODO(tailhook) expose API in khufu routing
       <code> path
       <span.offset>
         ` Offset: ${if_null(@log.str_offset)}-${if_null(@log.str_end)}`

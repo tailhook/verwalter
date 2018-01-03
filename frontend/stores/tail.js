@@ -1,4 +1,5 @@
 import {CANCEL} from 'khufu-runtime'
+import {input} from 'khufu-routing'
 
 export const FOLLOW = '@@tail/follow'
 export const LOAD_PREVIOUS = '@@tail/load_previous'
@@ -85,13 +86,19 @@ export function tail(state=log_state(), action) {
     }
 }
 
-export var tailer = uri => store => next => {
+export var tailer = (uri, router) => store => next => {
     var request
     var timeout
     var follow
     var stick
     var load_before
     var scroll_timeout
+    let query_store = router.query('offset')
+
+    if(query_store.getState()) {
+        console.log("AT", query_store.getState())
+        load_before = parseInt(query_store.getState())
+    }
 
     function start() {
         if(timeout) {
@@ -129,6 +136,7 @@ export var tailer = uri => store => next => {
                     throw Error("file is empty")
                 }
                 let [chunk_start, end] = range.split('-');
+                query_store.dispatch(input(chunk_start))
                 next({
                     type: CHUNK,
                     bytes: req.response,
@@ -147,7 +155,7 @@ export var tailer = uri => store => next => {
         request.open('GET', uri, true);
         let cur_off = store.getState().byte_offset;
         let end_off = cur_off + store.getState().bytes.length;
-        if(load_before != null && cur_off > load_before) {
+        if(load_before != null && (cur_off == null || cur_off > load_before)) {
             request.setRequestHeader('Range',
                 'bytes='+load_before+'-'+(
                     cur_off == null ? load_before + CHUNK_SIZE : cur_off-1 ));
@@ -187,7 +195,9 @@ export var tailer = uri => store => next => {
     function follow_scroll(event) {
         stick = window.scrollY == window.scrollMaxY
     }
+
     start()
+
     return action => {
         switch(action.type) {
             case FOLLOW:
@@ -207,11 +217,13 @@ export var tailer = uri => store => next => {
             case LOAD_PREVIOUS:
                 load_before = Math.max(
                     store.getState().byte_offset - CHUNK_SIZE, 0);
+                query_store.dispatch(input(load_before))
                 if(!request) {
                     start()
                 }
                 break;
             case CANCEL:
+                query_store.dispatch(action)
                 window.removeEventListener('scroll', follow_scroll)
                 stop();
                 break;

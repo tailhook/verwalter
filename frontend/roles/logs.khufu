@@ -45,13 +45,13 @@ view logs(role_name, router):
                   if dep.start and dep.finish:
                     let bytes = dep.finish[2].fields[2] - dep.start[2].fields[2]
                     let [path, pos] = log_path_off(dep.start[2])
-                    <a href=router.rel(`/tail/${ path }`)
+                    <a href=router.rel(`/tail/${ path }?offset=${ pos }`)
                        title=`${ path } at ${ pos }`>
                       link {click} go(event) -> @router
                       `render(${ bytes }b)`
                   for [i, pair] of enumerate(dep.externals.entries()) key pair[0]:
                     let [path, pos] = log_path_off(pair[1][2])
-                    <a href=router.rel(`/tail/${ path }`)
+                    <a href=router.rel(`/tail/${ path }?offset=${ pos }`)
                        title=`${ path } at ${ pos }`>
                       link {click} go(event) -> @router
                       ` [${ i+1 }]`

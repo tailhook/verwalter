@@ -135,7 +135,8 @@ export function log_path_off(mark) {
         path = "external/" + mark.fields[0];
         off = mark.fields[1];
     }
-    return [path, off]
+    // off-1 so that tailer sees end of line and show that whole line
+    return [path, Math.max(off-1, 0)]
 }
 
 export function view_from(mark) {
