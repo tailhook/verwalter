@@ -14,6 +14,7 @@ lazy_static! {
 
 
 /// This is a guard with exits with specified code on Drop
+#[must_use="This guard must be put into a variable it will exit immediately"]
 pub struct ExitOnReturn(pub i32);
 
 pub struct Alarm {
