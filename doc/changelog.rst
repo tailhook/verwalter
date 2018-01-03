@@ -8,6 +8,7 @@ Verwalter 0.9.12
 ----------------
 
 * Bugfix: fix crash on serving empty log
+* Bugfix: JS error on the last step of api-frontend pipeline
 * Log viewer leads to tail with correct offset
 
 
