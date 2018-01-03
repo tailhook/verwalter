@@ -2,6 +2,15 @@ Verwalter Changes by Version
 ============================
 
 
+.. _changelog-0.9.12:
+
+Verwalter 0.9.12
+----------------
+
+* Bugfix: fix crash on serving empty log
+* Log viewer leads to tail with correct offset
+
+
 .. _changelog-0.9.11:
 
 Verwalter 0.9.11
