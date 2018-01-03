@@ -63,6 +63,7 @@ http-file-headers = "0.1.6"
 hex = "0.3.1"
 deflate = {version="0.7.17", features=["gzip"]}
 capturing-glob = "0.1.0"
+parity-wasm = "0.19.0"
 
 [dependencies.indexed_log]
 path = "./indexed_log"
