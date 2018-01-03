@@ -1,6 +1,6 @@
 import {value, set} from '../stores/simple'
 import {tail, tailer, follow, load_previous, if_null} from '../stores/tail'
-import {track_offset} from '../stores/tail'
+import {track_offset, skip_to_end} from '../stores/tail'
 
 style:
   .offset
@@ -24,6 +24,9 @@ view main(status, expert_mode, router):
         <button.btn.btn-default.btn-xs>
           link {click} load_previous() -> @log
           "Load previous"
+        <button.btn.btn-default.btn-xs>
+          link {click} skip_to_end() -> @log
+          "Skip To End"
         <button.btn.btn-default.btn-xs.active?(@log.follow)>
           link {click} follow(not @log.follow) -> @log
           "Follow"

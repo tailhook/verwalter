@@ -5,7 +5,8 @@ export const FOLLOW = '@@tail/follow'
 export const LOAD_PREVIOUS = '@@tail/load_previous'
 export const ERROR = '@@tail/error'
 export const CHUNK = '@@tail/chunk'
-const CHUNK_SIZE = 16384
+export const SKIP_TO_END = '@@tail/skip_to_end'
+const CHUNK_SIZE = 100
 
 function log_state() {
     return {
@@ -91,13 +92,12 @@ export var tailer = (uri, router) => store => next => {
     var timeout
     var follow
     var stick
-    var load_before
+    var load_at
     var scroll_timeout
     let query_store = router.query('offset')
 
     if(query_store.getState()) {
-        console.log("AT", query_store.getState())
-        load_before = parseInt(query_store.getState())
+        load_at = parseInt(query_store.getState())
     }
 
     function start() {
@@ -155,11 +155,12 @@ export var tailer = (uri, router) => store => next => {
         request.open('GET', uri, true);
         let cur_off = store.getState().byte_offset;
         let end_off = cur_off + store.getState().bytes.length;
-        if(load_before != null && (cur_off == null || cur_off > load_before)) {
+        if(load_at != null) {
             request.setRequestHeader('Range',
-                'bytes='+load_before+'-'+(
-                    cur_off == null ? load_before + CHUNK_SIZE : cur_off-1 ));
-            load_before = null;
+                'bytes='+load_at+'-'+(
+                    (cur_off == null || cur_off <= load_at)
+                    ? load_at + CHUNK_SIZE : cur_off-1 ));
+            load_at = null;
         } else if(cur_off != null) {
             request.setRequestHeader('Range',
                 'bytes='+(end_off > 0 ? end_off-1 : 0)+'-'+ (end_off + CHUNK_SIZE));
@@ -194,6 +195,9 @@ export var tailer = (uri, router) => store => next => {
     }
     function follow_scroll(event) {
         stick = window.scrollY == window.scrollMaxY
+        if(follow && !stick) {
+            window.removeEventListener('scroll', follow_scroll)
+        }
     }
 
     start()
@@ -208,6 +212,13 @@ export var tailer = (uri, router) => store => next => {
                         follow_bottom()
                         window.addEventListener('scroll', follow_scroll)
                     }
+                    // fast forward to end
+                    if(store.getState().byte_offset != null) {
+                        load_at = store.getState().total - CHUNK_SIZE
+                    } else {
+                        // else: tail by default
+                        load_at = null;
+                    }
                     start()
                 } else {
                     stick = false;
@@ -215,12 +226,26 @@ export var tailer = (uri, router) => store => next => {
                 }
                 break;
             case LOAD_PREVIOUS:
-                load_before = Math.max(
+                load_at = Math.max(
                     store.getState().byte_offset - CHUNK_SIZE, 0);
-                query_store.dispatch(input(load_before))
+                query_store.dispatch(input(load_at))
                 if(!request) {
                     start()
                 }
+                break;
+            case SKIP_TO_END:
+                if(!stick) {
+                    stick = true;
+                    follow_bottom()
+                    window.addEventListener('scroll', follow_scroll)
+                }
+                if(store.getState().byte_offset != null) {
+                    load_at = store.getState().total - CHUNK_SIZE
+                } else {
+                    // else: tail by default
+                    load_at = null;
+                }
+                start();
                 break;
             case CANCEL:
                 query_store.dispatch(action)
@@ -238,6 +263,10 @@ export function follow(val) {
 
 export function load_previous() {
     return {type: LOAD_PREVIOUS}
+}
+
+export function skip_to_end() {
+    return {type: SKIP_TO_END}
 }
 
 export function if_null(x) {
