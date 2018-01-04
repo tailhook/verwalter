@@ -105,35 +105,35 @@ pub struct Options {
 
 fn init_logging(id: &Id, log_id: bool) {
     use std::env;
-    use log::{LogLevelFilter, LogRecord};
-    use env_logger::LogBuilder;
+    use log::{LevelFilter};
+    use env_logger::Builder;
 
-    let mut builder = LogBuilder::new();
+    let mut builder = Builder::new();
     if log_id {
         let id = format!("{}", id);
-        let format = move |record: &LogRecord| {
+        builder.format(move |buf, record| {
             let tm = now_utc();
-            format!("{}.{:03}Z {} {}: {}",
+            writeln!(buf, "{}.{:03}Z {} {}: {}",
                 tm.strftime("%Y-%m-%dT%H:%M:%S").unwrap(),
                 tm.tm_nsec / 1000000,
                 id, record.level(), record.args())
-        };
-        builder.format(format).filter(None, LogLevelFilter::Warn);
+        }).filter(None, LevelFilter::Warn);
     } else {
-        let format = move |record: &LogRecord| {
+        builder.format(move |buf, record| {
             let tm = now_utc();
-            format!("{}.{:03}Z {}:{}: {}",
+            writeln!(buf, "{}.{:03}Z {}:{}: {}",
                 tm.strftime("%Y-%m-%dT%H:%M:%S").unwrap(),
                 tm.tm_nsec / 1000000,
-                record.level(), record.location().module_path(), record.args())
-        };
-        builder.format(format).filter(None, LogLevelFilter::Warn);
+                record.level(),
+                record.module_path().unwrap_or("unknown-module"),
+                record.args())
+        }).filter(None, LevelFilter::Warn);
     }
 
     if let Ok(val) = env::var("RUST_LOG") {
        builder.parse(&val);
     }
-    builder.init().unwrap();
+    builder.init();
 }
 
 fn main() {
