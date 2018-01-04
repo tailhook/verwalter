@@ -237,6 +237,33 @@ commands:
         - --debug-force-leader
       cantal: *fake_cantal
 
+  _make-wasm-minimal: !Command
+    description: Compile wasm-minimal example
+    container: wasm
+    work-dir: /work/example-configs/wasm-minimal
+    run: |
+      cargo build --target=wasm32-unknown-unknown
+      wasm-gc \
+        target/wasm32-unknown-unknown/debug/verwalter-minimal-wasm-scheduler.wasm \
+        scheduler/v1/scheduler.wasm
+
+  run-example-wasm-minimal: !Supervise
+    description: "Same as example-minimal but using webassembly"
+    prerequisites: [make-js, make, _make-wasm-minimal]
+    children:
+      verw: !Command
+        container: xenial
+        environ: *fake_rust_log
+        run:
+        - ./target/debug/verwalter
+        - --config-dir=/work/example-configs/wasm-minimal
+        - --storage-dir=tmp/storage3
+        - --log-dir=/tmp/logs
+        - --override-machine-id=77985419c732412ea38b94db00000000
+        - --hostname=alpha
+        - --debug-force-leader
+      cantal: *fake_cantal
+
 
 containers:
 
@@ -312,6 +339,23 @@ containers:
                --components=rust-std-x86_64-unknown-linux-musl"
     - !Sh 'ln -s /musl/lib/rustlib/x86_64-unknown-linux-musl /usr/lib/rustlib/x86_64-unknown-linux-musl'
     - *bulk
+
+  wasm:
+    environ: &rustenv
+      PATH: /musl/bin:/usr/local/bin:/usr/bin:/bin
+      HOME: /work/target
+    setup:
+    - !Ubuntu xenial
+    - !UbuntuUniverse
+    - *pkgs
+    - &rust !TarInstall
+      url: https://static.rust-lang.org/dist/rust-beta-x86_64-unknown-linux-gnu.tar.gz
+      script: "./install.sh --prefix=/usr --components=rustc,cargo \
+               --components=rustc,rust-std-x86_64-unknown-linux-gnu,cargo"
+    - !TarInstall
+      url: "https://static.rust-lang.org/dist/rust-std-beta-wasm32-unknown-unknown.tar.gz"
+      script: "./install.sh --prefix=/usr --components=rust-std-wasm32-unknown-unknown"
+    - !Sh cargo install --root=/usr --git https://github.com/alexcrichton/wasm-gc
 
   util:
     setup:
