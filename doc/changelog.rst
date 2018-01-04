@@ -2,6 +2,14 @@ Verwalter Changes by Version
 ============================
 
 
+.. _changelog-0.9.13:
+
+Verwalter 0.9.13
+----------------
+
+* UI: add "Skip to End" button on log tail, skip by default on pressing "follow"
+
+
 .. _changelog-0.9.12:
 
 Verwalter 0.9.12
