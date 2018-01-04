@@ -10,7 +10,8 @@ use futures::{Future, Stream, Sink, Async, AsyncSink};
 use futures::future::{FutureResult, ok};
 use futures::sync::mpsc::UnboundedReceiver;
 use futures::sync::oneshot;
-use rand::{thread_rng, Rng, sample};
+use rand::{thread_rng, Rng};
+use rand::seq::sample_iter;
 use tokio_core::reactor::Timeout;
 use tokio_core::net::{TcpStream, TcpStreamNew};
 use valuable_futures::{Supply, StateMachine, Async as A, Async as VAsync};
@@ -468,11 +469,11 @@ impl Prefetch {
                 None
             };
             // Issue a new connection
-            let addr = sample(&mut thread_rng(), peers.iter()
+            let addr = sample_iter(&mut thread_rng(), peers.iter()
                 .filter_map(|id| get_addr(&ctx.shared, id))
                 .filter(|&a| !self.blacklist.is_failing(a))
                 .filter(|a| cur.map(|s| !s.contains(a)).unwrap_or(true)),
-                1);
+                1).unwrap_or_else(|v| v);
             if let Some(addr) = addr.into_iter().next() {
                 self.fetching.push_back((FetchContext {
                     started: Instant::now(),
