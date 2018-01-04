@@ -2,6 +2,14 @@ Verwalter Changes by Version
 ============================
 
 
+.. _changelog-0.10.0:
+
+Verwalter 0.10.0
+----------------
+
+* Experimental webassembly scheduler support
+
+
 .. _changelog-0.9.13:
 
 Verwalter 0.9.13
