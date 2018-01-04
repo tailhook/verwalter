@@ -1,17 +1,21 @@
-use std::io;
+use std::io::{self, BufReader};
 use std::path::{Path};
 use std::sync::Arc;
 
 use failure::{Error, err_msg};
-use serde_json::{Value as Json, to_vec, from_reader};
+use serde_json::{Value as Json, to_vec, de};
 use serde::Serialize;
 use parity_wasm::{ProgramInstance, deserialize_file, ModuleInstance};
 use parity_wasm::{ModuleInstanceInterface};
 use parity_wasm::RuntimeValue::I32;
 use parity_wasm::interpreter::{ItemIndex, MemoryInstance};
 
+const PAGE_SIZE: usize = 65536; // for some reason it's not in interpreter
+
 
 pub(in scheduler) struct Scheduler {
+    #[allow(dead_code)] // need to keep in memory
+    program: ProgramInstance,
     module: Arc<ModuleInstance>,
     memory: Arc<MemoryInstance>,
 }
@@ -34,7 +38,7 @@ pub(in scheduler) fn read(dir: &Path)
         .map_err(|e| err_msg(format!("error adding wasm module: {}", e)))?;
     let memory = module.memory(ItemIndex::Internal(0))
         .map_err(|e| err_msg(format!("wasm memory error: {}", e)))?;
-    Ok(Scheduler { module, memory })
+    Ok(Scheduler { module, memory, program })
 }
 
 impl Scheduler {
@@ -73,7 +77,16 @@ impl Scheduler {
                 String::from("failed to deallocate memory")),
         };
         let roff = match roff {
-            Ok(Some(I32(off))) => off as u32,
+            Ok(Some(I32(off))) => {
+                let memsize = self.memory.size() * PAGE_SIZE as u32;
+                if off as u32 >= memsize {
+                    return (
+                        Err(err_msg(format!("scheduler returned offset {} \
+                            but memory size is {}", off, memsize))),
+                        String::from("scheduler result error"))
+                }
+                off as u32
+            }
             Ok(x) => return (
                 Err(err_msg(format!("bad scheduler result: {:?}", x))),
                 String::from("scheduler result error")),
@@ -83,11 +96,16 @@ impl Scheduler {
         };
         let reader = ReadMemory {
             memory: self.memory.clone(),
-            offset: off as usize,
+            offset: roff as usize,
         };
-        let (result, debug) = match from_reader(reader) {
-            Ok((result, debug)) => (result, debug),
-            Err(e) => return (
+        let de = de::Deserializer::from_reader(BufReader::new(reader));
+        let (result, debug) = match de.into_iter().next() {
+            Some(Ok((result, debug))) => (result, debug),
+            None => return (
+                Err(err_msg(format!("failed to \
+                    deserialize scheduler result: no value decoded"))),
+                String::from("deserialize error")),
+            Some(Err(e)) => return (
                 Err(err_msg(format!("failed to \
                     deserialize scheduler result: {}", e))),
                 String::from("deserialize error")),
@@ -105,8 +123,10 @@ impl Scheduler {
 impl io::Read for ReadMemory {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let ref mut off = self.offset;
-        let dest = if *off + buf.len() > self.memory.size() as usize {
-            buf.split_at_mut(self.memory.size() as usize - *off).0
+        let memsize = self.memory.size() as usize * PAGE_SIZE;
+        debug_assert!(*off <= memsize);
+        let dest = if *off + buf.len() > memsize {
+            buf.split_at_mut(memsize - *off).0
         } else {
             buf
         };

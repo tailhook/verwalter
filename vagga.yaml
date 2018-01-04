@@ -242,9 +242,9 @@ commands:
     container: wasm
     work-dir: /work/example-configs/wasm-minimal
     run: |
-      cargo build --target=wasm32-unknown-unknown
+      cargo build --target=wasm32-unknown-unknown --release
       wasm-gc \
-        target/wasm32-unknown-unknown/debug/verwalter-minimal-wasm-scheduler.wasm \
+        target/wasm32-unknown-unknown/release/verwalter-minimal-wasm-scheduler.wasm \
         scheduler/v1/scheduler.wasm
 
   run-example-wasm-minimal: !Supervise
