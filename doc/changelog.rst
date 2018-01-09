@@ -10,6 +10,16 @@ Verwalter 0.10.0
 * Experimental webassembly scheduler support
 
 
+.. _changelog-0.9.14:
+
+Verwalter 0.9.14
+----------------
+
+* UI: fix chunk size in log tailer, mistakenly committed debugging version
+* scheduler: if scheduler continue to fail for 5 min verwalter restarts on
+  this node (this effectively elects a new leader)
+
+
 .. _changelog-0.9.13:
 
 Verwalter 0.9.13
