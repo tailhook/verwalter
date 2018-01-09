@@ -118,6 +118,7 @@ pub fn main(state: SharedState, settings: Settings) -> !
             continue;
         };
 
+        let _alarm = Alarm::new(Duration::new(300, 0), "successful_scheduler");
         while state.refresh_cookie(&mut cookie) {
 
             // TODO(tailhook) we reread everything on every iteration this
