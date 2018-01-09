@@ -6,7 +6,7 @@ export const LOAD_PREVIOUS = '@@tail/load_previous'
 export const ERROR = '@@tail/error'
 export const CHUNK = '@@tail/chunk'
 export const SKIP_TO_END = '@@tail/skip_to_end'
-const CHUNK_SIZE = 100
+const CHUNK_SIZE = 16384
 
 function log_state() {
     return {
