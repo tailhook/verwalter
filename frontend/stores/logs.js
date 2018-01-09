@@ -170,7 +170,7 @@ export function filtered(items, filter) {
         }
     }
     if(result.length > 200) {
-        result.splice(0, result.length-200)
+        result.splice(200, result.length-200)
     }
     return result
 }
