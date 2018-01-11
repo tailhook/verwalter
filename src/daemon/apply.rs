@@ -209,22 +209,19 @@ fn apply_schedule(hash: &String, is_new: bool,
         cmd.arg(&settings.log_dir);
         cmd.arg("--config-dir");
         cmd.arg(&settings.config_dir);
-        if string_schedule.len() > 10 {
-            let fname = "/tmp/verwalter/schedule-for-render.json";
-            match safe_write(fname.as_ref(), string_schedule.as_bytes()) {
-                Ok(()) => {}
-                Err(e) => {
-                    error!("Can't write schedule file {:?}: {}",
-                        fname, e);
-                    return;
-                }
+
+        let fname = "/tmp/verwalter/schedule-for-render.json";
+        match safe_write(fname.as_ref(), string_schedule.as_bytes()) {
+            Ok(()) => {}
+            Err(e) => {
+                error!("Can't write schedule file {:?}: {}",
+                    fname, e);
+                return;
             }
-            cmd.arg("--schedule-file");
-            cmd.arg(fname);
-        } else {
-            cmd.arg("--schedule");
-            cmd.arg(&string_schedule);
         }
+        cmd.arg("--schedule-file");
+        cmd.arg(fname);
+
         if settings.dry_run {
             cmd.arg("--dry-run");
         }
