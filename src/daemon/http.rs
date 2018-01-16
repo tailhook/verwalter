@@ -32,7 +32,9 @@ pub fn spawn_listener(ns: &NsRouter, addr: &str,
         .input_body_byte_timeout(Duration::new(1, 0))     // no big bodies
         .input_body_whole_timeout(Duration::new(2, 0))
         .output_body_byte_timeout(Duration::new(1, 0))
-        .output_body_whole_timeout(Duration::new(10, 0))  // max 65k bytes
+        // sometimes we download log files,
+        // still we shouldn't allow to DoS too much
+        .output_body_whole_timeout(Duration::new(120, 0))
         .done();
 
     spawn(ns.resolve_auto(addr, 8379).map(move |addresses| {
