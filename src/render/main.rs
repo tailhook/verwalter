@@ -47,6 +47,7 @@ fn main() {
     let mut vars = ParseJson(Value::Null);
     let mut schedule = ParseJson(Value::Null);
     let mut schedule_file = None::<PathBuf>;
+    let mut vars_file = None::<PathBuf>;
     let mut log_dir = PathBuf::from("/var/log/verwalter");
     let mut config_dir = PathBuf::from("/etc/verwalter");
     let mut check_dir = None::<PathBuf>;
@@ -60,8 +61,9 @@ fn main() {
             daemon).
         ");
         ap.refer(&mut vars).add_argument("vars", Parse, "
-            Variables to pass to renderer
-            ").required();
+            Variables to pass to renderer (required unless ``--vars-file`` is
+            specified).
+            ");
         ap.refer(&mut schedule)
             .add_option(&["--schedule"], Parse, "
                 Global variables to pass to global renderer.");
@@ -69,6 +71,10 @@ fn main() {
             .add_option(&["--schedule-file"], ParseOption, "
                 A file that contains global veriables to pass to renderer.
                 This option conflicts with `--schedule`");
+        ap.refer(&mut vars_file)
+            .add_option(&["--vars-file"], ParseOption, "
+                A file that contains veriables to pass to renderer.
+                This option overrides `vars` argument");
         ap.refer(&mut check_dir)
             .add_option(&["-C", "--check", "--check-dir"], ParseOption, "
                 Render things in specified log dir, and show output.
@@ -85,14 +91,32 @@ fn main() {
                 "Directory of configuration files (default /etc/verwalter)");
         ap.parse_args_or_exit();
     }
-    let mut vars = match vars {
-        ParseJson(Value::Object(v)) => v,
-        _ => exit(3),
-    };
     if check_dir.is_some() {
         dry_run = true;
     }
     let mut log = Index::new(&log_dir, dry_run);
+
+    if let Some(filename) = vars_file {
+        let res = File::open(&filename)
+            .map(|f| BufReader::new(f)).map_err(|e| e.to_string())
+            .and_then(|f| serde_json::from_reader(f)
+                          .map_err(|e| e.to_string()));
+        vars = match res {
+            Ok(json) => ParseJson(json),
+            Err(e) => {
+                eprintln!("Error reading {:?}: {}", filename, e);
+                exit(3);
+            }
+        }
+    };
+    let mut vars = match vars {
+        ParseJson(Value::Object(v)) => v,
+        ParseJson(v) => {
+            eprintln!("`vars` argument or contents of `--vars-file` should be \
+                an object, got {:.16} instead", format!("{:?}", v));
+            exit(3);
+        }
+    };
 
     let (id, dir, sandbox) = if let Some(dir) = check_dir {
         ("dry-run-dep-id-dead-beef".into(), dir, Sandbox::empty())

@@ -204,23 +204,38 @@ fn apply_schedule(hash: &String, is_new: bool,
         } else {
             Command::new("verwalter_render")
         };
-        cmd.arg(&vars);
         cmd.arg("--log-dir");
         cmd.arg(&settings.log_dir);
         cmd.arg("--config-dir");
         cmd.arg(&settings.config_dir);
 
-        let fname = "/tmp/verwalter/schedule-for-render.json";
-        match safe_write(fname.as_ref(), string_schedule.as_bytes()) {
-            Ok(()) => {}
-            Err(e) => {
-                error!("Can't write schedule file {:?}: {}",
-                    fname, e);
-                return;
+        {
+            let fname = "/tmp/verwalter/vars-for-render.json";
+            match safe_write(fname.as_ref(), vars.as_bytes()) {
+                Ok(()) => {}
+                Err(e) => {
+                    error!("Can't write schedule file {:?}: {}",
+                        fname, e);
+                    return;
+                }
             }
+            cmd.arg("--vars-file");
+            cmd.arg(fname);
         }
-        cmd.arg("--schedule-file");
-        cmd.arg(fname);
+        
+        {
+            let fname = "/tmp/verwalter/schedule-for-render.json";
+            match safe_write(fname.as_ref(), string_schedule.as_bytes()) {
+                Ok(()) => {}
+                Err(e) => {
+                    error!("Can't write schedule file {:?}: {}",
+                        fname, e);
+                    return;
+                }
+            }
+            cmd.arg("--schedule-file");
+            cmd.arg(fname);
+        }
 
         if settings.dry_run {
             cmd.arg("--dry-run");
