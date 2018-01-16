@@ -11,10 +11,10 @@ style:
 view main(status, expert_mode, router):
   <div>
     store @log = tail
-      | tailer('/v1/log/' + router._tail.join('/'), router)
+      | tailer('/v1/log/' + router.tail(), router)
     store @show_curl = value
     // TODO(tailhook) expose API in khufu routing
-    let path = router._tail.join('/')
+    let path = router.tail()
     <div>
       <code> path
       <span.offset>
