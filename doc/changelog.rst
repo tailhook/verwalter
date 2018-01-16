@@ -2,6 +2,17 @@ Verwalter Changes by Version
 ============================
 
 
+.. _changelog-0.10.1:
+
+Verwalter 0.10.1
+----------------
+
+* Timeout for incoming requests changed 10sec -> 2 min (mostly important to
+  download larger logs)
+* Template variables are passed to renderer using temporary file rather than
+  command-line (working around limitations of sudo command line)
+
+
 .. _changelog-0.10.0:
 
 Verwalter 0.10.0
