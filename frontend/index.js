@@ -4,7 +4,13 @@ import {Router} from 'khufu-routing'
 
 import {main} from './main.khufu'
 
-let router = new Router(window);
+let prefix = []
+if(window.location.pathname.charAt(1) == '~') {
+    // check different site root
+    prefix = [window.location.pathname.split('/', 2)[1]]
+    console.log("Running as frontend named", prefix)
+}
+let router = new Router(window, prefix);
 let khufu_instance = attach(document.getElementById('app'),
     main(router, VERSION), {
     store(reducer, middleware, state) {

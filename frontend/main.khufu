@@ -33,7 +33,7 @@ view _navbar(status, frontend_version, @expert_mode, router):
   <nav.navbar.navbar-default>
     <div.container-fluid>
       <div.navbar-header>
-        <a.navbar-brand.red?(status.debug_force_leader) href="/">
+        <a.navbar-brand.red?(status.debug_force_leader) href=router.rel('/')>
           "Verwalter"
           if status.debug_force_leader:
             <div.subtext.red>
@@ -46,32 +46,32 @@ view _navbar(status, frontend_version, @expert_mode, router):
       <div.collapse.navbar-collapse>
         <ul.nav.navbar-nav>
           <li.active?(router.at('roles'))>
-            <a href="/roles">
+            <a href=router.rel("/roles")>
               link {click} go(event) -> @router
               "Roles"
               if status:
                 ` [${status.roles}]`
           <li.active?(router.at('peers'))>
-            <a href="/peers">
+            <a href=router.rel("/peers")>
               link {click} go(event) -> @router
               "Servers"
               if status:
                 ` [${status.peers}]`
           <li.active?(router.at('services'))>
-            <a href="/services">
+            <a href=router.rel("/services")>
               link {click} go(event) -> @router
               "Services"
           <li.active?(router.at('api_links'))>
-            <a href="/api_links">
+            <a href=router.rel("/api_links")>
               link {click} go(event) -> @router
               "API Links"
           <li.active?(router.at('logs'))>
-            <a href="/logs">
+            <a href=router.rel("/logs")>
               link {click} go(event) -> @router
               "Logs"
           if @expert_mode:
             <li.active?(router.at('backups'))>
-              <a href="/backups">
+              <a href=router.rel("/backups")>
                 link {click} go(event) -> @router
                 "Backups"
         <ul.nav.navbar-nav.navbar-right>
