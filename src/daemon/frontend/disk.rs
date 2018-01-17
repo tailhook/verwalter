@@ -192,6 +192,45 @@ pub fn common_response<S>(head: &server::Head, path: String,
     }))
 }
 
+pub fn alter_index_response<S>(head: &server::Head, dir: String,
+    base: &Arc<PathBuf>)
+    -> Result<Request<S>, server::Error>
+    where S: AsyncWrite + Send + 'static
+{
+    let inp = Input::from_headers(&*CONFIG, head.method(), head.headers());
+    let path = base.join(dir).join("index.html");
+    let fut = POOL.spawn_fn(move || {
+        inp.probe_file(&path).map_err(|e| {
+            error!("Error reading file {:?}: {}", path, e);
+            Status::InternalServerError
+        })
+    });
+    Ok(Box::new(Codec {
+        fut: Some(fut),
+        kind: Kind::Asset,
+    }) as Request<S>)
+}
+
+pub fn alter_static_response<S>(head: &server::Head, path: String,
+    base: &Arc<PathBuf>)
+    -> Result<Request<S>, server::Error>
+    where S: AsyncWrite + Send + 'static
+{
+    let inp = Input::from_headers(&*CONFIG, head.method(), head.headers());
+    // path is validated for ".." and root in routing
+    let path = base.join(path);
+    let fut = POOL.spawn_fn(move || {
+        inp.probe_file(&path).map_err(|e| {
+            error!("Error reading file {:?}: {}", path, e);
+            Status::InternalServerError
+        })
+    });
+    Ok(Box::new(Codec {
+        fut: Some(fut),
+        kind: Kind::Asset,
+    }))
+}
+
 pub fn log_response<S>(head: &server::Head, full_path: PathBuf)
     -> Result<Request<S>, server::Error>
     where S: AsyncWrite + Send + 'static

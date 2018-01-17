@@ -41,11 +41,17 @@ impl<S: AsyncWrite + Send + 'static> DispatcherTrait<S> for Dispatcher {
         use self::Route::*;
         use frontend::routing::ApiRoute::{Backup, Backups};
         match route(headers) {
-            Index => {
+            CommonIndex => {
                 disk::index_response(headers, &self.dir)
             }
-            Static(path) => {
+            CommonStatic(path) => {
                 disk::common_response(headers, path, &self.dir)
+            }
+            AlterIndex(dir) => {
+                disk::alter_index_response(headers, dir, &self.dir)
+            }
+            AlterStatic(path) => {
+                disk::alter_static_response(headers, path, &self.dir)
             }
             Api(Backups, fmt) => {
                 disk::list_backups(&self.schedule_dir, fmt)

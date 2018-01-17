@@ -38,8 +38,10 @@ pub enum Format {
 
 #[derive(Clone, Debug)]
 pub enum Route {
-    Index,
-    Static(String),
+    CommonIndex,
+    CommonStatic(String),
+    AlterIndex(String),
+    AlterStatic(String),
     Api(ApiRoute, Format),
     Log(LogRoute),
     NotFound,
@@ -79,7 +81,7 @@ fn api_suffix(path: &str) -> Format {
 }
 
 fn validate_path<P: AsRef<Path>>(path: P) -> bool {
-    for cmp in Path::new(path.as_ref()).components(){
+    for cmp in Path::new(path.as_ref()).components() {
         match cmp {
             Normal(_) => {}
             _ => return false,
@@ -148,16 +150,31 @@ pub fn route(head: &Head) -> Route {
         None => path,
     };
     let route = match path_component(&path[..]) {
-        ("", _) => Some(Index),
+        ("", _) => Some(CommonIndex),
         ("v1", suffix) => parse_api(suffix),
+        (dir, suffix) if dir.starts_with("~") => {
+            if !validate_path(&path[1..]) {
+                // TODO(tailhook) implement 400
+                return Route::NotFound;
+            }
+            match path_component(suffix) {
+                ("js", _) | ("css", _) | ("fonts", _) | ("img", _) => {
+                    Some(AlterStatic(path[1..].to_string()))
+                }
+                _ => {
+                    Some(AlterIndex(dir[1..].to_string()))
+                }
+            }
+        }
+        // this is kinda legacy for now
         ("common", path) => {
             if !validate_path(path) {
                 // TODO(tailhook) implement 400
                 return Route::NotFound;
             }
-            Some(Static(path.to_string()))
+            Some(CommonStatic(path.to_string()))
         },
-        (_, _) => Some(Index),
+        (_, _) => Some(CommonIndex),
     };
     debug!("Routed {:?} to {:?}", path, route);
     route.unwrap_or(Route::NotFound)
