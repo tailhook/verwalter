@@ -2,6 +2,7 @@ use std::time::SystemTime;
 use std::collections::{HashMap};
 
 use crossbeam::sync::ArcCell;
+use serde_millis;
 
 pub use self::machine::Epoch;
 pub use self::network::spawn_election;
@@ -9,7 +10,6 @@ pub use self::settings::peers_refresh;
 pub use self::state::ElectionState;
 use id::Id;
 use peer::Peer;
-use frontend::serialize::{serialize_timestamp};
 
 mod action;
 mod info;
@@ -28,8 +28,7 @@ mod encode;
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct ScheduleStamp {
-    #[serde(serialize_with="serialize_timestamp",
-            deserialize_with="deserialize_timestamp")]
+    #[serde(with="serde_millis")]
     pub timestamp: SystemTime,
     pub hash: String,
     pub origin: Id,

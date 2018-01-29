@@ -7,6 +7,7 @@ use futures::future::{FutureResult, ok, Future};
 use gron::json_to_gron;
 use serde::Serialize;
 use serde_json::{Value, to_writer, to_writer_pretty, to_value};
+use serde_millis;
 use tk_http::Status::{self, NotFound};
 use tk_http::Status::{TooManyRequests, ServiceUnavailable};
 use tk_http::server::{Codec as CodecTrait};
@@ -16,7 +17,6 @@ use elect::{ElectionState};
 use fetch;
 use frontend::error_page::{error_page};
 use frontend::routing::{ApiRoute, Format};
-use frontend::serialize::serialize_opt_timestamp;
 use frontend::to_json::ToJson;
 use frontend::{reply, read_json};
 use id::Id;
@@ -159,11 +159,11 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                     name: &'a str,
                     hostname: &'a str,
                     peers: usize,
-                    #[serde(serialize_with="serialize_opt_timestamp")]
+                    #[serde(with="serde_millis")]
                     peers_timestamp: Option<SystemTime>,
                     leader: Option<LeaderInfo<'a>>,
                     roles: usize,
-                    #[serde(serialize_with="serialize_opt_timestamp")]
+                    #[serde(with="serde_millis")]
                     last_stable_timestamp: Option<SystemTime>,
                     num_errors: usize,
                     errors: &'a HashMap<&'static str, String>,

@@ -4,7 +4,7 @@ use std::time::Instant;
 use id::Id;
 use elect::Epoch;
 use elect::machine::Machine;
-use frontend::serialize::{serialize_opt_timestamp, serialize_timestamp};
+use serde_millis;
 
 /// This is same as elect::machine::Machine, but for easier publishing to
 /// API
@@ -23,13 +23,13 @@ pub struct ElectionState {
     /// Current epoch (for debugging)
     pub epoch: Epoch,
     /// Current timeout (for debugging), JSON-friendly, in milliseconds
-    #[serde(serialize_with="serialize_timestamp")]
+    #[serde(with="serde_millis")]
     pub deadline: SystemTime,
     /// Last known timestamp when cluster was known to be stable
     /// the `ElectionState::from` timestamp returns it either None or now
     /// depending on whether cluster is table. And `shared` module keeps track
     /// of the last one
-    #[serde(serialize_with="serialize_opt_timestamp")]
+    #[serde(with="serde_millis")]
     pub last_stable_timestamp: Option<SystemTime>,
 }
 

@@ -7,10 +7,10 @@ use std::time::{Duration, SystemTime, Instant};
 
 use serde;
 use serde_json::{Value as Json};
+use serde_millis;
 use inotify::{Inotify};
 use scan_dir::ScanDir;
 use libcantal::{Counter, Integer};
-use frontend::serialize::{serialize_timestamp};
 
 use config;
 use hash::hash;
@@ -34,7 +34,7 @@ pub struct Parent(Arc<Schedule>);
 
 #[derive(Serialize, Debug)]
 pub struct SchedulerInput {
-    #[serde(serialize_with="serialize_timestamp")]
+    #[serde(with="serde_millis")]
     now: SystemTime,
     current_host: String,
     current_id: Id,
