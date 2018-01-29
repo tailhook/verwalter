@@ -19,7 +19,6 @@ extern crate libcantal;
 extern crate nix;
 extern crate ns_router;
 extern crate ns_std_threaded;
-extern crate parity_wasm;
 extern crate quire;
 extern crate rand;
 extern crate regex;
@@ -39,6 +38,7 @@ extern crate tokio_core;
 extern crate tokio_io;
 extern crate valuable_futures;
 extern crate void;
+extern crate wasmi;
 extern crate yaml_rust;
 
 #[macro_use] extern crate failure;

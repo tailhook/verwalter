@@ -1,44 +1,49 @@
-use std::io::{self, BufReader};
+use std::io::{self, Read, BufReader};
+use std::fs::File;
 use std::path::{Path};
-use std::sync::Arc;
 
 use failure::{Error, err_msg};
 use serde_json::{Value as Json, to_vec, de};
 use serde::Serialize;
-use parity_wasm::{ProgramInstance, deserialize_file, ModuleInstance};
-use parity_wasm::{ModuleInstanceInterface};
-use parity_wasm::RuntimeValue::I32;
-use parity_wasm::interpreter::{ItemIndex, MemoryInstance};
+use wasmi::{load_from_buffer, ModuleInstance, ImportsBuilder, ModuleRef};
+use wasmi::RuntimeValue::I32;
+use wasmi::{MemoryRef, NopExternals};
 
 const PAGE_SIZE: usize = 65536; // for some reason it's not in interpreter
 
 
 pub(in scheduler) struct Scheduler {
-    #[allow(dead_code)] // need to keep in memory
-    program: ProgramInstance,
-    module: Arc<ModuleInstance>,
-    memory: Arc<MemoryInstance>,
+    module: ModuleRef,
+    memory: MemoryRef,
 }
 
 struct ReadMemory {
-    memory: Arc<MemoryInstance>,
+    memory: MemoryRef,
     offset: usize,
 }
 
 pub(in scheduler) fn read(dir: &Path)
     -> Result<Scheduler, Error>
 {
-    let program = ProgramInstance::new();
-
     // Here we load module using dedicated for this purpose
     // `deserialize_file` function (which works only with modules)
-    let module = deserialize_file(dir.join("scheduler.wasm"))
+    let path = dir.join("scheduler.wasm");
+    let mut buf = Vec::new();
+    File::open(&path)
+        .and_then(|mut f| f.read_to_end(&mut buf))
+        .map_err(|e| err_msg(format!("Error reading {:?}: {}", path, e)))?;
+    let module = load_from_buffer(&buf)
         .map_err(|e| err_msg(format!("error decoding wasm: {:?}", e)))?;
-    let module = program.add_module("main", module, None)
-        .map_err(|e| err_msg(format!("error adding wasm module: {}", e)))?;
-    let memory = module.memory(ItemIndex::Internal(0))
-        .map_err(|e| err_msg(format!("wasm memory error: {}", e)))?;
-    Ok(Scheduler { module, memory, program })
+    let module = ModuleInstance::new(
+            &module,
+            &ImportsBuilder::default(),
+        ).map_err(|e| err_msg(format!("error adding wasm module: {}", e)))?
+        .run_start(&mut NopExternals)
+        .map_err(|e| err_msg(format!("error starting wasm module: {}", e)))?;
+    let memory = module.export_by_name("memory")
+        .and_then(|x| x.as_memory().map(Clone::clone))
+        .ok_or_else(|| err_msg("no memory exported"))?;
+    Ok(Scheduler { module, memory })
 }
 
 impl Scheduler {
@@ -51,8 +56,9 @@ impl Scheduler {
                               String::from("failed to encode input")),
         };
         let off = match
-            self.module.execute_export("alloc",
-                vec![I32(bytes.len() as i32)].into())
+            self.module.invoke_export("alloc",
+                &[I32(bytes.len() as i32)],
+                &mut NopExternals)
         {
             Ok(Some(I32(off))) => off as u32,
             Ok(x) => return (
@@ -68,9 +74,13 @@ impl Scheduler {
                 Err(err_msg(format!("failed to write memory: {}", e))),
                 String::from("failed to write memory")),
         };
-        let roff = self.module.execute_export("scheduler",
-            vec![I32(off as i32), I32(bytes.len() as i32)].into());
-        match self.module.execute_export("dealloc", vec![I32(off as i32)].into()) {
+        let roff = self.module.invoke_export("scheduler",
+            &[I32(off as i32), I32(bytes.len() as i32)],
+            &mut NopExternals);
+        match self.module.invoke_export("dealloc",
+            &[I32(off as i32)],
+            &mut NopExternals)
+        {
             Ok(_) => {}
             Err(e) => return (
                 Err(err_msg(format!("failed to deallocate memory: {}", e))),
@@ -110,7 +120,9 @@ impl Scheduler {
                     deserialize scheduler result: {}", e))),
                 String::from("deserialize error")),
         };
-        match self.module.execute_export("dealloc", vec![I32(roff as i32)].into()) {
+        match self.module.invoke_export("dealloc",
+            &[I32(roff as i32)], &mut NopExternals)
+        {
             Ok(_) => {}
             Err(e) => return (
                 Err(err_msg(format!("failed to deallocate memory: {}", e))),
