@@ -2,6 +2,17 @@ Verwalter Changes by Version
 ============================
 
 
+.. _changelog-0.10.2:
+
+Verwalter 0.10.2
+----------------
+
+* feature: upgrading trimmer to 0.3.6 allows to use escaping, dict and list
+  literals in (.trm) templates
+* Using ``wasmi`` instead of ``parity-wasm`` for interpreting wasm
+* Initial routing for alternative frontends (``/~frontend-name/...`` urls)
+
+
 .. _changelog-0.10.1:
 
 Verwalter 0.10.1
@@ -11,6 +22,7 @@ Verwalter 0.10.1
   download larger logs)
 * Template variables are passed to renderer using temporary file rather than
   command-line (working around limitations of sudo command line)
+
 
 
 .. _changelog-0.10.0:
