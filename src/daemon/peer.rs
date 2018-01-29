@@ -5,6 +5,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crossbeam::sync::ArcCell;
 use elect::ScheduleStamp;
 use id::Id;
+use serde_millis;
 
 
 #[derive(Clone, Debug, Serialize)]
@@ -14,7 +15,9 @@ pub struct Peer {
     pub hostname: String,
     #[serde(skip_deserializing)]
     pub schedule: Option<ScheduleStamp>,
+    #[serde(with="serde_millis")]
     pub known_since: SystemTime,
+    #[serde(with="serde_millis")]
     pub last_report_direct: Option<SystemTime>,
 }
 

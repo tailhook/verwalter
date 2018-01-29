@@ -1,6 +1,12 @@
 Verwalter Changes by Version
 ============================
 
+.. _changelog-0.10.3:
+
+Verwalter 0.10.3
+----------------
+
+* bugfix: timestamps in peer info now serialize as milliseconds since epoch
 
 .. _changelog-0.10.2:
 
