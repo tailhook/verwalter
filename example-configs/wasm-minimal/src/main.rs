@@ -2,13 +2,39 @@
 
 use std::mem;
 use std::slice;
+use std::panic::set_hook;
 use std::fmt::Write;
 use std::os::raw::{c_void};
 
 use serde_json::{Value, from_slice, to_vec};
 
+extern {
+    fn log_panic(payload_ptr: *const u8, payload_len: usize,
+                        file_ptr: *const u8, file_len: usize, line: u32);
+}
+
 
 fn main() {
+    set_hook(Box::new(|panic_info| {
+        let payload = panic_info.payload();
+        let (ptr, len) = if let Some(s) = payload.downcast_ref::<&str>() {
+            (s.as_bytes().as_ptr(), s.len())
+        } else if let Some(s) = payload.downcast_ref::<String>() {
+            (s.as_bytes().as_ptr(), s.len())
+        } else {
+            (0 as *const u8, 0)
+        };
+        let (file_ptr, file_len, line) = match panic_info.location() {
+            Some(loc) => {
+                let file = loc.file().as_bytes();
+                (file.as_ptr(), file.len(), loc.line())
+            }
+            None => (0 as *const u8, 0, 0),
+        };
+        unsafe {
+            log_panic(ptr, len, file_ptr, file_len, line);
+        }
+    }));
 }
 
 #[no_mangle]
