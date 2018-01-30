@@ -14,6 +14,11 @@ use wasmi::{FuncRef, ValueType, Signature, FuncInstance};
 
 const PAGE_SIZE: usize = 65536; // for some reason it's not in interpreter
 const PANIC_INDEX: usize = 0;
+const POW_INDEX: usize = 100;
+const FMOD_INDEX: usize = 101;
+const EXP2_INDEX: usize = 102;
+const LDEXP_INDEX: usize = 104;
+const LOG10_INDEX: usize = 106;
 
 
 pub(in scheduler) struct Scheduler {
@@ -170,18 +175,44 @@ impl ModuleImportResolver for Resolver {
     fn resolve_func(&self, field_name: &str, signature: &Signature)
         -> Result<FuncRef, wasmi::Error>
     {
-        match field_name {
+        let idx = match field_name {
             "log_panic"
             if signature == &Signature::new(&[ValueType::I32; 5][..], None)
-            => Ok(FuncInstance::alloc_host(signature.clone(), PANIC_INDEX)),
-            "log_panic" => Err(wasmi::Error::Instantiation(
+            => PANIC_INDEX,
+            "log_panic" => return Err(wasmi::Error::Instantiation(
                 format!("Export {} expects invalid signature {:?}",
                     field_name, signature)
             )),
-            _ => Err(wasmi::Error::Instantiation(
+            "pow" if signature.params().len() == 2 => POW_INDEX,
+            "pow" => return Err(wasmi::Error::Instantiation(
+                format!("Export {} expects invalid signature {:?}",
+                    field_name, signature)
+            )),
+            "fmod" if signature.params().len() == 2 => FMOD_INDEX,
+            "fmod" => return Err(wasmi::Error::Instantiation(
+                format!("Export {} expects invalid signature {:?}",
+                    field_name, signature)
+            )),
+            "exp2"|"exp2f" if signature.params().len() == 1 => EXP2_INDEX,
+            "exp2"|"exp2f" => return Err(wasmi::Error::Instantiation(
+                format!("Export {} expects invalid signature {:?}",
+                    field_name, signature)
+            )),
+            "ldexp"|"ldexpf" if signature.params().len() == 2 => LDEXP_INDEX,
+            "ldexp"|"ldexpf" => return Err(wasmi::Error::Instantiation(
+                format!("Export {} expects invalid signature {:?}",
+                    field_name, signature)
+            )),
+            "log10"|"log10f" if signature.params().len() == 1 => LOG10_INDEX,
+            "log10"|"log10f" => return Err(wasmi::Error::Instantiation(
+                format!("Export {} expects invalid signature {:?}",
+                    field_name, signature)
+            )),
+            _ => return Err(wasmi::Error::Instantiation(
                 format!("Export {} not found", field_name),
             ))
-        }
+        };
+        return Ok(FuncInstance::alloc_host(signature.clone(), idx));
     }
 }
 
@@ -189,7 +220,10 @@ impl Externals for Util {
     fn invoke_index(&mut self, index: usize, args: RuntimeArgs)
         -> Result<Option<RuntimeValue>, wasmi::Error>
     {
-        match index {
+        use wasmi::RuntimeValue::*;
+        let a1 = args.nth_value(0);
+        let a2 = args.nth_value(1);
+        let res = match index {
             PANIC_INDEX => {
                 // panic(payload_str, payload_len, file_ptr, file_len, line);
                 let payload_ptr: Result<u32, _> = args.nth(0);
@@ -229,9 +263,44 @@ impl Externals for Util {
                 };
                 error!("Scheduler panicked at {:?}:{}: {:?}",
                     filename, line.unwrap_or(0), payload);
-                Ok(None)
+                return Ok(None)
             }
+            POW_INDEX => match (a1.unwrap(), a2.unwrap()) {
+                (I32(a), I32(b)) => I32(i32::pow(a, b as u32)),
+                (I64(a), I32(b)) => I64(i64::pow(a, b as u32)),
+                (F32(a), I32(b)) => F32(f32::powi(a, b)),
+                (F64(a), I32(b)) => F64(f64::powi(a, b)),
+                (a, b) => return Err(wasmi::Error::Trap(
+                    format!("Invalid args for pow: {:?} / {:?}", a, b))),
+            },
+            FMOD_INDEX => match (a1.unwrap(), a2.unwrap()) {
+                (F32(a), F32(b)) => F32(a % b),
+                (F64(a), F64(b)) => F64(a % b),
+                (a, b) => return Err(wasmi::Error::Trap(
+                    format!("Invalid args for fmod: {:?} / {:?}", a, b))),
+            },
+            EXP2_INDEX => match a1.unwrap() {
+                I32(a) => F64((a as f64).exp2()),
+                I64(a) => F64((a as f64).exp2()),
+                F32(a) => F32(a.exp2()),
+                F64(a) => F64(a.exp2()),
+            },
+            LDEXP_INDEX => match (a1.unwrap(), a2.unwrap()) {
+                (F32(a), I32(b)) => F32(a*(b as f32).exp2()),
+                (F64(a), I32(b)) => F64(a*(b as f64).exp2()),
+                (F32(a), F32(b)) => F32(a*b.exp2()),
+                (F64(a), F64(b)) => F64(a*b.exp2()),
+                (a, b) => return Err(wasmi::Error::Trap(
+                    format!("Invalid args for ldexp: {:?} / {:?}", a, b))),
+            },
+            LOG10_INDEX => match a1.unwrap() {
+                I32(a) => F64((a as f64).log10()),
+                I64(a) => F64((a as f64).log10()),
+                F32(a) => F32(a.log10()),
+                F64(a) => F64(a.log10()),
+            },
             _ => panic!("Unimplemented function at {}", index),
-        }
+        };
+        return Ok(Some(res));
     }
 }
