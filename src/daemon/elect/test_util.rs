@@ -43,6 +43,7 @@ impl Environ {
             hosts_timestamp: Some(SystemTime::now()),  // TODO(tailhook)
             all_hosts: &self.all_hosts,
             debug_force_leader: false,
+            allow_minority: true,
         }
     }
     pub fn sleep(&mut self, ms: u64) {

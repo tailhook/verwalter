@@ -186,6 +186,7 @@ impl ElectionMachine {
             hosts_timestamp: Some(peers.timestamp),
             all_hosts: &peers.peers,
             debug_force_leader: self.shared.debug_force_leader(),
+            allow_minority: self.allow_minority,
         };
         let (dline, mut me) = match self.machine.take() {
             Some(me) => (me.current_deadline(), me),

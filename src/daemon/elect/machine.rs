@@ -12,6 +12,9 @@ use super::settings::{start_timeout, election_ivl, HEARTBEAT_INTERVAL};
 use super::action::{Action, ActionList};
 
 pub type Epoch = u64;
+// Currently we see lags for direct reports in cantal of up to 60 seconds.
+// We should fix the cantal first, then drop this value to about 12 secs.
+const UNRESPONSIBLE_PEER_TIMEO: u64 = 75_000;
 
 lazy_static! {
     pub static ref START_ELECTION_NO: Counter = Counter::new();
@@ -240,7 +243,7 @@ impl Machine {
                     votes_for_me.insert(src);
                     // to feel safer we use bigger required number of votes
                     // between current number and the start of the epoch
-                    let need = max(minimum_votes(info.all_hosts.len()),
+                    let need = max(minimum_votes(info),
                                    needed_votes);
                     if votes_for_me.len() >= need {
                         report(&BECAME_LEADER_NO, &BECAME_LEADER_TM);
@@ -315,9 +318,19 @@ fn waiting_hosts(_: Machine, now: Instant) -> (Machine, ActionList) {
     (Machine::Starting { leader_deadline: deadline }, Action::wait(deadline))
 }
 
-fn minimum_votes(total_peers: usize) -> usize {
-    match total_peers {  // peers do include myself
-        0 => 0,
+fn minimum_votes(info: &Info) -> usize {
+    let peer_num = if info.allow_minority {
+        let cut_off = SystemTime::now() - Duration::from_millis(
+            UNRESPONSIBLE_PEER_TIMEO);
+        info.all_hosts.values()
+            .filter_map(|x| x.get().last_report_direct)
+            .filter(|&x| x > cut_off)
+            .count()
+    } else {
+        info.all_hosts.len()
+    };
+    match peer_num+1 {
+        0 => 1,
         1 => 1,
         2 => 2,
         x => (x >> 1) + 1,
@@ -338,7 +351,7 @@ fn start_election(epoch: Epoch, now: Instant, info: &Info)
     let election_end = now + Duration::from_millis(HEARTBEAT_INTERVAL);
     (Machine::Electing {
         epoch: epoch,
-        needed_votes: minimum_votes(info.all_hosts.len()),
+        needed_votes: minimum_votes(info),
         votes_for_me: {
             let mut h = HashSet::new();
             h.insert(first_vote.clone());

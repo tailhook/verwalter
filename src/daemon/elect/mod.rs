@@ -63,4 +63,7 @@ pub struct Info<'a> {
     all_hosts: &'a HashMap<Id, ArcCell<Peer>>,
     /// Forces this node to be a leader, this is only for debugging purposes
     debug_force_leader: bool,
+    /// Allow becoming a leader in minority partition (i.e. if majority nodes
+    /// are unavailable) of a split-brain.
+    allow_minority: bool,
 }
