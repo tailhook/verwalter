@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use std::cmp::{Ord, Ordering};
+use std::cmp::{Ord, Ordering, max};
 use std::cmp::Ordering::{Less as Older, Equal as Current, Greater as Newer};
 use std::time::{Duration, Instant, SystemTime};
 
@@ -64,7 +64,12 @@ lazy_static! {
 #[derive(Clone, Debug)]
 pub enum Machine {
     Starting { leader_deadline: Instant },
-    Electing { epoch: Epoch, votes_for_me: HashSet<Id>, deadline: Instant },
+    Electing {
+        epoch: Epoch,
+        needed_votes: usize,
+        votes_for_me: HashSet<Id>,
+        deadline: Instant
+    },
     Voted { epoch: Epoch, peer: Id, election_deadline: Instant },
     Leader { epoch: Epoch, next_ping_time: Instant },
     Follower { leader: Id, epoch: Epoch, leader_deadline: Instant },
@@ -142,7 +147,7 @@ impl Machine {
                     become_leader(1, now)
                 } else {
                     report(&ELECT_START_NO, &ELECT_START_TM);
-                    start_election(1, now, &info.id)
+                    start_election(1, now, info)
                 }
             }
             Electing { epoch, .. } => {
@@ -161,12 +166,12 @@ impl Machine {
                 // again (e.g. if failed nodes are voted for the node)
                 info!("[{}] Time passed. Starting new election", info.id);
                 report(&ELECT_TIMEO_NO, &ELECT_TIMEO_TM);
-                start_election(epoch+1, now, &info.id)
+                start_election(epoch+1, now, info)
             },
             Voted { epoch, .. } => {
                 info!("[{}] Time passed. Elect me please", info.id);
                 report(&ELECT_VOTED_NO, &ELECT_VOTED_TM);
-                start_election(epoch+1, now, &info.id)
+                start_election(epoch+1, now, info)
             }
             Leader { epoch, .. } => {
                 // TODO(tailhook) see if we have slept just too much
@@ -180,7 +185,7 @@ impl Machine {
             Follower { epoch, .. } => {
                 info!("[{}] Leader is unresponsive. Elect me please", info.id);
                 report(&ELECT_UNRESPONSIVE_NO, &ELECT_UNRESPONSIVE_TM);
-                start_election(epoch+1, now, &info.id)
+                start_election(epoch+1, now, info)
             }
         };
         return (machine, action)
@@ -203,7 +208,7 @@ impl Machine {
                 // Another leader is here, restart the election
                 // This is valid when two partitions suddenly joined
                 report(&ELECT_CONFLICT_NO, &ELECT_CONFLICT_TM);
-                start_election(msg_epoch+1, now, &info.id)
+                start_election(msg_epoch+1, now, info)
             }
             (Ping, Current, _) => {
                 // Ping in any other state, means we follow the leader
@@ -218,7 +223,7 @@ impl Machine {
                 // Pong in any other state means something wrong with other
                 // peers thinking of who is a leader
                 report(&ELECT_UNSOLICIT_PONG_NO, &ELECT_UNSOLICIT_PONG_TM);
-                start_election(msg_epoch+1, now, &info.id)
+                start_election(msg_epoch+1, now, info)
             }
             (Vote(id), Current, Starting { .. }) => {
                 let dline = now + election_ivl();
@@ -227,25 +232,28 @@ impl Machine {
                     peer: id.clone(), election_deadline: dline},
                  Action::ConfirmVote(id).and_wait(dline))
             }
-            (Vote(id), Current, Electing {epoch, mut votes_for_me, deadline})
+            (Vote(id), Current, Electing {epoch, mut votes_for_me, deadline,
+                                          needed_votes})
             => {
                 if id == *info.id {
                     report(&VOTE_FOR_ME_NO, &VOTE_FOR_ME_TM);
                     votes_for_me.insert(src);
-                    let need = minimum_votes(info.all_hosts.len());
+                    // to feel safer we use bigger required number of votes
+                    // between current number and the start of the epoch
+                    let need = max(minimum_votes(info.all_hosts.len()),
+                                   needed_votes);
                     if votes_for_me.len() >= need {
                         report(&BECAME_LEADER_NO, &BECAME_LEADER_TM);
                         become_leader(epoch, now)
                     } else {
-                        (Electing { epoch: epoch, votes_for_me: votes_for_me,
-                                    deadline: deadline },
+                        (Electing { epoch, votes_for_me,
+                                    deadline, needed_votes },
                          Action::wait(deadline))
                     }
                 } else {
                     report(&VOTE_OTHER_NO, &VOTE_OTHER_TM);
                     // Peer voted for someone else
-                    (Electing { epoch: epoch, votes_for_me: votes_for_me,
-                                deadline: deadline },
+                    (Electing { epoch, votes_for_me, deadline, needed_votes },
                      Action::wait(deadline))
                 }
             }
@@ -266,7 +274,7 @@ impl Machine {
                 // Something terribly wrong: somebody thinks that we are leader
                 // in the new epoch. Just start a new election
                 report(&ELECT_NEWER_PONG_NO, &ELECT_NEWER_PONG_TM);
-                start_election(msg_epoch+1, now, &info.id)
+                start_election(msg_epoch+1, now, info)
             }
             (Vote(id), Newer, _) => {
                 // Somebody started an election, just trust him
@@ -322,13 +330,15 @@ fn become_leader(epoch: Epoch, now: Instant) -> (Machine, ActionList) {
      Action::PingAll.and_wait(next_ping))
 }
 
-fn start_election(epoch: Epoch, now: Instant, first_vote: &Id)
+fn start_election(epoch: Epoch, now: Instant, info: &Info)
     -> (Machine, ActionList)
 {
     report(&START_ELECTION_NO, &START_ELECTION_TM);
+    let first_vote = info.id;
     let election_end = now + Duration::from_millis(HEARTBEAT_INTERVAL);
     (Machine::Electing {
         epoch: epoch,
+        needed_votes: minimum_votes(info.all_hosts.len()),
         votes_for_me: {
             let mut h = HashSet::new();
             h.insert(first_vote.clone());

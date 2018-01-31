@@ -20,6 +20,8 @@ pub struct ElectionState {
     pub promoting: Option<Id>,
     /// Number of votes for this node to become a leader if it's electing
     pub num_votes_for_me: Option<usize>,
+    /// Minimum number of votes to finish these elections
+    pub needed_votes: Option<usize>,
     /// Current epoch (for debugging)
     pub epoch: Epoch,
     /// Current timeout (for debugging), JSON-friendly, in milliseconds
@@ -52,6 +54,7 @@ impl ElectionState {
             leader: None,
             promoting: None,
             num_votes_for_me: None,
+            needed_votes: None,
             epoch: Epoch::default(),
             deadline: SystemTime::now(),
             last_stable_timestamp: None,
@@ -66,16 +69,19 @@ impl ElectionState {
                 leader: None,
                 promoting: None,
                 num_votes_for_me: None,
+                needed_votes: None,
                 epoch: 0,
                 deadline: estimate(leader_deadline),
                 last_stable_timestamp: None,
             },
-            Electing { epoch, ref votes_for_me, deadline } => ElectionState {
+            Electing { epoch, ref votes_for_me, deadline, needed_votes }
+            => ElectionState {
                 is_leader: false,
                 is_stable: false,
                 leader: None,
                 promoting: None,
                 num_votes_for_me: Some(votes_for_me.len()),
+                needed_votes: Some(needed_votes),
                 epoch: epoch,
                 deadline: estimate(deadline),
                 last_stable_timestamp: None,
@@ -86,6 +92,7 @@ impl ElectionState {
                 leader: None,
                 promoting: Some(peer.clone()),
                 num_votes_for_me: None,
+                needed_votes: None,
                 epoch: epoch,
                 deadline: estimate(election_deadline),
                 last_stable_timestamp: None,
@@ -96,6 +103,7 @@ impl ElectionState {
                 leader: None,
                 promoting: None,
                 num_votes_for_me: None,
+                needed_votes: None,
                 epoch: epoch,
                 deadline: estimate(next_ping_time),
                 last_stable_timestamp: Some(SystemTime::now()),
@@ -106,6 +114,7 @@ impl ElectionState {
                 leader: Some(leader.clone()),
                 promoting: None,
                 num_votes_for_me: None,
+                needed_votes: None,
                 epoch: epoch,
                 deadline: estimate(leader_deadline),
                 last_stable_timestamp: Some(SystemTime::now()),
