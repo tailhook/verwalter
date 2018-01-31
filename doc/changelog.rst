@@ -2,6 +2,18 @@ Verwalter Changes by Version
 ============================
 
 
+.. _changelog-0.10.4:
+
+Verwalter 0.10.4
+----------------
+
+* feature: add an *experimental* ``--allow-minority-cluster`` option that
+  allows verwalter to elect itself as a leader even if it sees less then
+  N/2+1 nodes. I.e. in split-brain scenario two leaders might exist
+  simultaneously which will then be merged. Note: this is a task of a
+  specific scheduler to merge schedules appropriately.
+
+
 .. _changelog-0.10.3:
 
 Verwalter 0.10.3

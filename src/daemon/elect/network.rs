@@ -164,6 +164,7 @@ struct ElectionMachine {
     last_schedule_sent: String,
     timer: Timeout,
     fetcher: UnboundedSender<fetch::Message>,
+    allow_minority: bool,
 }
 
 impl Future for ElectionMachine {
@@ -282,7 +283,8 @@ impl ElectionMachine {
 }
 
 pub fn spawn_election(ns: &NsRouter, addr: &str,
-    state: &SharedState, fetcher_tx: UnboundedSender<fetch::Message>)
+    state: &SharedState, fetcher_tx: UnboundedSender<fetch::Message>,
+    allow_minority: bool)
     -> Result<(), Box<::std::error::Error>>
 {
     let str_addr = addr.to_string();
@@ -302,6 +304,7 @@ pub fn spawn_election(ns: &NsRouter, addr: &str,
             last_schedule_sent: String::new(),
             timer: timeout_at(Instant::now()),
             fetcher: fetcher_tx,
+            allow_minority: allow_minority,
         });
     }).map_err(move |e| {
         error!("Can't bind address {}: {}", str_addr, e);

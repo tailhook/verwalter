@@ -101,6 +101,7 @@ pub struct Options {
     machine_id: Option<Id>,
     use_sudo: bool,
     debug_force_leader: bool,
+    allow_minority: bool,
 }
 
 fn init_logging(id: &Id, log_id: bool) {
@@ -150,6 +151,7 @@ fn main() {
         machine_id: None,
         use_sudo: false,
         debug_force_leader: false,
+        allow_minority: false,
     };
     {
         let mut ap = ArgumentParser::new();
@@ -205,6 +207,10 @@ fn main() {
                 running as much processes as there are peers emulated by
                 `fake-cantal.py` script. This means you can test large
                 configs on single verwalter instance.");
+        ap.refer(&mut options.allow_minority)
+            .add_option(&["--allow-minority-cluster"], StoreTrue, "
+                Allow verwalter becoming a leader in a minority cluster, in
+                case split brain occurs.");
         ap.parse_args_or_exit();
     }
 
@@ -298,7 +304,8 @@ fn main() {
             &options.config_dir.join("frontend"), &schedule_dir)?;
         fetch::spawn_fetcher(&state, fetch_rx)?;
         cantal::spawn_fetcher(&state, udp_port)?;
-        elect::spawn_election(&ns, &listen_addr, &state, fetch_tx)?;
+        elect::spawn_election(&ns, &listen_addr, &state, fetch_tx,  
+            options.allow_minority)?;
 
         let scheduler_settings = scheduler::Settings {
             id: id.clone(),
