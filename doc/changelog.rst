@@ -1,12 +1,16 @@
 Verwalter Changes by Version
 ============================
 
+
 .. _changelog-0.10.3:
 
 Verwalter 0.10.3
 ----------------
 
 * bugfix: timestamps in peer info now serialize as milliseconds since epoch
+* wasm: add function to log panics
+* wasm: add log/pow/exp functions needed for rust (actually llvm) build
+
 
 .. _changelog-0.10.2:
 
