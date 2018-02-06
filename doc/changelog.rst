@@ -12,6 +12,8 @@ Verwalter 0.10.4
   N/2+1 nodes. I.e. in split-brain scenario two leaders might exist
   simultaneously which will then be merged. Note: this is a task of a
   specific scheduler to merge schedules appropriately.
+* bugfix: additional css,js,fonts for alternative frontends were not
+  served properly
 
 
 .. _changelog-0.10.3:

@@ -153,13 +153,13 @@ pub fn route(head: &Head) -> Route {
         ("", _) => Some(CommonIndex),
         ("v1", suffix) => parse_api(suffix),
         (dir, suffix) if dir.starts_with("~") => {
-            if !validate_path(&path[1..]) {
+            if !validate_path(&path[2..]) {
                 // TODO(tailhook) implement 400
                 return Route::NotFound;
             }
             match path_component(suffix) {
                 ("js", _) | ("css", _) | ("fonts", _) | ("img", _) => {
-                    Some(AlterStatic(path[1..].to_string()))
+                    Some(AlterStatic(path[2..].to_string()))
                 }
                 _ => {
                     Some(AlterIndex(dir[1..].to_string()))
