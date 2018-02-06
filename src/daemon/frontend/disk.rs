@@ -1,4 +1,4 @@
-use std::path::{PathBuf};
+use std::path::{PathBuf, Path};
 use std::sync::Arc;
 
 use capturing_glob::{glob_with, MatchOptions};
@@ -154,12 +154,12 @@ impl<S: AsyncWrite + Send + 'static> server::Codec<S> for Codec {
     }
 }
 
-pub fn index_response<S>(head: &server::Head, base: &Arc<PathBuf>)
+pub fn index_response<S>(head: &server::Head, base: &Path, frontend: &str)
     -> Result<Request<S>, server::Error>
     where S: AsyncWrite + Send + 'static
 {
     let inp = Input::from_headers(&*CONFIG, head.method(), head.headers());
-    let path = base.join("common/index.html");
+    let path = base.join(frontend).join("index.html");
     let fut = POOL.spawn_fn(move || {
         inp.probe_file(&path).map_err(|e| {
             error!("Error reading file {:?}: {}", path, e);
@@ -173,7 +173,7 @@ pub fn index_response<S>(head: &server::Head, base: &Arc<PathBuf>)
 }
 
 pub fn common_response<S>(head: &server::Head, path: String,
-    base: &Arc<PathBuf>)
+    base: &Path)
     -> Result<Request<S>, server::Error>
     where S: AsyncWrite + Send + 'static
 {
@@ -193,7 +193,7 @@ pub fn common_response<S>(head: &server::Head, path: String,
 }
 
 pub fn alter_index_response<S>(head: &server::Head, dir: String,
-    base: &Arc<PathBuf>)
+    base: &PathBuf)
     -> Result<Request<S>, server::Error>
     where S: AsyncWrite + Send + 'static
 {
@@ -211,8 +211,7 @@ pub fn alter_index_response<S>(head: &server::Head, dir: String,
     }) as Request<S>)
 }
 
-pub fn alter_static_response<S>(head: &server::Head, path: String,
-    base: &Arc<PathBuf>)
+pub fn alter_static_response<S>(head: &server::Head, path: String, base: &Path)
     -> Result<Request<S>, server::Error>
     where S: AsyncWrite + Send + 'static
 {
@@ -249,15 +248,15 @@ pub fn log_response<S>(head: &server::Head, full_path: PathBuf)
     }))
 }
 
-pub fn list_backups<S>(schedule_dir: &Arc<PathBuf>, format: Format)
+pub fn list_backups<S>(schedule_dir: &Path, format: Format)
     -> Result<Request<S>, server::Error>
     where S: AsyncWrite + Send + 'static
 {
-    let schedule_dir = schedule_dir.clone();
+    let dir = schedule_dir.to_str()
+        .expect("schedule_dir is utf-8")
+        .to_string();
     Ok(reply(move |e| {
         Box::new(POOL.spawn_fn(move || {
-            let dir = schedule_dir.to_str()
-                .expect("schedule_dir is utf-8");
             let items = glob_with(
                 &format!("{}/(*-*).json.gz", dir), &MatchOptions {
                     case_sensitive: true,
@@ -287,8 +286,7 @@ pub fn list_backups<S>(schedule_dir: &Arc<PathBuf>, format: Format)
     }))
 }
 
-pub fn serve_backup<S>(name: String, head: &server::Head,
-    schedule_dir: &Arc<PathBuf>)
+pub fn serve_backup<S>(name: String, head: &server::Head, schedule_dir: &Path)
     -> Result<Request<S>, server::Error>
     where S: AsyncWrite + Send + 'static
 {

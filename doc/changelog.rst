@@ -14,6 +14,7 @@ Verwalter 0.10.4
   specific scheduler to merge schedules appropriately.
 * bugfix: additional css,js,fonts for alternative frontends were not
   served properly
+* feature: allow to ``--default-frontend`` via CLI
 
 
 .. _changelog-0.10.3:

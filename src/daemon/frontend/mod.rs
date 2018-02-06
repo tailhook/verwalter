@@ -27,10 +27,15 @@ pub type Request<S> = Box<CodecTrait<S, ResponseFuture=Reply<S>>>;
 pub type Reply<S> = Box<Future<Item=EncoderDone<S>, Error=Error>>;
 
 
+pub struct Config {
+    pub dir: PathBuf,
+    pub default_frontend: String,
+    pub schedule_dir: PathBuf,
+}
+
 pub struct Dispatcher {
     pub state: SharedState,
-    pub dir: Arc<PathBuf>,
-    pub schedule_dir: Arc<PathBuf>,
+    pub config: Arc<Config>,
 }
 
 impl<S: AsyncWrite + Send + 'static> DispatcherTrait<S> for Dispatcher {
@@ -42,22 +47,23 @@ impl<S: AsyncWrite + Send + 'static> DispatcherTrait<S> for Dispatcher {
         use frontend::routing::ApiRoute::{Backup, Backups};
         match route(headers) {
             CommonIndex => {
-                disk::index_response(headers, &self.dir)
+                disk::index_response(headers, &self.config.dir,
+                    &self.config.default_frontend)
             }
             CommonStatic(path) => {
-                disk::common_response(headers, path, &self.dir)
+                disk::common_response(headers, path, &self.config.dir)
             }
             AlterIndex(dir) => {
-                disk::alter_index_response(headers, dir, &self.dir)
+                disk::alter_index_response(headers, dir, &self.config.dir)
             }
             AlterStatic(path) => {
-                disk::alter_static_response(headers, path, &self.dir)
+                disk::alter_static_response(headers, path, &self.config.dir)
             }
             Api(Backups, fmt) => {
-                disk::list_backups(&self.schedule_dir, fmt)
+                disk::list_backups(&self.config.schedule_dir, fmt)
             }
             Api(Backup(name), _) => {
-                disk::serve_backup(name, headers, &self.schedule_dir)
+                disk::serve_backup(name, headers, &self.config.schedule_dir)
             }
             Api(ref route, fmt) => {
                 api::serve(&self.state, route, fmt)

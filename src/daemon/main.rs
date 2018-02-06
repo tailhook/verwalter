@@ -85,7 +85,7 @@ mod fetch;
 mod failures;
 
 use argparse::{ArgumentParser, Parse, ParseOption, StoreOption, StoreTrue};
-use argparse::{Print};
+use argparse::{Print, Store};
 
 #[derive(Clone)]
 pub struct Options {
@@ -102,6 +102,7 @@ pub struct Options {
     use_sudo: bool,
     debug_force_leader: bool,
     allow_minority: bool,
+    default_frontend: String,
 }
 
 fn init_logging(id: &Id, log_id: bool) {
@@ -152,6 +153,7 @@ fn main() {
         use_sudo: false,
         debug_force_leader: false,
         allow_minority: false,
+        default_frontend: "common".into(),
     };
     {
         let mut ap = ArgumentParser::new();
@@ -211,6 +213,9 @@ fn main() {
             .add_option(&["--allow-minority-cluster"], StoreTrue, "
                 Allow verwalter becoming a leader in a minority cluster, in
                 case split brain occurs.");
+        ap.refer(&mut options.default_frontend)
+            .add_option(&["--default-frontend"], Store, "
+                Use this frontend as default one (default `common`).");
         ap.parse_args_or_exit();
     }
 
@@ -301,10 +306,12 @@ fn main() {
         let (fetch_tx, fetch_rx) = unbounded();
 
         http::spawn_listener(&ns, &listen_addr, &state,
-            &options.config_dir.join("frontend"), &schedule_dir)?;
+            &options.config_dir.join("frontend"),
+            &options.default_frontend,
+            &schedule_dir)?;
         fetch::spawn_fetcher(&state, fetch_rx)?;
         cantal::spawn_fetcher(&state, udp_port)?;
-        elect::spawn_election(&ns, &listen_addr, &state, fetch_tx,  
+        elect::spawn_election(&ns, &listen_addr, &state, fetch_tx,
             options.allow_minority)?;
 
         let scheduler_settings = scheduler::Settings {
