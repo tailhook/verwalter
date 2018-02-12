@@ -1,4 +1,5 @@
 extern crate argparse;
+extern crate capturing_glob;
 extern crate error_chain;
 extern crate handlebars;
 extern crate libc;
@@ -8,6 +9,7 @@ extern crate regex;
 extern crate serde;
 extern crate scan_dir;
 extern crate serde_json;
+extern crate serde_regex;
 extern crate tempfile;
 extern crate tera;
 extern crate trimmer;

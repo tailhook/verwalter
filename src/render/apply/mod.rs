@@ -20,12 +20,14 @@ pub mod cmd;
 pub mod shell;
 pub mod copy;
 pub mod peek_log;
+pub mod split_text;
 
 const COMMANDS: &'static [&'static str] = &[
     "RootCommand",
     "Cmd",
     "Sh",
     "Copy",
+    "SplitText",
     "PeekLog",
 ];
 
@@ -34,6 +36,7 @@ pub enum CommandName {
     Cmd,
     Sh,
     Copy,
+    SplitText,
     PeekLog,
 }
 
@@ -80,6 +83,12 @@ quick_error!{
             display("{}: {}", message, value)
             description(message)
         }
+        FormatError(message: String) {
+            display("{}", message)
+        }
+        Other(message: String) {
+            display("{}", message)
+        }
         IoError(err: io::Error) {
             from() cause(err)
             display("io error: {}", err)
@@ -107,6 +116,7 @@ impl<'a> Visitor<'a> for NameVisitor {
             "Cmd" => Cmd,
             "Sh" => Sh,
             "Copy" => Copy,
+            "SplitText" => SplitText,
             "PeekLog" => PeekLog,
             _ => return Err(E::custom("invalid command")),
         };
@@ -138,6 +148,7 @@ impl<'a> Visitor<'a> for CommandVisitor {
             Cmd => decode::<cmd::Cmd, _>(v),
             Sh => decode::<shell::Sh, _>(v),
             Copy => decode::<copy::Copy, _>(v),
+            SplitText => decode::<split_text::SplitText, _>(v),
             PeekLog => decode::<peek_log::PeekLog, _>(v),
         }
     }

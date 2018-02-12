@@ -2,6 +2,15 @@ Verwalter Changes by Version
 ============================
 
 
+.. _changelog-0.10.5:
+
+Verwalter 0.10.5
+----------------
+
+* feature: new ``SplitText`` action, to deal with multiple generated
+  files easily
+
+
 .. _changelog-0.10.4:
 
 Verwalter 0.10.4

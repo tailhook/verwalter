@@ -41,6 +41,7 @@ serde = {version="1.0.0", features=["rc"]}
 serde_derive = "1.0.0"
 serde_json = "1.0.0"
 serde_millis = "0.1.1"
+serde_regex = "0.1.0"
 crossbeam = "0.3.0"
 trimmer = "0.3.6"
 void = "1.0"
@@ -62,7 +63,7 @@ failure = "0.1.1"
 http-file-headers = "0.1.6"
 hex = "0.3.1"
 deflate = {version="0.7.17", features=["gzip"]}
-capturing-glob = "0.1.0"
+capturing-glob = "0.1.1"
 wasmi = "0.0.0"
 
 [workspace]
