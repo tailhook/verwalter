@@ -93,6 +93,7 @@ impl Action for SplitText {
             let mut file = None;
             let mut name = None::<String>;
             for (num, line) in src.lines().enumerate() {
+                let num = num+1;
                 let line = line.map_err(Error::IoError)?;
                 if file.is_none() {
                     if !line.trim().is_empty() {
