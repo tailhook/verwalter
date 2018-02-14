@@ -95,13 +95,7 @@ impl Action for SplitText {
             for (num, line) in src.lines().enumerate() {
                 let num = num+1;
                 let line = line.map_err(Error::IoError)?;
-                if file.is_none() {
-                    if !line.trim().is_empty() {
-                        return Err(Error::FormatError(format!(
-                            "Error splitting file: \
-                            Non-empty line {} before title", num)));
-                    }
-                } else if let Some(capt) = self.section.captures(&line) {
+                if let Some(capt) = self.section.captures(&line) {
                     let sect = capt.get(1).map(|x| x.as_str()).unwrap_or("");
                     if !self.validate.is_match(sect) {
                         return Err(Error::FormatError(format!(
@@ -114,6 +108,12 @@ impl Action for SplitText {
                     file = Some(BufWriter::new(open_file(&dest, sect)?));
                     name = Some(sect.to_string());
                     visited.insert(sect.to_string());
+                } else if file.is_none() {
+                    if !line.trim().is_empty() {
+                        return Err(Error::FormatError(format!(
+                            "Error splitting file: \
+                            Non-empty line {} before title", num)));
+                    }
                 } else {
                     writeln!(&mut file.as_mut().unwrap(), "{}", line)
                         .map_err(|e| Error::IoError(e))?;
