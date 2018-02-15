@@ -181,7 +181,7 @@ pub fn main(state: SharedState, settings: Settings) -> !
                 current_host: settings.hostname.clone(),
                 current_id: settings.id.clone(),
                 parents: cookie.parent_schedules.iter()
-                  .map(|x| Parent(x.clone())).collect(),
+                    .map(|x| Parent(x.clone())).collect(),
                 actions: cookie.actions.clone(),
                 runtime: runtime.data.clone(),
                 // TODO(tailhook) show runtime errors
@@ -204,10 +204,18 @@ pub fn main(state: SharedState, settings: Settings) -> !
             SCHEDULING_TIME.set((Instant::now() - instant).to_msec() as i64);
 
             let json = match result {
-                Ok(json) => {
+                Ok(json @ Json::Object(_)) => {
                     state.clear_error("scheduler");
                     SCHEDULER_SUCCEEDED.incr(1);
                     json
+                }
+                Ok(val) => {
+                    error!("Scheduler returned {:?}", val);
+                    state.set_error("scheduler", "invalid return value".into());
+                    state.set_schedule_debug_info(input, dbg);
+                    SCHEDULER_FAILED.incr(1);
+                    sleep(Duration::from_secs(1));
+                    continue;
                 }
                 Err(e) => {
                     error!("Scheduling failed: {}", e);
