@@ -7,7 +7,7 @@ use serde_json::{Value as Json, to_vec, de};
 use serde::Serialize;
 use wasmi::{self, load_from_buffer, ModuleInstance, ImportsBuilder, ModuleRef};
 use wasmi::RuntimeValue::I32;
-use wasmi::{MemoryRef};
+use wasmi::{LoadedModule, MemoryRef};
 use wasmi::{Externals, RuntimeValue, RuntimeArgs, ModuleImportResolver};
 use wasmi::{FuncRef, ValueType, Signature, FuncInstance};
 
@@ -22,9 +22,11 @@ const LOG10_INDEX: usize = 106;
 
 
 pub(in scheduler) struct Scheduler {
+    loaded_module: LoadedModule,
     module: ModuleRef,
     memory: MemoryRef,
     scheduler_util: Util,
+    failed: bool,
 }
 
 struct ReadMemory {
@@ -49,11 +51,19 @@ pub(in scheduler) fn read(dir: &Path)
     File::open(&path)
         .and_then(|mut f| f.read_to_end(&mut buf))
         .map_err(|e| err_msg(format!("Error reading {:?}: {}", path, e)))?;
-    let module = load_from_buffer(&buf)
+    let loaded_module = load_from_buffer(&buf)
         .map_err(|e| err_msg(format!("error decoding wasm: {:?}", e)))?;
-    let module = ModuleInstance::new(
-            &module,
-            &ImportsBuilder::new()
+    let (module, memory, scheduler_util) = instantiate(&loaded_module)
+        .map_err(|e| format_err!("error instantiating wasm: {}", e))?;
+    Ok(Scheduler { loaded_module, module, memory, scheduler_util,
+                   failed: false })
+}
+
+fn instantiate(module: &LoadedModule)
+    -> Result<(ModuleRef, MemoryRef, Util), Error>
+{
+    let module = ModuleInstance::new(module,
+        &ImportsBuilder::new()
             .with_resolver("env", &Resolver),
         ).map_err(|e| err_msg(format!("error adding wasm module: {}", e)))?;
     let memory = module.not_started_instance().export_by_name("memory")
@@ -62,11 +72,32 @@ pub(in scheduler) fn read(dir: &Path)
     let mut scheduler_util = Util { memory: memory.clone() };
     let module = module.run_start(&mut scheduler_util)
         .map_err(|e| err_msg(format!("error starting wasm module: {}", e)))?;
-    Ok(Scheduler { module, memory, scheduler_util })
+    Ok((module, memory, scheduler_util))
 }
+
 
 impl Scheduler {
     pub fn execute<S: Serialize>(&mut self, input: &S)
+        -> (Result<Json, Error>, String)
+    {
+        if self.failed {
+            match instantiate(&self.loaded_module) {
+                Ok((md, mm, u)) => {
+                    self.module = md;
+                    self.memory = mm;
+                    self.scheduler_util = u;
+                    self.failed = false;
+                }
+                Err(e) => {
+                    return (
+                        Err(format_err!("error starting wasm module: {}", e)),
+                        String::from("error starting wasm module"));
+                }
+            };
+        }
+        self._execute(input)
+    }
+    fn _execute<S: Serialize>(&mut self, input: &S)
         -> (Result<Json, Error>, String)
     {
         let bytes = match to_vec(input) {
@@ -83,9 +114,12 @@ impl Scheduler {
             Ok(x) => return (
                 Err(err_msg(format!("alloc invalid: {:?}", x))),
                 String::from("failed to allocate memory")),
-            Err(e) => return (
-                Err(err_msg(format!("failed to allocate memory: {}", e))),
-                String::from("failed to allocate memory")),
+            Err(e) => {
+                self.failed = true;
+                return (
+                    Err(err_msg(format!("failed to allocate memory: {}", e))),
+                    String::from("failed to allocate memory"));
+            }
         };
         match self.memory.set(off, &bytes) {
             Ok(()) => {},
@@ -101,9 +135,12 @@ impl Scheduler {
             &mut self.scheduler_util)
         {
             Ok(_) => {}
-            Err(e) => return (
-                Err(err_msg(format!("failed to deallocate memory: {}", e))),
-                String::from("failed to deallocate memory")),
+            Err(e) => {
+                self.failed = true;
+                return (
+                    Err(err_msg(format!("failed to deallocate memory: {}", e))),
+                    String::from("failed to deallocate memory"));
+            }
         };
         let roff = match roff {
             Ok(Some(I32(off))) => {
@@ -119,9 +156,12 @@ impl Scheduler {
             Ok(x) => return (
                 Err(err_msg(format!("bad scheduler result: {:?}", x))),
                 String::from("scheduler result error")),
-            Err(e) => return (
-                Err(err_msg(format!("bad scheduler result: {}", e))),
-                String::from("scheduler result error")),
+            Err(e) => {
+                self.failed = true;
+                return (
+                    Err(err_msg(format!("bad scheduler result: {}", e))),
+                    String::from("scheduler result error"));
+            }
         };
         let reader = ReadMemory {
             memory: self.memory.clone(),
@@ -143,9 +183,12 @@ impl Scheduler {
             &[I32(roff as i32)], &mut self.scheduler_util)
         {
             Ok(_) => {}
-            Err(e) => return (
-                Err(err_msg(format!("failed to deallocate memory: {}", e))),
-                String::from("failed to deallocate memory")),
+            Err(e) => {
+                self.failed = true;
+                return (
+                    Err(err_msg(format!("failed to deallocate memory: {}", e))),
+                    String::from("failed to deallocate memory"));
+            }
         };
         (Ok(result), debug)
     }
