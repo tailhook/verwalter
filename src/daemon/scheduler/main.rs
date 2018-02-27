@@ -45,6 +45,14 @@ pub struct SchedulerInput {
     metrics: HashMap<(), ()>,  // TODO(tailhook)
 }
 
+#[derive(Deserialize, Debug)]
+pub struct SchedulerResult {
+    pub schedule: Json,
+    pub log: String,
+    #[serde(default)]
+    pub actions: HashMap<u64, Json>,
+}
+
 impl serde::Serialize for Parent {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where S: serde::Serializer
@@ -200,43 +208,44 @@ pub fn main(state: SharedState, settings: Settings) -> !
                 */
             };
 
-            let (result, dbg) = scheduler.execute(&input);
+            let result = scheduler.execute(&input);
             SCHEDULING_TIME.set((Instant::now() - instant).to_msec() as i64);
 
-            let json = match result {
-                Ok(json @ Json::Object(_)) => {
+            let result = match result {
+                Ok(res @ SchedulerResult { schedule: Json::Object(_), .. })
+                => {
                     state.clear_error("scheduler");
                     SCHEDULER_SUCCEEDED.incr(1);
-                    json
+                    res
                 }
-                Ok(val) => {
-                    error!("Scheduler returned {:?}", val);
+                Ok(SchedulerResult { schedule, log, .. }) => {
+                    error!("Scheduler returned {:?}", schedule);
                     state.set_error("scheduler", "invalid return value".into());
-                    state.set_schedule_debug_info(input, dbg);
+                    state.set_schedule_debug_info(input, log);
                     SCHEDULER_FAILED.incr(1);
                     sleep(Duration::from_secs(1));
                     continue;
                 }
                 Err(e) => {
                     error!("Scheduling failed: {}", e);
-                    state.set_error("scheduler", format!("{}", e));
-                    state.set_schedule_debug_info(input, dbg);
+                    state.set_error("scheduler", e.to_string());
+                    state.set_schedule_debug_info(input, e.to_string());
                     SCHEDULER_FAILED.incr(1);
                     sleep(Duration::from_secs(1));
                     continue;
                 }
             };
 
-            let hash = hash(json.to_string());
+            let hash = hash(result.schedule.to_string());
             info!("New schedule {}, done in {} ms", hash,
                 SCHEDULING_TIME.get());
             state.set_schedule_by_leader(cookie, Schedule {
-                num_roles: num_roles(&json),
+                num_roles: num_roles(&result.schedule),
                 timestamp: timestamp.to_msec(),
                 hash: hash,
-                data: json,
+                data: result.schedule,
                 origin: settings.id.clone(),
-            }, input, dbg);
+            }, input, result.log, result.actions);
             break;
         }
     }

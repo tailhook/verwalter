@@ -236,7 +236,8 @@ impl SharedState {
         self.lock().stable_schedule = None
     }
     pub fn set_schedule_by_leader(&self, cookie: LeaderCookie,
-        val: Schedule, input: SchedulerInput, debug: String)
+        val: Schedule, input: SchedulerInput, debug: String,
+        actions: HashMap<u64, Json>)
     {
         let mut guard = self.lock();
         if guard.election.is_leader && guard.election.epoch == cookie.epoch {

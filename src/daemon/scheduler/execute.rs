@@ -1,11 +1,12 @@
-use std::collections::VecDeque;
+use std::collections::{VecDeque, HashMap};
 
 use failure;
 use lua::{ThreadStatus, Type, Serde, GcOption};
 use serde::Serialize;
-use serde_json::{Value as Json, from_str};
+use serde_json::{from_str};
 
 use scheduler::luatic::Scheduler;
+use scheduler::main::SchedulerResult;
 
 #[derive(Debug, Fail)]
 pub enum Error {
@@ -23,7 +24,7 @@ pub enum Error {
 
 impl Scheduler {
     pub fn execute<S: Serialize>(&mut self, input: &S)
-        -> (Result<Json, failure::Error>, String)
+        -> Result<SchedulerResult, failure::Error>
     {
         self.lua.get_global("debug");
         self.lua.get_field(-1, "traceback");
@@ -34,29 +35,25 @@ impl Scheduler {
             Type::Function => {}
             typ => {
                 // TODO(tailhook) should we pop stack? Or pop only if not None
-                return (Err(Error::FunctionNotFound("scheduler", typ).into()),
-                    String::from("Scheduler function not found"));
+                return Err(Error::FunctionNotFound("scheduler", typ).into());
             }
         }
         self.lua.push(Serde(input));
         match self.lua.pcall(1, 2, error_handler) {
             ThreadStatus::Ok => {}
             ThreadStatus::Yield => {
-                return (Err(Error::UnexpectedYield.into()),
-                    String::from("Scheduler yielded instead of returning"));
+                return Err(Error::UnexpectedYield.into());
             }
             err => {
                 let txt = self.lua.to_str(-1).unwrap_or("undefined")
                           .to_string();
-                let dbg = format!("Lua call failed: {}", txt);
-                return (Err(Error::Lua(err, txt).into()), dbg);
+                return Err(Error::Lua(err, txt).into());
             }
         }
         let top = self.lua.get_top();
         let dbg = match self.lua.to_type::<String>(top) {
             Some(x) => x,
-            None => return (Err(Error::Conversion.into()),
-                            String::from("Debug info is of wrong type")),
+            None => return Err(Error::Conversion.into()),
         };
         let result = match self.lua.to_type::<String>(top-1) {
             Some(ref x) => from_str(x).map_err(|_| Error::Conversion.into()),
@@ -87,6 +84,12 @@ impl Scheduler {
         self.lua.gc(GcOption::Collect, 0);
         info!("Garbage after collection: {}Kb",
             self.lua.gc(GcOption::Count, 0));
-        return (result, dbg);
+        result.map(|schedule| {
+            SchedulerResult {
+                schedule,
+                log: dbg,
+                actions: HashMap::new(),
+            }
+        })
     }
 }

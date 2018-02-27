@@ -1,7 +1,6 @@
 use std::path::Path;
 
 use failure::Error;
-use serde_json::{Value as Json};
 
 mod execute;
 mod state;
@@ -10,7 +9,7 @@ mod luatic;
 mod wasm;
 
 pub use self::state::{Schedule, ScheduleId, from_json};
-pub use self::main::{main as run, Settings, SchedulerInput};
+pub use self::main::{main as run, Settings, SchedulerInput, SchedulerResult};
 
 enum Scheduler {
     Lua(self::luatic::Scheduler),
@@ -19,7 +18,7 @@ enum Scheduler {
 
 impl Scheduler {
     fn execute(&mut self, input: &SchedulerInput)
-        -> (Result<Json, Error>, String)
+        -> Result<SchedulerResult, Error>
     {
         use self::Scheduler::*;
         match *self {
