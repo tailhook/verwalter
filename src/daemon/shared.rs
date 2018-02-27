@@ -6,6 +6,7 @@ use std::time::{SystemTime};
 use std::collections::{HashMap, BTreeMap, HashSet};
 use std::collections::btree_map::Entry::{Occupied, Vacant};
 
+use futures::sync::oneshot;
 use async_slot as slot;
 use tokio_core::reactor::Remote;
 use time::{get_time};
@@ -78,13 +79,24 @@ pub enum PushActionError {
 }
 
 #[derive(Debug)]
+pub enum ActionError {
+    NoResponse,
+}
+
+#[derive(Debug)]
+pub struct Action {
+    data: Arc<Json>,
+    channel: oneshot::Sender<Result<Json, ActionError>>,
+}
+
+#[derive(Debug)]
 struct State {
     last_known_schedule: Option<Arc<Schedule>>,
     stable_schedule: Option<Arc<Schedule>>,
     owned_schedule: Option<Arc<Schedule>>,
     last_scheduler_debug_info: Arc<Option<(SchedulerInput, String)>>,
     election: Arc<ElectionState>,
-    actions: BTreeMap<u64, Arc<Json>>,
+    actions: BTreeMap<u64, Action>,
     errors: Arc<HashMap<&'static str, String>>,
     failed_roles: Arc<HashSet<String>>,
     // TODO(tailhook) it's a bit ugly that parents used only once, are
@@ -168,7 +180,7 @@ impl SharedState {
         self.lock().owned_schedule.clone()
     }
     pub fn pending_actions(&self) -> BTreeMap<u64, Arc<Json>> {
-        self.lock().actions.clone()
+        self.lock().actions.iter().map(|(&k, a)| (k, a.data.clone())).collect()
     }
     pub fn errors(&self) -> Arc<HashMap<&'static str, String>> {
         self.lock().errors.clone()
@@ -237,12 +249,20 @@ impl SharedState {
     }
     pub fn set_schedule_by_leader(&self, cookie: LeaderCookie,
         val: Schedule, input: SchedulerInput, debug: String,
-        actions: HashMap<u64, Json>)
+        mut actions: HashMap<u64, Json>)
     {
         let mut guard = self.lock();
         if guard.election.is_leader && guard.election.epoch == cookie.epoch {
-            for action in cookie.actions.keys() {
-                guard.actions.remove(action);
+            for id in cookie.actions.keys() {
+                if let Some(action) = guard.actions.remove(id) {
+                    action.channel.send(match actions.remove(id) {
+                        Some(value) => Ok(value),
+                        None => Err(ActionError::NoResponse),
+                    }).ok();
+                }
+            }
+            for (aid, action) in actions {
+                error!("unsolicited action response {}: {:?}", aid, action);
             }
             let schedule = Arc::new(val);
             guard.last_known_schedule = Some(schedule.clone());
@@ -300,14 +320,16 @@ impl SharedState {
             epoch: guard.election.epoch,
             parent_schedules: guard.parent_schedules.take()
               .unwrap_or(guard.stable_schedule.iter().cloned().collect()),
-            actions: guard.actions.clone(),
+            actions: guard.actions
+                .iter().map(|(&k, a)| (k, a.data.clone())).collect(),
         })
     }
     pub fn refresh_cookie(&self, cookie: &mut LeaderCookie) -> bool {
         let guard = self.lock();
         if cookie.epoch == guard.election.epoch {
             // TODO(tailhook) update only changed items
-            cookie.actions = guard.actions.clone();
+            cookie.actions = guard.actions
+                .iter().map(|(&k, a)| (k, a.data.clone())).collect();
             return true;
         } else {
             return false;
@@ -323,7 +345,10 @@ impl SharedState {
                 .expect("apply channel is alive");
         }
     }
-    pub fn push_action(&self, data: Json) -> Result<u64, PushActionError> {
+    pub fn push_action(&self, data: Json,
+        respond: oneshot::Sender<Result<Json, ActionError>>)
+        -> Result<u64, PushActionError>
+    {
         let mut guard = self.lock();
 
         if !guard.election.is_leader {
@@ -340,7 +365,10 @@ impl SharedState {
             match guard.actions.entry(millis + i) {
                 Occupied(_) => continue,
                 Vacant(x) => {
-                    x.insert(Arc::new(data));
+                    x.insert(Action {
+                        data: Arc::new(data),
+                        channel: respond,
+                    });
                     return Ok(millis + i);
                 }
             }

@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 use futures::future::{FutureResult, ok, Future};
+use futures::sync::oneshot;
 use gron::json_to_gron;
 use serde::Serialize;
 use serde_json::{Value, to_writer, to_writer_pretty, to_value};
@@ -133,6 +134,14 @@ pub fn respond_text<S>(mut e: Encoder<S>, data: &str)
     if e.done_headers().unwrap() {
         e.write_body(data.as_bytes());
     }
+    ok(e.done())
+}
+
+pub fn respond_204<S>(mut e: Encoder<S>)
+    -> FutureResult<EncoderDone<S>, Error>
+{
+    e.status(Status::NoContent);
+    e.done_headers().unwrap();
     ok(e.done())
 }
 
@@ -333,7 +342,8 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
         }
         PushAction => {
             Ok(read_json(move |input: Value, e| {
-                match state.push_action(input) {
+                let (tx, _) = oneshot::channel();
+                match state.push_action(input, tx) {
                     Ok(id) => {
                         #[derive(Serialize)]
                         struct Registered {
@@ -342,6 +352,37 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                         Box::new(respond(e, format, &Registered {
                             registered: id,
                         }))
+
+                    }
+                    Err(PushActionError::TooManyRequests) => {
+                        Box::new(error_page(TooManyRequests, e))
+                    }
+                    Err(PushActionError::NotALeader) => {
+                        // Fix again to 'misdirected request' ?
+                        Box::new(error_page(ServiceUnavailable, e))
+                    }
+                }
+            }))
+        }
+        WaitAction => {
+            Ok(read_json(move |input: Value, e| {
+                let (tx, rx) = oneshot::channel();
+                match state.push_action(input, tx) {
+                    Ok(_id) => {
+                        use shared::ActionError::*;
+                        Box::new(
+                            rx.then(move |res| match res {
+                                Ok(Ok(val)) => {
+                                    respond(e, format, &val)
+                                }
+                                // TODO(tailhook) show some error to user
+                                Ok(Err(NoResponse)) => {
+                                    respond_204(e)
+                                }
+                                Err(_) => {
+                                    error_page(ServiceUnavailable, e)
+                                }
+                            }))
 
                     }
                     Err(PushActionError::TooManyRequests) => {

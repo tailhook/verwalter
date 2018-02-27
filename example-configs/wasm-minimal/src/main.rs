@@ -13,7 +13,6 @@ extern {
                         file_ptr: *const u8, file_len: usize, line: u32);
 }
 
-
 fn main() {
     set_hook(Box::new(|panic_info| {
         let payload = panic_info.payload();
@@ -55,13 +54,14 @@ fn _scheduler_wrapper(data: &[u8]) -> Vec<u8> {
             ).expect("can serialize error")
         }
     };
-    let result = _scheduler_inner(input);
-    match to_vec(&result) {
+    let (schedule, mut debug) = _scheduler_inner(input);
+    match to_vec(&json!({"schedule": schedule, "log": debug})) {
         Ok(result) => result,
         Err(e) => {
-            let (_, mut debug) = result;
             writeln!(&mut debug, "\nError serializing input: {}", e).ok();
-            return to_vec(&json!([{}, debug])).expect("can serialize error")
+            return to_vec(
+                &json!({"schedule": Value::Null, "log": debug})
+            ).expect("can serialize error")
         }
     }
 }

@@ -15,6 +15,7 @@ pub enum ApiRoute {
     Backups,
     Backup(String),
     PushAction,
+    WaitAction,
     ActionIsPending(u64),
     PendingActions,
     ForceRenderAll,
@@ -126,6 +127,7 @@ fn parse_api(path: &str) -> Option<Route> {
             }
         }
         ("action", "") => Some(Api(PushAction, api_suffix(path))),
+        ("wait_action", "") => Some(Api(WaitAction, api_suffix(path))),
         ("force_render_all", "") => Some(Api(ForceRenderAll, Plain)),
         ("action_is_pending", tail) => {
             tail.parse().map(|x| {
