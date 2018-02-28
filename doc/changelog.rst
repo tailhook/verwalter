@@ -11,6 +11,7 @@ Verwalter 0.11.0
 * feature: new ``SplitText`` action, to deal with multiple generated
   files easily
 * bugfix: wasm module will be reinitialized after panic
+* bugfix: since verwalter 0.1.4 verwalter couldn't work as a single node
 
 
 .. _changelog-0.10.4:

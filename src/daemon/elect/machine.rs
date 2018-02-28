@@ -144,7 +144,7 @@ impl Machine {
         let (machine, action) = match self {
             Starting { .. } => {
                 info!("[{}] Time passed. Electing as a leader", info.id);
-                if info.all_hosts.len() == 1 || info.debug_force_leader {
+                if info.all_hosts.len() == 0 || info.debug_force_leader {
                     // No other hosts. May safefully become a leader
                     report(&SELF_ELECT_NO, &SELF_ELECT_TM);
                     become_leader(1, now)
