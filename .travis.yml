@@ -36,7 +36,7 @@ jobs:
     script: |
       mkdir -p dist
       rustup target add x86_64-unknown-linux-musl
-      cargo build --target=x86_64-unknown-linux-musl --release
+      cargo build --target=x86_64-unknown-linux-musl --release -v --bin verwalter_render
       fakeroot sh -ecx '
         install -D target/x86_64-unknown-linux-musl/release/verwalter_render pkg/usr/bin/verwalter_render
         tar -C pkg -czf dist/verwalter_render-static-$TRAVIS_TAG.tar.gz usr
