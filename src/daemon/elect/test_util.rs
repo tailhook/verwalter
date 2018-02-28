@@ -23,16 +23,7 @@ impl Environ {
     pub fn new(id: &str) -> Environ {
         Environ {
             id: id.parse().unwrap(),
-            all_hosts: vec![(id.parse().unwrap(), ArcCell::new(Arc::new(Peer {
-                addr: Some(net::SocketAddr::V4(net::SocketAddrV4::new(
-                    net::Ipv4Addr::new(127, 0, 0, 1),
-                    12345))),
-                hostname: format!("{}", id),
-                name: format!("{}", id),
-                schedule: None,
-                last_report_direct: Some(SystemTime::now()),
-                known_since: SystemTime::now(),
-            })))].into_iter().collect(),
+            all_hosts: vec![].into_iter().collect(),
             now: Instant::now(),
             tspec: Instant::now(),
         }
