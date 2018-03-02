@@ -55,15 +55,15 @@ commands:
         container: xenial
         environ: &fake_rust_log
           # disable errors on our fake IP addresses
-          RUST_LOG: info,verwalter::elect::network=off
+          RUST_LOG: debug,tokio_core=warn,verwalter::elect::network=off
         run:
         - ./target/debug/verwalter
         - --config-dir=/work/example-configs/pyapp
         - --storage-dir=tmp/storage
         - --log-dir=/tmp/logs
         - --override-machine-id=77985419c732412ea38b94db00000000
-        - --hostname=beta
-        - --debug-force-leader
+        - --hostname=alpha
+        #- --debug-force-leader
       cantal: &fake_cantal !Command
         container: util
         environ:
@@ -72,8 +72,9 @@ commands:
         - python3
         - util/fake-cantal.py
         - --peers
-        - beta
-        - gamma
+        - self:alpha
+        #- beta
+        #- gamma
       webpack: !Command
         container: js
         work-dir: frontend
@@ -286,7 +287,7 @@ containers:
                       libreadline-dev, wget,  # these two are for lua
                       vim]  # for version management
     - &rust !TarInstall
-      url: https://static.rust-lang.org/dist/rust-1.23.0-x86_64-unknown-linux-gnu.tar.gz
+      url: https://static.rust-lang.org/dist/rust-1.24.1-x86_64-unknown-linux-gnu.tar.gz
       script: "./install.sh --prefix=/usr --components=rustc,cargo \
                --components=rustc,rust-std-x86_64-unknown-linux-gnu,cargo"
     - &bulk !Tar
@@ -334,7 +335,7 @@ containers:
     - *rust
     - !Install [musl-tools, musl-dev, libreadline-dev]
     - !TarInstall
-      url: "https://static.rust-lang.org/dist/rust-std-1.23.0-x86_64-unknown-linux-musl.tar.gz"
+      url: "https://static.rust-lang.org/dist/rust-std-1.24.1-x86_64-unknown-linux-musl.tar.gz"
       script: "./install.sh --prefix=/musl \
                --components=rust-std-x86_64-unknown-linux-musl"
     - !Sh 'ln -s /musl/lib/rustlib/x86_64-unknown-linux-musl /usr/lib/rustlib/x86_64-unknown-linux-musl'
