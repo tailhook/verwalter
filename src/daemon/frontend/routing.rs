@@ -160,7 +160,8 @@ pub fn route(head: &Head) -> Route {
                 return Route::NotFound;
             }
             match path_component(suffix) {
-                ("js", _) | ("css", _) | ("fonts", _) | ("img", _) => {
+                ("js", _) | ("css", _) | ("fonts", _) | ("img", _) |
+                ("files", _) => {
                     Some(AlterStatic(path[2..].to_string()))
                 }
                 _ => {

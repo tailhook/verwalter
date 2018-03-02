@@ -12,6 +12,7 @@ Verwalter 0.11.0
   files easily
 * bugfix: wasm module will be reinitialized after panic
 * bugfix: since verwalter 0.1.4 verwalter couldn't work as a single node
+* breaking: serves ``/files/`` directory from static files
 
 
 .. _changelog-0.10.4:
