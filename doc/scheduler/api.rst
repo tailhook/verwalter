@@ -1,4 +1,4 @@
-.. default-domain:: lua
+.. default-domain:: js
 
 
 =============

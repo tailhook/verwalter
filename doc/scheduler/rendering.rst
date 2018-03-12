@@ -1,9 +1,11 @@
+.. _rendering:
+
 =========
 Rendering
 =========
 
 In verwalter "rendering" is a process of applying schedule to configure
-specific application. It may consist of::
+specific application. It may consist of:
 
 1. Substituting variables in textual templates
 2. Running shell commands

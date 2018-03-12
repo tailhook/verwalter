@@ -1,1 +1,0 @@
-git+https://github.com/victorliu/sphinx-lua.git@ee30259

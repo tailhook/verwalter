@@ -367,9 +367,9 @@ containers:
 
   docs:
     setup:
-    - !Alpine v3.3
+    - !Alpine v3.7
     - !Install [py-sphinx, make, py-sphinx_rtd_theme]
-    - !Py2Requirements doc/requirements.txt
+    - !Py3Requirements doc/requirements.txt
 
   luacheck:
     setup:
