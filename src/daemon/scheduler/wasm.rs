@@ -5,16 +5,16 @@ use std::path::{Path};
 use failure::{Error, err_msg};
 use serde_json::{to_vec, de};
 use serde::Serialize;
-use wasmi::{self, load_from_buffer, ModuleInstance, ImportsBuilder, ModuleRef};
+use wasmi::{self, ModuleInstance, ImportsBuilder, ModuleRef};
 use wasmi::RuntimeValue::I32;
-use wasmi::{LoadedModule, MemoryRef};
+use wasmi::{Module, MemoryRef};
 use wasmi::{Externals, RuntimeValue, RuntimeArgs, ModuleImportResolver};
 use wasmi::{FuncRef, ValueType, Signature, FuncInstance};
+use wasmi::memory_units::Bytes;
 
 use scheduler::main::SchedulerResult;
 
 
-const PAGE_SIZE: usize = 65536; // for some reason it's not in interpreter
 const PANIC_INDEX: usize = 0;
 const POW_INDEX: usize = 100;
 const FMOD_INDEX: usize = 101;
@@ -24,7 +24,7 @@ const LOG10_INDEX: usize = 106;
 
 
 pub(in scheduler) struct Scheduler {
-    loaded_module: LoadedModule,
+    loaded_module: Module,
     module: ModuleRef,
     memory: MemoryRef,
     scheduler_util: Util,
@@ -53,7 +53,7 @@ pub(in scheduler) fn read(dir: &Path)
     File::open(&path)
         .and_then(|mut f| f.read_to_end(&mut buf))
         .map_err(|e| err_msg(format!("Error reading {:?}: {}", path, e)))?;
-    let loaded_module = load_from_buffer(&buf)
+    let loaded_module = Module::from_buffer(&buf)
         .map_err(|e| err_msg(format!("error decoding wasm: {:?}", e)))?;
     let (module, memory, scheduler_util) = instantiate(&loaded_module)
         .map_err(|e| format_err!("error instantiating wasm: {}", e))?;
@@ -61,7 +61,7 @@ pub(in scheduler) fn read(dir: &Path)
                    failed: false })
 }
 
-fn instantiate(module: &LoadedModule)
+fn instantiate(module: &Module)
     -> Result<(ModuleRef, MemoryRef, Util), Error>
 {
     let module = ModuleInstance::new(module,
@@ -135,8 +135,8 @@ impl Scheduler {
         };
         let roff = match roff {
             Ok(Some(I32(off))) => {
-                let memsize = self.memory.size() * PAGE_SIZE as u32;
-                if off as u32 >= memsize {
+                let memsize = Bytes::from(self.memory.current_size()).0;
+                if off as usize >= memsize {
                     bail!("scheduler returned offset {} \
                             but memory size is {}", off, memsize);
                 }
@@ -177,7 +177,7 @@ impl Scheduler {
 impl io::Read for ReadMemory {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let ref mut off = self.offset;
-        let memsize = self.memory.size() as usize * PAGE_SIZE;
+        let memsize = Bytes::from(self.memory.current_size()).0;
         debug_assert!(*off <= memsize);
         let dest = if *off + buf.len() > memsize {
             buf.split_at_mut(memsize - *off).0
@@ -241,19 +241,24 @@ impl ModuleImportResolver for Resolver {
 
 impl Externals for Util {
     fn invoke_index(&mut self, index: usize, args: RuntimeArgs)
-        -> Result<Option<RuntimeValue>, wasmi::Error>
+        -> Result<Option<RuntimeValue>, wasmi::Trap>
     {
         use wasmi::RuntimeValue::*;
-        let a1 = args.nth_value(0);
-        let a2 = args.nth_value(1);
+
+        fn bad_sig<T>() -> Result<T, wasmi::Trap> {
+            Err(wasmi::Trap::new(wasmi::TrapKind::UnexpectedSignature))
+        }
+
+        let a1 = args.nth_value_checked(0);
+        let a2 = args.nth_value_checked(1);
         let res = match index {
             PANIC_INDEX => {
                 // panic(payload_str, payload_len, file_ptr, file_len, line);
-                let payload_ptr: Result<u32, _> = args.nth(0);
-                let payload_len: Result<u32, _> = args.nth(1);
-                let file_ptr: Result<u32, _> = args.nth(2);
-                let file_len: Result<u32, _> = args.nth(3);
-                let line: Result<u32, _> = args.nth(4);
+                let payload_ptr: Result<u32, _> = args.nth_checked(0);
+                let payload_len: Result<u32, _> = args.nth_checked(1);
+                let file_ptr: Result<u32, _> = args.nth_checked(2);
+                let file_len: Result<u32, _> = args.nth_checked(3);
+                let line: Result<u32, _> = args.nth_checked(4);
                 let payload = match (payload_ptr, payload_len) {
                     (_, Ok(0)) | (_, Err(_)) | (Err(_), _) => {
                         "<non-str payload>".into()
@@ -288,35 +293,41 @@ impl Externals for Util {
                     filename, line.unwrap_or(0), payload);
                 return Ok(None)
             }
-            POW_INDEX => match (a1.unwrap(), a2.unwrap()) {
+            POW_INDEX => match (a1?, a2?) {
                 (I32(a), I32(b)) => I32(i32::pow(a, b as u32)),
                 (I64(a), I32(b)) => I64(i64::pow(a, b as u32)),
                 (F32(a), I32(b)) => F32(f32::powi(a, b)),
                 (F64(a), I32(b)) => F64(f64::powi(a, b)),
-                (a, b) => return Err(wasmi::Error::Trap(
-                    format!("Invalid args for pow: {:?} / {:?}", a, b))),
+                (a, b) => {
+                    error!("Invalid args for pow: {:?} / {:?}", a, b);
+                    return bad_sig();
+                }
             },
-            FMOD_INDEX => match (a1.unwrap(), a2.unwrap()) {
+            FMOD_INDEX => match (a1?, a2?) {
                 (F32(a), F32(b)) => F32(a % b),
                 (F64(a), F64(b)) => F64(a % b),
-                (a, b) => return Err(wasmi::Error::Trap(
-                    format!("Invalid args for fmod: {:?} / {:?}", a, b))),
+                (a, b) => {
+                    error!("Invalid args for fmod: {:?} / {:?}", a, b);
+                    return bad_sig();
+                }
             },
-            EXP2_INDEX => match a1.unwrap() {
+            EXP2_INDEX => match a1? {
                 I32(a) => F64((a as f64).exp2()),
                 I64(a) => F64((a as f64).exp2()),
                 F32(a) => F32(a.exp2()),
                 F64(a) => F64(a.exp2()),
             },
-            LDEXP_INDEX => match (a1.unwrap(), a2.unwrap()) {
+            LDEXP_INDEX => match (a1?, a2?) {
                 (F32(a), I32(b)) => F32(a*(b as f32).exp2()),
                 (F64(a), I32(b)) => F64(a*(b as f64).exp2()),
                 (F32(a), F32(b)) => F32(a*b.exp2()),
                 (F64(a), F64(b)) => F64(a*b.exp2()),
-                (a, b) => return Err(wasmi::Error::Trap(
-                    format!("Invalid args for ldexp: {:?} / {:?}", a, b))),
+                (a, b) => {
+                    error!("Invalid args for ldexp: {:?} / {:?}", a, b);
+                    return bad_sig();
+                }
             },
-            LOG10_INDEX => match a1.unwrap() {
+            LOG10_INDEX => match a1? {
                 I32(a) => F64((a as f64).log10()),
                 I64(a) => F64((a as f64).log10()),
                 F32(a) => F32(a.log10()),

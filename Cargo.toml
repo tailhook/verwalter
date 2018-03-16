@@ -64,7 +64,7 @@ http-file-headers = "0.1.6"
 hex = "0.3.1"
 deflate = {version="0.7.17", features=["gzip"]}
 capturing-glob = "0.1.1"
-wasmi = "0.0.0"
+wasmi = { git="https://github.com/paritytech/wasmi", rev="6253dd6" }
 
 [workspace]
 exclude = ["example-configs"]
