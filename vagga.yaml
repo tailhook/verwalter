@@ -150,12 +150,12 @@ commands:
     container: trusty
     run: [make, ubuntu-packages]
 
-  _package-precise: !Command
-    container: precise
-    run: [make, ubuntu-packages]
-
   _package-xenial: !Command
     container: xenial
+    run: [make, ubuntu-packages]
+
+  _package-bionic: !Command
+    container: bionic
     run: [make, ubuntu-packages]
 
   _package-verwalter_render: !Command
@@ -166,7 +166,7 @@ commands:
     container: xenial
     description: Build packages and repostories (mostly for CI)
     prerequisites: [make-js-release,
-                    _package-trusty, _package-precise, _package-xenial,
+                    _package-trusty, _package-xenial, _package-bionic,
                     _package-verwalter_render]
     accepts_arguments: true
     run: |
@@ -313,9 +313,9 @@ containers:
     - *bulk
     environ: *environ
 
-  precise:
+  bionic:
     setup:
-    - !Ubuntu precise
+    - !Ubuntu bionic
     - *pkgs
     - *rust
     - *bulk

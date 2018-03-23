@@ -60,25 +60,6 @@ repositories:
   keep-releases: 100
   match-version: \+trusty1$
 
-# precise
-- kind: debian
-  suite: precise
-  component: verwalter
-  keep-releases: 1
-  match-version: ^\d+\.\d+\.\d+\+precise1$
-
-- kind: debian
-  suite: precise
-  component: verwalter-stable
-  keep-releases: 1000
-  match-version: ^\d+\.\d+\.\d+\+precise1$
-
-- kind: debian
-  suite: precise
-  component: verwalter-testing
-  keep-releases: 100
-  match-version: \+precise1$
-
 # xenial
 - kind: debian
   suite: xenial
@@ -97,3 +78,22 @@ repositories:
   component: verwalter-testing
   keep-releases: 100
   match-version: \+xenial1$
+
+# bionic
+- kind: debian
+  suite: bionic
+  component: verwalter
+  keep-releases: 1
+  match-version: ^\d+\.\d+\.\d+\+bionic1$
+
+- kind: debian
+  suite: bionic
+  component: verwalter-stable
+  keep-releases: 1000
+  match-version: ^\d+\.\d+\.\d+\+bionic1$
+
+- kind: debian
+  suite: bionic
+  component: verwalter-testing
+  keep-releases: 100
+  match-version: \+bionic1$
