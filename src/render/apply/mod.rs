@@ -172,43 +172,26 @@ pub fn apply_list(role: &String,
     sandbox: &Sandbox)
     -> Result<(), Error>
 {
-    let mut tasks = Vec::new();
     for &(ref aname, ref commands, ref source) in &actions {
-        if commands.iter().any(|cmd| cmd.needs_pitch()) {
-            // TODO(tailhook) log.preaction?
-            let mut action = log.action(&aname);
-            let mut atasks = Vec::new();
-            for cmd in commands {
-                let vars = expand::Variables::new()
-                   .add("role", role)
-                   .add_source(&source);
-                if cmd.needs_pitch() {
-                    let mut task = Task {
-                        runner: &aname,
-                        log: &mut action,
-                        scratch: Scratch::new(),
-                        dry_run, source, sandbox,
-                    };
-                    cmd.pitch(&mut task, &vars)?;
-                    atasks.push((cmd, task.scratch, vars));
-                } else {
-                    atasks.push((cmd, Scratch::new(), vars));
-                }
-            }
-            tasks.push((aname, atasks, source));
-        } else {
-            let mut atasks = Vec::new();
-            for cmd in commands {
-                let vars = expand::Variables::new()
-                   .add("role", role)
-                   .add_source(&source);
+        let mut action = log.action(&aname);
+        let mut atasks = Vec::with_capacity(commands.len());
+        for cmd in commands {
+            let vars = expand::Variables::new()
+               .add("role", role)
+               .add_source(&source);
+            if cmd.needs_pitch() {
+                let mut task = Task {
+                    runner: &aname,
+                    log: &mut action,
+                    scratch: Scratch::new(),
+                    dry_run, source, sandbox,
+                };
+                cmd.pitch(&mut task, &vars)?;
+                atasks.push((cmd, task.scratch, vars));
+            } else {
                 atasks.push((cmd, Scratch::new(), vars));
             }
-            tasks.push((aname, atasks, source));
-        };
-    }
-    for (aname, atasks, source) in tasks {
-        let mut action = log.action(&aname);
+        }
         for (cmd, scratch, vars) in atasks {
             cmd.execute(&mut Task {
                 runner: &aname,
