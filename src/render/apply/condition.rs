@@ -25,7 +25,7 @@ impl Condition {
     pub fn config() -> V::Structure<'static> {
         V::Structure::new()
         .member("dirs_changed", V::Sequence::new(V::Scalar::new()))
-        .member("commands", V::Sequence::new(command_validator()))
+        .member("commands", V::Sequence::new(command_validator(false)))
     }
 }
 

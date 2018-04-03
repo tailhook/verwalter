@@ -60,21 +60,24 @@ quick_error! {
 }
 
 
-pub fn command_validator<'x>() -> V::Enum<'x> {
-    V::Enum::new()
-    .option("RootCommand", apply::root_command::RootCommand::config())
-    .option("Cmd", apply::cmd::Cmd::config())
-    .option("Sh", apply::shell::Sh::config())
-    .option("Copy", apply::copy::Copy::config())
-    .option("Condition", apply::condition::Condition::config())
-    .option("SplitText", apply::split_text::SplitText::config())
-    .option("PeekLog", apply::peek_log::PeekLog::config())
+pub fn command_validator<'x>(root: bool) -> V::Enum<'x> {
+    let mut val = V::Enum::new()
+        .option("RootCommand", apply::root_command::RootCommand::config())
+        .option("Cmd", apply::cmd::Cmd::config())
+        .option("Sh", apply::shell::Sh::config())
+        .option("Copy", apply::copy::Copy::config())
+        .option("SplitText", apply::split_text::SplitText::config())
+        .option("PeekLog", apply::peek_log::PeekLog::config());
+    if root {
+        val = val.option("Condition", apply::condition::Condition::config())
+    }
+    return val;
 }
 
 fn config_validator<'x>() -> V::Structure<'x> {
     V::Structure::new()
     .member("templates", V::Mapping::new(V::Scalar::new(), V::Scalar::new()))
-    .member("commands", V::Sequence::new(command_validator()))
+    .member("commands", V::Sequence::new(command_validator(true)))
 }
 
 fn read_renderer(path: &Path, base: &Path)
