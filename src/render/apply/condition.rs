@@ -60,7 +60,11 @@ impl Action for Condition {
         for dir in &self.dirs_changed {
             let old_hash = task.scratch.condition.dirs.get(dir);
             changed = match (dir.exists(), old_hash) {
-                (false, None) => false,
+                (false, None) => {
+                    task.log.log(format_args!(
+                        "Condition: {:?} not exists", dir));
+                    false
+                }
                 (true, Some(old_hash)) => {
                     let mut cfg = ScannerConfig::new();
                     cfg.auto_threads();
@@ -71,16 +75,27 @@ impl Action for Condition {
                         .context(dir.display().to_string())?;
                     let hash = to_hex(get_hash(&mut Cursor::new(&index_buf))?);
                     if &hash != old_hash {
-                        task.log.log(format_args!("{:?} changed {:.6} -> {:.6}",
+                        task.log.log(format_args!(
+                            "Condition: {:?} changed {:.6} -> {:.6}",
                             dir, old_hash, hash));
                         true
                     } else {
-                        task.log.log(format_args!("{:?} unchanged {:.6}",
+                        task.log.log(format_args!(
+                            "Condition: {:?} unchanged {:.6}",
                             dir, old_hash));
                         false
                     }
                 }
-                (true, None) | (false, Some(_)) => true,  // definitely changed
+                (true, None) => {
+                    task.log.log(format_args!(
+                        "Condition: {:?} new directory", dir));
+                    true
+                }
+                (false, Some(_)) => {
+                    task.log.log(format_args!(
+                        "Condition: {:?} directory deleted", dir));
+                    true
+                }
             };
             if changed {
                 break;
