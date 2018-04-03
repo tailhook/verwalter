@@ -88,7 +88,7 @@ pub struct Deployment<'a> {
     index: &'a mut Index,
     id: String,
     global_segment: String,
-    log: File,
+    log: io::LineWriter<File>,
     errors: Vec<Error>,
     done: bool,
 }
@@ -97,7 +97,7 @@ pub struct Role<'a: 'b, 'b> {
     deployment: &'b mut Deployment<'a>,
     role: &'b str,
     segment: String,
-    log: File,
+    log: io::LineWriter<File>,
     err: Option<io::Error>,
     full_role: bool,
 }
@@ -198,7 +198,7 @@ impl Index {
             index: self,
             id: id.to_string(),
             global_segment: segment,
-            log: log,
+            log: io::LineWriter::new(log),
             errors: errors,
             done: !start,
         };
@@ -214,7 +214,7 @@ impl<'a> Deployment<'a> {
     {
         let time = now_utc().rfc3339().to_string();
         let pos = if self.index.stdout { 0 } else {
-            match self.log.seek(SeekFrom::End(0)) {
+            match self.log.get_mut().seek(SeekFrom::End(0)) {
                 Ok(x) => x,
                 Err(e) => {
                     self.errors.push(Error::WriteGlobal(e));
@@ -357,7 +357,7 @@ impl<'a> Deployment<'a> {
             deployment: self,
             role: name,
             segment: segment,
-            log: log_file,
+            log: io::LineWriter::new(log_file),
             full_role: start,
             err: None,
         };
@@ -439,7 +439,7 @@ impl<'a> Drop for Deployment<'a> {
 impl<'a, 'b> Role<'a, 'b> {
     fn entry(&mut self, marker: Marker) {
         let pos = if self.deployment.index.stdout { 0 } else {
-            match self.log.seek(SeekFrom::End(0)) {
+            match self.log.get_mut().seek(SeekFrom::End(0)) {
                 Ok(x) => x,
                 Err(e) => {
                     add_err(&mut self.err, Some(e));
@@ -521,10 +521,10 @@ impl<'a, 'b, 'c> Action<'a, 'b, 'c> {
     pub fn redirect_command(&mut self, cmd: &mut Command)
         -> Result<(), Error>
     {
-        let file = try!(nix::unistd::dup(self.role.log.as_raw_fd())
+        let file = try!(nix::unistd::dup(self.role.log.get_ref().as_raw_fd())
             .map_err(|e| Error::Dup(e)));
         cmd.stdout(unsafe { Stdio::from_raw_fd(file) });
-        let file = try!(nix::unistd::dup(self.role.log.as_raw_fd())
+        let file = try!(nix::unistd::dup(self.role.log.get_ref().as_raw_fd())
             .map_err(|e| Error::Dup(e)));
         cmd.stderr(unsafe { Stdio::from_raw_fd(file) });
         Ok(())
