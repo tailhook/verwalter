@@ -148,6 +148,15 @@ impl<'a> Deserialize<'a> for Command {
 }
 
 impl Action for Command {
+    fn needs_pitch(&self) -> bool {
+        self.0.needs_pitch()
+    }
+
+    fn pitch(&self, task: &mut Task, variables: &Variables)
+        -> Result<(), Error>
+    {
+        self.0.pitch(task, variables)
+    }
     fn execute(&self, task: &mut Task, variables: &Variables)
         -> Result<(), Error>
     {
@@ -196,10 +205,7 @@ pub fn apply_list(role: &String,
             cmd.execute(&mut Task {
                 runner: &aname,
                 log: &mut action,
-                dry_run,
-                source: &source,
-                sandbox,
-                scratch,
+                dry_run, source, sandbox, scratch,
             }, &vars)?;
         }
     }
