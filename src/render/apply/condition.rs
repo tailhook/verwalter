@@ -76,24 +76,24 @@ impl Action for Condition {
                     let hash = to_hex(get_hash(&mut Cursor::new(&index_buf))?);
                     if &hash != old_hash {
                         task.log.log(format_args!(
-                            "Condition: {:?} changed {:.6} -> {:.6}",
+                            "Condition: {:?} changed {:.6} -> {:.6}\n",
                             dir, old_hash, hash));
                         true
                     } else {
                         task.log.log(format_args!(
-                            "Condition: {:?} unchanged {:.6}",
+                            "Condition: {:?} unchanged {:.6}\n",
                             dir, old_hash));
                         false
                     }
                 }
                 (true, None) => {
                     task.log.log(format_args!(
-                        "Condition: {:?} new directory", dir));
+                        "Condition: {:?} new directory\n", dir));
                     true
                 }
                 (false, Some(_)) => {
                     task.log.log(format_args!(
-                        "Condition: {:?} directory deleted", dir));
+                        "Condition: {:?} directory deleted\n", dir));
                     true
                 }
             };
