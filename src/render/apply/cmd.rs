@@ -29,12 +29,10 @@ impl Action for Cmd {
             try!(task.log.redirect_command(&mut cmd));
             cmd.status()
             .map_err(|e| {
-                task.log.log(format_args!(
-                    "Cmd {:#?} failed to start: {}\n", cmd, e));
-                format_err!("can't run {}: {:#?}: {}", task.runner, cmd, e)
+                task.log.log_err(format_args!(
+                    "Cmd {:#?} failed to start: {}\n", cmd, e))
             }).and_then(|s| if s.success() { Ok(()) } else {
-                task.log.log(format_args!("Cmd {:#?}: {}\n", cmd, s));
-                bail!("error running {}: {:#?}: {}", task.runner, cmd, s);
+                Err(task.log.log_err(format_args!("Cmd {:#?}: {}\n", cmd, s)))
             })
         } else {
             Ok(())
