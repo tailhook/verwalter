@@ -16,7 +16,7 @@ argparse = "0.2"
 handlebars = { version="0.26.1" }
 log = "0.4.1"
 env_logger = "0.5.3"
-tempfile = "2.1.5"
+tempfile = "3.0.0"
 quire = "0.3.1"
 yaml-rust = "0.4.0"
 scan_dir = "0.3"
@@ -65,7 +65,7 @@ hex = "0.3.1"
 deflate = {version="0.7.17", features=["gzip"]}
 capturing-glob = "0.1.1"
 wasmi = "0.1.0"
-dir-signature = "0.2.4"
+dir-signature = "0.2.5"
 
 [workspace]
 exclude = ["example-configs"]
