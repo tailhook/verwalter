@@ -2,6 +2,7 @@ extern crate nix;
 extern crate rustc_serialize;
 extern crate time;
 extern crate gron;
+extern crate failure;
 #[macro_use] extern crate quick_error;
 #[macro_use] extern crate log;
 
@@ -19,6 +20,7 @@ use std::fmt::Arguments;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
+use failure::err_msg;
 use time::now_utc;
 use gron::json_to_gron;
 use rustc_serialize::json::{Json, as_json, as_pretty_json};
@@ -418,6 +420,12 @@ impl<'a> Deployment<'a> {
              self.errors.push(Error::WriteGlobal(e));
         }
     }
+    pub fn log_err(&mut self, args: Arguments) -> failure::Error {
+        if let Err(e) = self.log.write_fmt(args) {
+             self.errors.push(Error::WriteGlobal(e));
+        }
+        err_msg(args.to_string())
+    }
 }
 
 impl<'a> Drop for Deployment<'a> {
@@ -466,6 +474,10 @@ impl<'a, 'b> Role<'a, 'b> {
     pub fn log(&mut self, args: Arguments) {
         add_err(&mut self.err, self.log.write_fmt(args).err());
     }
+    pub fn log_err(&mut self, args: Arguments) -> failure::Error {
+        add_err(&mut self.err, self.log.write_fmt(args).err());
+        err_msg(args.to_string())
+    }
 }
 
 impl<'a, 'b> Drop for Role<'a, 'b> {
@@ -483,6 +495,10 @@ impl<'a, 'b> Drop for Role<'a, 'b> {
 impl<'a, 'b, 'c> Action<'a, 'b, 'c> {
     pub fn log(&mut self, args: Arguments) {
         add_err(&mut self.role.err, self.role.log.write_fmt(args).err());
+    }
+    pub fn log_err(&mut self, args: Arguments) -> failure::Error {
+        add_err(&mut self.role.err, self.role.log.write_fmt(args).err());
+        err_msg(args.to_string())
     }
     pub fn external_log(&mut self, path: &Path, position: u64) {
         self.role.log(format_args!("File position {:?}:{}\n",

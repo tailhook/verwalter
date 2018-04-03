@@ -17,7 +17,7 @@ impl RootCommand {
 }
 
 impl Action for RootCommand {
-    fn execute(&self, mut task: Task, variables: Variables)
+    fn execute(&self, task: &mut Task, variables: &Variables)
         -> Result<(), Error>
     {
         let uid = unsafe { geteuid() };
@@ -38,14 +38,11 @@ impl Action for RootCommand {
             try!(task.log.redirect_command(&mut cmd));
             cmd.status()
             .map_err(|e| {
-                task.log.log(format_args!(
-                    "RootCommand {:#?} failed to start: {}\n", cmd, e));
-                Error::CantRun(
-                    task.runner.to_string(), format!("{:#?}", cmd), e)
+                task.log.log_err(format_args!(
+                    "RootCommand {:#?} failed to start: {}\n", cmd, e))
             }).and_then(|s| if s.success() { Ok(()) } else {
-                task.log.log(format_args!("RootCommand {:#?}: {}\n", cmd, s));
-                Err(Error::Command(
-                    task.runner.to_string(), format!("{:#?}", cmd), s))
+                Err(task.log.log_err(
+                    format_args!("RootCommand {:#?}: {}\n", cmd, s)))
             })
         } else {
             Ok(())

@@ -17,6 +17,7 @@ nix = "0.9.0"
 quick-error = "1.0.0"
 log = "0.3.6"
 gron = "0.4.0"
+failure = "0.1.1"
 
 [lib]
 path = "src/lib.rs"

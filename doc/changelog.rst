@@ -2,6 +2,15 @@ Verwalter Changes by Version
 ============================
 
 
+.. _changelog-0.11.1:
+
+Verwalter 0.11.1
+----------------
+
+* feature: add ``Condition`` action which allows to execute an action if
+  some files have been changed during executing other commands
+
+
 .. _changelog-0.11.0:
 
 Verwalter 0.11.0

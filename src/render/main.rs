@@ -1,7 +1,9 @@
 extern crate argparse;
 extern crate capturing_glob;
+extern crate dir_signature;
 extern crate error_chain;
 extern crate handlebars;
+extern crate hex;
 extern crate libc;
 extern crate quire;
 extern crate rand;
@@ -14,6 +16,7 @@ extern crate tempfile;
 extern crate tera;
 extern crate trimmer;
 extern crate yaml_rust;
+#[macro_use] extern crate failure;
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate serde_derive;
 #[macro_use] extern crate quick_error;

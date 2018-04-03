@@ -16,7 +16,7 @@ impl Cmd {
 }
 
 impl Action for Cmd {
-    fn execute(&self, mut task: Task, variables: Variables)
+    fn execute(&self, task: &mut Task, variables: &Variables)
         -> Result<(), Error>
     {
         let mut cmd = Command::new(&self.0[0]);
@@ -31,12 +31,10 @@ impl Action for Cmd {
             .map_err(|e| {
                 task.log.log(format_args!(
                     "Cmd {:#?} failed to start: {}\n", cmd, e));
-                Error::CantRun(
-                    task.runner.to_string(), format!("{:#?}", cmd), e)
+                format_err!("can't run {}: {:#?}: {}", task.runner, cmd, e)
             }).and_then(|s| if s.success() { Ok(()) } else {
                 task.log.log(format_args!("Cmd {:#?}: {}\n", cmd, s));
-                Err(Error::Command(
-                    task.runner.to_string(), format!("{:#?}", cmd), s))
+                bail!("error running {}: {:#?}: {}", task.runner, cmd, s);
             })
         } else {
             Ok(())

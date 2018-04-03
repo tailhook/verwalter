@@ -16,7 +16,7 @@ impl PeekLog {
 }
 
 impl Action for PeekLog {
-    fn execute(&self, mut task: Task, variables: Variables)
+    fn execute(&self, task: &mut Task, variables: &Variables)
         -> Result<(), Error>
     {
         let expanded = variables.expand(&self.0);

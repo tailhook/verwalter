@@ -24,7 +24,7 @@ impl Copy {
 }
 
 impl Action for Copy {
-    fn execute(&self, mut task: Task, variables: Variables)
+    fn execute(&self, task: &mut Task, variables: &Variables)
         -> Result<(), Error>
     {
         let src = variables.expand(&self.src);
@@ -32,31 +32,32 @@ impl Action for Copy {
         task.log(format_args!("Copy {{ src: {:?}, dest: {:?} }}\n",
             &self.src, &self.dest));
         if !task.dry_run {
-            let fname = try!(Path::new(&dest).file_name()
-                .ok_or_else(|| Error::InvalidArgument(
-                    "Copy destination must be filename not a directory",
-                    dest.clone())));
+            let fname = Path::new(&dest).file_name()
+                .ok_or_else(|| format_err!(
+                    "Copy destination must be filename not a directory: {:?}",
+                    dest))?;
             let tmpdest = Path::new(&dest).with_file_name(
                 format!(".tmp.{}", fname.to_str().unwrap()));
             fs::copy(&src, &tmpdest)
                 .map_err(|e| {
                     task.log.log(format_args!(
                         "{:?} failed to copy: {}\n", self, e));
-                    Error::IoError(e)
+                    format_err!("{:?} failed to copy: {}\n", self, e)
                 })?;
             if let Some(mode) = self.mode {
                 fs::set_permissions(&tmpdest, fs::Permissions::from_mode(mode))
                     .map_err(|e| {
                         task.log.log(format_args!(
                             "{:?} failed to set mode: {}\n", self, e));
-                        Error::IoError(e)
+                        format_err!("{:?} failed to set mode: {}\n", self, e)
                     })?;
             }
             fs::rename(&tmpdest, &dest)
                 .map_err(|e| {
                     task.log.log(format_args!(
                         "{:?} failed to rename: {}\n", self, e));
-                    Error::IoError(e)
+                    format_err!(
+                        "{:?} failed to rename: {}\n", self, e)
                 })?;
             Ok(())
         } else {

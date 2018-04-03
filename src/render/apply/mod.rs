@@ -1,9 +1,8 @@
-use std::io;
 use std::fmt::{self, Arguments, Debug};
 use std::sync::Arc;
-use std::process::ExitStatus;
 use std::collections::HashMap;
 
+use failure::Error;
 use serde::de::{Deserializer, Deserialize, Error as DeError, Visitor};
 use serde::de::{VariantAccess, EnumAccess};
 use tempfile::NamedTempFile;
@@ -15,11 +14,12 @@ use apply::expand::Variables;
 mod expand;
 
 // commands
-pub mod root_command;
 pub mod cmd;
-pub mod shell;
+pub mod condition;
 pub mod copy;
 pub mod peek_log;
+pub mod root_command;
+pub mod shell;
 pub mod split_text;
 
 const COMMANDS: &'static [&'static str] = &[
@@ -27,6 +27,7 @@ const COMMANDS: &'static [&'static str] = &[
     "Cmd",
     "Sh",
     "Copy",
+    "Condition",
     "SplitText",
     "PeekLog",
 ];
@@ -36,6 +37,7 @@ pub enum CommandName {
     Cmd,
     Sh,
     Copy,
+    Condition,
     SplitText,
     PeekLog,
 }
@@ -49,10 +51,27 @@ pub struct Task<'a: 'b, 'b: 'c, 'c: 'd, 'd> {
     pub dry_run: bool,
     pub source: &'d Source,
     pub sandbox: &'d Sandbox,
+    pub scratch: Scratch,
+}
+
+// TODO(tailhook) maybe make typemap or enum?
+pub struct Scratch {
+    pub condition: condition::Data,
 }
 
 trait Action: Debug + Send + Sync {
-    fn execute(&self, task: Task, variables: Variables)
+
+    fn needs_pitch(&self) -> bool {
+        false
+    }
+
+    fn pitch(&self, _task: &mut Task, _variables: &Variables)
+        -> Result<(), Error>
+    {
+        Ok(())
+    }
+
+    fn execute(&self, task: &mut Task, variables: &Variables)
         -> Result<(), Error>;
 }
 
@@ -61,40 +80,6 @@ pub struct Command(Arc<Action>);
 
 pub enum Source {
     TmpFiles(HashMap<String, NamedTempFile>),
-}
-
-quick_error!{
-    #[derive(Debug)]
-    pub enum Error {
-        Command(runner: String, cmd: String, status: ExitStatus) {
-            display("Action {:?} failed to run {:?}: {}", runner, cmd, status)
-            description("error running command")
-        }
-        CantRun(runner: String, cmd: String, err: io::Error) {
-            display("Action {:?} failed to run {:?}: {}", runner, cmd, err)
-            description("error running command")
-        }
-        Log(err: log::Error) {
-            from() cause(err)
-            display("error opening log file: {}", err)
-            description("error logging command info")
-        }
-        InvalidArgument(message: &'static str, value: String) {
-            display("{}: {}", message, value)
-            description(message)
-        }
-        FormatError(message: String) {
-            display("{}", message)
-        }
-        Other(message: String) {
-            display("{}", message)
-        }
-        IoError(err: io::Error) {
-            from() cause(err)
-            display("io error: {}", err)
-            description(err.description())
-        }
-    }
 }
 
 impl<'a> Deserialize<'a> for CommandName {
@@ -116,6 +101,7 @@ impl<'a> Visitor<'a> for NameVisitor {
             "Cmd" => Cmd,
             "Sh" => Sh,
             "Copy" => Copy,
+            "Condition" => Condition,
             "SplitText" => SplitText,
             "PeekLog" => PeekLog,
             _ => return Err(E::custom("invalid command")),
@@ -148,6 +134,7 @@ impl<'a> Visitor<'a> for CommandVisitor {
             Cmd => decode::<cmd::Cmd, _>(v),
             Sh => decode::<shell::Sh, _>(v),
             Copy => decode::<copy::Copy, _>(v),
+            Condition => decode::<condition::Condition, _>(v),
             SplitText => decode::<split_text::SplitText, _>(v),
             PeekLog => decode::<peek_log::PeekLog, _>(v),
         }
@@ -161,7 +148,7 @@ impl<'a> Deserialize<'a> for Command {
 }
 
 impl Action for Command {
-    fn execute(&self, task: Task, variables: Variables)
+    fn execute(&self, task: &mut Task, variables: &Variables)
         -> Result<(), Error>
     {
         self.0.execute(task, variables)
@@ -185,20 +172,61 @@ pub fn apply_list(role: &String,
     sandbox: &Sandbox)
     -> Result<(), Error>
 {
-    for (aname, commands, source) in actions {
+    let mut tasks = Vec::new();
+    for &(ref aname, ref commands, ref source) in &actions {
+        if commands.iter().any(|cmd| cmd.needs_pitch()) {
+            // TODO(tailhook) log.preaction?
+            let mut action = log.action(&aname);
+            let mut atasks = Vec::new();
+            for cmd in commands {
+                let vars = expand::Variables::new()
+                   .add("role", role)
+                   .add_source(&source);
+                if cmd.needs_pitch() {
+                    let mut task = Task {
+                        runner: &aname,
+                        log: &mut action,
+                        scratch: Scratch::new(),
+                        dry_run, source, sandbox,
+                    };
+                    cmd.pitch(&mut task, &vars)?;
+                    atasks.push((cmd, task.scratch, vars));
+                } else {
+                    atasks.push((cmd, Scratch::new(), vars));
+                }
+            }
+            tasks.push((aname, atasks, source));
+        } else {
+            let mut atasks = Vec::new();
+            for cmd in commands {
+                let vars = expand::Variables::new()
+                   .add("role", role)
+                   .add_source(&source);
+                atasks.push((cmd, Scratch::new(), vars));
+            }
+            tasks.push((aname, atasks, source));
+        };
+    }
+    for (aname, atasks, source) in tasks {
         let mut action = log.action(&aname);
-        for cmd in commands {
-            let vars = expand::Variables::new()
-               .add("role", role)
-               .add_source(&source);
-            try!(cmd.execute(Task {
+        for (cmd, scratch, vars) in atasks {
+            cmd.execute(&mut Task {
                 runner: &aname,
                 log: &mut action,
-                dry_run: dry_run,
+                dry_run,
                 source: &source,
-                sandbox: sandbox,
-            }, vars));
+                sandbox,
+                scratch,
+            }, &vars)?;
         }
     }
     Ok(())
+}
+
+impl Scratch {
+    fn new() -> Scratch {
+        Scratch {
+            condition: condition::Data::new(),
+        }
+    }
 }

@@ -65,6 +65,7 @@ hex = "0.3.1"
 deflate = {version="0.7.17", features=["gzip"]}
 capturing-glob = "0.1.1"
 wasmi = "0.1.0"
+dir-signature = "0.2.4"
 
 [workspace]
 exclude = ["example-configs"]
