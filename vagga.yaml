@@ -287,7 +287,7 @@ containers:
                       libreadline-dev, wget,  # these two are for lua
                       vim]  # for version management
     - &rust !TarInstall
-      url: https://static.rust-lang.org/dist/rust-1.24.1-x86_64-unknown-linux-gnu.tar.gz
+      url: https://static.rust-lang.org/dist/rust-1.25.0-x86_64-unknown-linux-gnu.tar.gz
       script: "./install.sh --prefix=/usr --components=rustc,cargo \
                --components=rustc,rust-std-x86_64-unknown-linux-gnu,cargo"
     - &bulk !Tar
@@ -335,7 +335,7 @@ containers:
     - *rust
     - !Install [musl-tools, musl-dev, libreadline-dev]
     - !TarInstall
-      url: "https://static.rust-lang.org/dist/rust-std-1.24.1-x86_64-unknown-linux-musl.tar.gz"
+      url: "https://static.rust-lang.org/dist/rust-std-1.25.0-x86_64-unknown-linux-musl.tar.gz"
       script: "./install.sh --prefix=/musl \
                --components=rust-std-x86_64-unknown-linux-musl"
     - !Sh 'ln -s /musl/lib/rustlib/x86_64-unknown-linux-musl /usr/lib/rustlib/x86_64-unknown-linux-musl'
