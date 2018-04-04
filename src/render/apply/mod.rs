@@ -17,6 +17,7 @@ mod expand;
 pub mod cmd;
 pub mod condition;
 pub mod copy;
+pub mod clean_files;
 pub mod peek_log;
 pub mod root_command;
 pub mod shell;
@@ -29,6 +30,7 @@ const COMMANDS: &'static [&'static str] = &[
     "Copy",
     "Condition",
     "SplitText",
+    "CleanFiles",
     "PeekLog",
 ];
 
@@ -39,6 +41,7 @@ pub enum CommandName {
     Copy,
     Condition,
     SplitText,
+    CleanFiles,
     PeekLog,
 }
 
@@ -103,6 +106,7 @@ impl<'a> Visitor<'a> for NameVisitor {
             "Copy" => Copy,
             "Condition" => Condition,
             "SplitText" => SplitText,
+            "CleanFiles" => CleanFiles,
             "PeekLog" => PeekLog,
             _ => return Err(E::custom("invalid command")),
         };
@@ -136,6 +140,7 @@ impl<'a> Visitor<'a> for CommandVisitor {
             Copy => decode::<copy::Copy, _>(v),
             Condition => decode::<condition::Condition, _>(v),
             SplitText => decode::<split_text::SplitText, _>(v),
+            CleanFiles => decode::<clean_files::CleanFiles, _>(v),
             PeekLog => decode::<peek_log::PeekLog, _>(v),
         }
     }

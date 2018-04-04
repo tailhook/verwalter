@@ -67,6 +67,7 @@ pub fn command_validator<'x>(root: bool) -> V::Enum<'x> {
         .option("Sh", apply::shell::Sh::config())
         .option("Copy", apply::copy::Copy::config())
         .option("SplitText", apply::split_text::SplitText::config())
+        .option("CleanFiles", apply::clean_files::CleanFiles::config())
         .option("PeekLog", apply::peek_log::PeekLog::config());
     if root {
         val = val.option("Condition", apply::condition::Condition::config())

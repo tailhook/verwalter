@@ -88,7 +88,7 @@ impl Action for SplitText {
         let src_fn = variables.expand(&self.src);
         let dest = variables.expand(&self.dest);
         task.log(format_args!("SplitText {{ src: {:?}, dest: {:?} }}\n",
-            &self.src, &self.dest));
+            &src_fn, &dest));
 
         if !task.dry_run {
             let src = BufReader::new(File::open(&src_fn)
