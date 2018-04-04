@@ -55,7 +55,8 @@ commands:
         container: xenial
         environ: &fake_rust_log
           # disable errors on our fake IP addresses
-          RUST_LOG: debug,tokio_core=warn,verwalter::elect::network=off
+          RUST_LOG: debug,tokio_core=warn,verwalter::elect::network=off,\
+                    tokio_reactor=warn,verwalter::frontend=warn
         run:
         - ./target/debug/verwalter
         - --config-dir=/work/example-configs/pyapp
@@ -109,7 +110,7 @@ commands:
           python3 util/fake-cantal.py \
             --peers self:n1 n2 n3 \
             --vagga-ips &
-          RUST_LOG=debug,mio=warn,tokio_core=warn ./target/debug/verwalter \
+          ./target/debug/verwalter \
             --config-dir=example-configs/pyapp --storage-dir=tmp/storage \
             --log-id --log-dir=/tmp/logs \
             --dry-run \
@@ -124,7 +125,7 @@ commands:
           python3 util/fake-cantal.py \
             --peers n1 self:n2 n3 \
             --vagga-ips &
-          RUST_LOG=debug,mio=warn,tokio_core=warn ./target/debug/verwalter \
+          ./target/debug/verwalter \
             --config-dir=example-configs/pyapp --storage-dir=tmp/storage \
             --log-id --log-dir=/tmp/logs \
             --dry-run \
@@ -139,7 +140,7 @@ commands:
           python3 util/fake-cantal.py \
             --peers n1 n2 self:n3 \
             --vagga-ips &
-          RUST_LOG=debug,mio=warn,tokio_core=warn ./target/debug/verwalter \
+          ./target/debug/verwalter \
             --config-dir=example-configs/pyapp --storage-dir=tmp/storage \
             --log-id --log-dir=/tmp/logs \
             --dry-run \
@@ -364,6 +365,8 @@ containers:
     - !Install [iptables]
     - !PipConfig { dependencies: true }
     - !Py3Requirements util/requirements.txt
+    environ:
+      RUST_LOG: debug,mio=warn,tokio_core=warn,tokio_reactor=warn,verwalter::frontend=warn
 
   docs:
     setup:
