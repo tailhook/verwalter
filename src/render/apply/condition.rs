@@ -62,7 +62,7 @@ impl Action for Condition {
             changed = match (dir.exists(), old_hash) {
                 (false, None) => {
                     task.log.log(format_args!(
-                        "Condition: {:?} not exists", dir));
+                        "Condition: {:?} not exists\n", dir));
                     false
                 }
                 (true, Some(old_hash)) => {
