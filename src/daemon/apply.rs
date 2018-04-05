@@ -168,6 +168,7 @@ fn apply_schedule(hash: &String, is_new: bool,
         .unwrap_or(&empty);
     let string_schedule = format!("{}", scheduler_result);
 
+    state.reset_unused_roles(node_roles.keys());
     for (role_name, ref node_role_vars) in node_roles.iter() {
         let mut rlog = match dlog.role(&role_name, true) {
             Ok(l) => l,

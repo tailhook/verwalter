@@ -5,6 +5,7 @@ use std::sync::atomic::AtomicBool;
 use std::time::{SystemTime};
 use std::collections::{HashMap, BTreeMap, HashSet};
 use std::collections::btree_map::Entry::{Occupied, Vacant};
+use std::mem;
 
 use futures::sync::oneshot;
 use async_slot as slot;
@@ -391,6 +392,19 @@ impl SharedState {
         let mut lock = self.lock();
         let role_errors = Arc::make_mut(&mut lock.failed_roles);
         role_errors.remove(role_name);
+        FAILING_ROLES.set(role_errors.len() as i64);
+    }
+    pub fn reset_unused_roles<T, I>(&self, roles: I)
+        where T: AsRef<str>, I: Iterator<Item=T>
+    {
+        let mut lock = self.lock();
+        let role_errors = Arc::make_mut(&mut lock.failed_roles);
+        let old_errors = mem::replace(role_errors, Default::default());
+        for name in roles {
+            if old_errors.contains(name.as_ref()) {
+                role_errors.insert(name.as_ref().into());
+            }
+        }
         FAILING_ROLES.set(role_errors.len() as i64);
     }
 }

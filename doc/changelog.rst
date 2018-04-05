@@ -2,6 +2,14 @@ Verwalter Changes by Version
 ============================
 
 
+.. _changelog-0.11.2:
+
+Verwalter 0.11.2
+----------------
+
+* bugfix: reset failures for the roles have been removed
+
+
 .. _changelog-0.11.1:
 
 Verwalter 0.11.1
