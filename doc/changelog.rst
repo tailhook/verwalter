@@ -8,6 +8,7 @@ Verwalter 0.11.2
 ----------------
 
 * bugfix: reset failures for the roles have been removed
+* Feature: Add ``CleanFiles`` command
 
 
 .. _changelog-0.11.1:
