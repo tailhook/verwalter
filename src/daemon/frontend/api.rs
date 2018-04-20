@@ -1,15 +1,17 @@
 use std::collections::{HashMap, HashSet};
-use std::io::BufWriter;
+use std::io::{Write, BufWriter};
 use std::sync::Arc;
-use std::time::SystemTime;
+use std::time::{SystemTime, Duration};
 
 use futures::future::{FutureResult, ok, Future};
+use futures::future::{loop_fn, Loop::{Break, Continue}};
 use futures::sync::oneshot;
 use gron::json_to_gron;
 use serde::Serialize;
 use serde_json::{Value, to_writer, to_writer_pretty, to_value};
 use serde_millis;
-use tk_http::Status::{self, NotFound};
+use tk_easyloop::timeout;
+use tk_http::Status::{self, NotFound, PermanentRedirect};
 use tk_http::Status::{TooManyRequests, ServiceUnavailable};
 use tk_http::server::{Codec as CodecTrait};
 use tk_http::server::{Encoder, EncoderDone, Error};
@@ -407,5 +409,60 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
             }))
         }
         Backup(..) | Backups => unreachable!(),
+        RedirectByNodeName => {
+            Ok(reply(move |mut e| {
+                Box::new(loop_fn(0, move |iter| {
+                    let state = state.clone();
+                    timeout(Duration::new(if iter > 0 { 1 } else { 0 }, 0))
+                    .map_err(|_| unreachable!())
+                    .and_then(move |()| {
+                        let peers = state.peers();
+                        let election = state.election();
+                        if election.is_leader {
+                            Ok(Break(Some(state.hostname.clone())))
+                        } else {
+                            match election.leader.as_ref()
+                                .and_then(|id| peers.peers.get(id))
+                            {
+                                Some(peer) => {
+                                    Ok(Break(Some(peer.get().hostname.clone())))
+                                }
+                                None => {
+                                    if iter > 65 {
+                                        Ok(Break(None))
+                                    } else {
+                                        Ok(Continue(iter+1))
+                                    }
+                                }
+                            }
+                        }
+                    })
+                })
+                .and_then(move |hostname| {
+                    if let Some(hostname) = hostname {
+                        e.status(PermanentRedirect);
+                        e.add_length(0).unwrap();
+                        e.add_header("Cache-Control", "no-cache");
+                        // TODO(tailhook) fix port
+                        // TODO(tailhook) append tail url
+                        e.format_header("Location",
+                            format_args!("http://{}:8379/", hostname))
+                            .unwrap();
+                        e.done_headers().unwrap();
+                        ok(e.done())
+                    } else {
+                        e.status(NotFound);
+                        e.add_chunked().unwrap();
+                        e.add_header("Cache-Control", "no-cache");
+                        e.add_header("Content-Type", "text/plain").unwrap();
+                        if e.done_headers().unwrap() {
+                            write!(e, "No leader found in 65 seconds")
+                                .unwrap();
+                        }
+                        ok(e.done())
+                    }
+                }))
+            }))
+        }
     }
 }

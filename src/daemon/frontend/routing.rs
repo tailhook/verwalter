@@ -19,6 +19,7 @@ pub enum ApiRoute {
     ActionIsPending(u64),
     PendingActions,
     ForceRenderAll,
+    RedirectByNodeName,
 }
 
 #[derive(Clone, Debug)]
@@ -113,6 +114,9 @@ fn parse_api(path: &str) -> Option<Route> {
     use self::Format::Plain;
     match path_component(path) {
         ("status", "") => Some(Api(Status, api_suffix(path))),
+        ("leader-redirect-by-node-name", "") => {
+            Some(Api(RedirectByNodeName, Plain))
+        }
         ("peers", "") => Some(Api(Peers, api_suffix(path))),
         ("schedule", "") => Some(Api(Schedule, api_suffix(path))),
         ("scheduler_input", "") => Some(Api(SchedulerInput, api_suffix(path))),

@@ -2,6 +2,15 @@ Verwalter Changes by Version
 ============================
 
 
+.. _changelog-0.11.3:
+
+Verwalter 0.11.3
+----------------
+
+* Feature: Added exerimental route ``/v1/leader-redirect-by-node-name/`` that
+  returns redirect to a leader node
+
+
 .. _changelog-0.11.2:
 
 Verwalter 0.11.2
