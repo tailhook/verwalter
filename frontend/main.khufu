@@ -126,6 +126,10 @@ view _navbar(status, frontend_version, @expert_mode, router):
                <div.dropdown-menu>
                 metrics.expanded(status)
 
+          if status.default_frontend != 'common':
+            <li>
+              <a href=`/~${status.default_frontend}/`>
+                <span.glyphicon.glyphicon-new-window>
           if status and status.errors:
             <li.text-danger
               title=format_error_hint(status)>

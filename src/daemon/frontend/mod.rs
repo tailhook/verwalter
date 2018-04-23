@@ -66,7 +66,7 @@ impl<S: AsyncWrite + Send + 'static> DispatcherTrait<S> for Dispatcher {
                 disk::serve_backup(name, headers, &self.config.schedule_dir)
             }
             Api(ref route, fmt) => {
-                api::serve(&self.state, route, fmt)
+                api::serve(&self.state, &self.config, route, fmt)
             }
             Log(ref route) => {
                 log::serve(headers, &self.state, route)

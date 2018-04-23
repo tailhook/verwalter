@@ -21,7 +21,7 @@ use fetch;
 use frontend::error_page::{error_page};
 use frontend::routing::{ApiRoute, Format};
 use frontend::to_json::ToJson;
-use frontend::{reply, read_json};
+use frontend::{Config, reply, read_json};
 use id::Id;
 use shared::{SharedState, PushActionError};
 
@@ -147,11 +147,13 @@ pub fn respond_204<S>(mut e: Encoder<S>)
     ok(e.done())
 }
 
-pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
+pub fn serve<S: 'static>(state: &SharedState, config: &Arc<Config>,
+    route: &ApiRoute, format: Format)
     -> Result<Request<S>, Error>
 {
     use self::ApiRoute::*;
     let state = state.clone();
+    let config = config.clone();
     match *route {
         Status => {
             Ok(reply(move |e| {
@@ -187,6 +189,7 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                     election_state: &'a Arc<ElectionState>,
                     schedule_id: Option<&'a String>,
                     schedule_status: &'a str,
+                    default_frontend: &'a str,
                 }
                 let peers = state.peers();
                 let election = state.election();
@@ -264,6 +267,7 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                     election_state: &election,
                     schedule_id: stable_schedule.as_ref().map(|x| &x.hash),
                     schedule_status: status,
+                    default_frontend: &config.default_frontend,
                 }))
             }))
         }

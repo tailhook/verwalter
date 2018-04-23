@@ -9,6 +9,7 @@ Verwalter 0.11.3
 
 * Feature: Added exerimental route ``/v1/leader-redirect-by-node-name/`` that
   returns redirect to a leader node
+* Feature: Add a link to default frontend "common" frontend
 
 
 .. _changelog-0.11.2:
