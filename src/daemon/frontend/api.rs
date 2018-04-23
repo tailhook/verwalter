@@ -419,13 +419,13 @@ pub fn serve<S: 'static>(state: &SharedState, route: &ApiRoute, format: Format)
                         let peers = state.peers();
                         let election = state.election();
                         if election.is_leader {
-                            Ok(Break(Some(state.hostname.clone())))
+                            Ok(Break(Some(state.name.clone())))
                         } else {
                             match election.leader.as_ref()
                                 .and_then(|id| peers.peers.get(id))
                             {
                                 Some(peer) => {
-                                    Ok(Break(Some(peer.get().hostname.clone())))
+                                    Ok(Break(Some(peer.get().name.clone())))
                                 }
                                 None => {
                                     if iter > 65 {
