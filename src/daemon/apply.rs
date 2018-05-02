@@ -18,6 +18,7 @@ use serde_json::{Map, Value as Json};
 use indexed_log::Index;
 use futures::Stream;
 
+use query::Responder;
 use scheduler::{SchedulerInput, Schedule};
 use fs_util::{write_file, safe_write};
 use shared::{SharedState};
@@ -223,7 +224,7 @@ fn apply_schedule(hash: &String, is_new: bool,
             cmd.arg("--vars-file");
             cmd.arg(fname);
         }
-        
+
         {
             let fname = "/tmp/verwalter/schedule-for-render.json";
             match safe_write(fname.as_ref(), string_schedule.as_bytes()) {
@@ -356,7 +357,7 @@ fn maintain_backups(dir: &Path) -> Result<(), Error> {
 }
 
 pub fn run(state: SharedState, settings: Settings,
-    schedules: slot::Receiver<Arc<Schedule>>)
+    schedules: slot::Receiver<Arc<Schedule>>, _responder: &Responder)
     -> !
 {
     let _guard = watchdog::ExitOnReturn(93);
