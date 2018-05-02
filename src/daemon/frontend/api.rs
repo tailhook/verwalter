@@ -446,7 +446,7 @@ pub fn serve<S: 'static>(state: &SharedState, config: &Arc<Config>,
                     if let Some(hostname) = hostname {
                         e.status(PermanentRedirect);
                         e.add_length(0).unwrap();
-                        e.add_header("Cache-Control", "no-cache");
+                        e.add_header("Cache-Control", "no-cache").unwrap();
                         // TODO(tailhook) fix port
                         // TODO(tailhook) append tail url
                         e.format_header("Location",
@@ -457,7 +457,7 @@ pub fn serve<S: 'static>(state: &SharedState, config: &Arc<Config>,
                     } else {
                         e.status(NotFound);
                         e.add_chunked().unwrap();
-                        e.add_header("Cache-Control", "no-cache");
+                        e.add_header("Cache-Control", "no-cache").unwrap();
                         e.add_header("Content-Type", "text/plain").unwrap();
                         if e.done_headers().unwrap() {
                             write!(e, "No leader found in 65 seconds")
