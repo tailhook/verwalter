@@ -37,5 +37,11 @@ function validate_type(typ, value) {
     switch(typ.type) {
         case "TcpPort":
             return parseInt(value)
+        case "Choice":
+            if((typ.choices || []).indexOf(value) >= 0) {
+                return value;
+            } else {
+                return null;
+            }
     }
 }

@@ -122,7 +122,7 @@ view new_process(role, role_name, role_state, @actions,
                   for value of vartype.choices:
                     <button.btn.btn-default.btn-xs
                         .active?(@variables.values[varname] == value)>
-                      link {input} set_var(varname, value) -> @variables
+                      link {click} set_var(varname, value) -> @variables
                       value
 
       <div.form-group>
