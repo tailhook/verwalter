@@ -295,12 +295,14 @@ containers:
       url: "https://github.com/tailhook/bulk/releases/download/v0.4.9/bulk-v0.4.9.tar.gz"
       sha256: 23471a9986274bb4b7098c03e2eb7e1204171869b72c45385fcee1c64db2d111
       path: /
+    - !EnsureDir /cargo
 
     environ: &environ
       HOME: /work/target
       PATH: /bin:/usr/bin:/usr/local/bin:/work/target/debug
-
+      CARGO_HOME: /cargo
     volumes:
+      /cargo: !Persistent cargo-xenial
       /tmp: !Tmpfs
         size: 100Mi
         subdirs:
@@ -312,7 +314,10 @@ containers:
     - *pkgs
     - *rust
     - *bulk
+    - !EnsureDir /cargo
     environ: *environ
+    volumes:
+      /cargo: !Persistent cargo-trusty
 
   bionic:
     setup:
@@ -320,7 +325,10 @@ containers:
     - *pkgs
     - *rust
     - *bulk
+    - !EnsureDir /cargo
     environ: *environ
+    volumes:
+      /cargo: !Persistent cargo-bionic
 
 
   rust-musl:
@@ -329,6 +337,9 @@ containers:
       CFLAGS: -I/usr/lib/include
       PATH: /musl/bin:/usr/local/bin:/usr/bin:/bin
       HOME: /work/target
+      CARGO_HOME: /cargo
+    volumes:
+      /cargo: !Persistent cargo
     setup:
     - !Ubuntu xenial
     - !UbuntuUniverse
@@ -341,6 +352,7 @@ containers:
                --components=rust-std-x86_64-unknown-linux-musl"
     - !Sh 'ln -s /musl/lib/rustlib/x86_64-unknown-linux-musl /usr/lib/rustlib/x86_64-unknown-linux-musl'
     - *bulk
+    - !EnsureDir /cargo
 
   wasm:
     environ: &rustenv
