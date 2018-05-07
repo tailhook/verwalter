@@ -1,6 +1,7 @@
-use std::io;
 use std::borrow::Cow;
+use std::collections::BTreeMap;
 use std::fs::{File, hard_link, remove_file};
+use std::io;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, exit};
 use std::sync::Arc;
@@ -18,7 +19,6 @@ use serde_json::{Map, Value as Json};
 use indexed_log::Index;
 use futures::Stream;
 
-use query::Responder;
 use scheduler::{SchedulerInput, Schedule};
 use fs_util::{write_file, safe_write};
 use shared::{SharedState};
@@ -36,6 +36,11 @@ pub struct Settings {
     pub log_dir: PathBuf,
     pub config_dir: PathBuf,
     pub schedule_dir: PathBuf,
+}
+
+pub struct ApplyData {
+    pub schedule: Arc<Schedule>,
+    pub roles: BTreeMap<String, Json>,
 }
 
 fn merge_vars<'x, I, J>(iter: I) -> Map<String, Json>
@@ -111,7 +116,7 @@ fn decode_render_error(s: ExitStatus) -> Cow<'static, str> {
 }
 
 fn apply_schedule(hash: &String, is_new: bool,
-    scheduler_result: &Json, settings: &Settings,
+    apply_task: ApplyData, settings: &Settings,
     debug_info: Arc<Option<(SchedulerInput, String)>>, state: &SharedState)
 {
     let id: String = thread_rng().gen_ascii_chars().take(24).collect();
@@ -124,7 +129,7 @@ fn apply_schedule(hash: &String, is_new: bool,
         }
 
         dlog.changes(&hash[..8]).map(|mut changes| {
-            scheduler_result.as_object()
+            apply_task.schedule.data.as_object()
                 .and_then(|x| x.get("changes"))
                 .and_then(|y| y.as_array())
                 .map(|lst| {
@@ -137,40 +142,9 @@ fn apply_schedule(hash: &String, is_new: bool,
         }).map_err(|e| error!("Can't create changes log: {}", e)).ok();
     }
 
-    let empty = Map::new();
-    let roles = scheduler_result.as_object()
-        .and_then(|x| x.get("roles"))
-        .and_then(|y| y.as_object())
-        .unwrap_or_else(|| {
-            dlog.log(format_args!(
-                "Warning: Can't find `roles` key in schedule\n"));
-            &empty
-        });
-    let vars = scheduler_result.as_object()
-        .and_then(|x| x.get("vars"))
-        .and_then(|x| x.as_object())
-        .unwrap_or(&empty);
-    let node = scheduler_result.as_object()
-        .and_then(|x| x.get("nodes"))
-        .and_then(|y| y.as_object())
-        .and_then(|x| x.get(&settings.hostname))
-        .and_then(|y| y.as_object())
-        .unwrap_or_else(|| {
-            dlog.log(format_args!(
-                "Warning: Can't find `nodes[{}]` key in schedule\n",
-                settings.hostname));
-            &empty
-        });
-    let node_vars = node.get("vars")
-        .and_then(|x| x.as_object())
-        .unwrap_or(&empty);
-    let node_roles = node.get("roles")
-        .and_then(|x| x.as_object())
-        .unwrap_or(&empty);
-    let string_schedule = format!("{}", scheduler_result);
-
-    state.reset_unused_roles(node_roles.keys());
-    for (role_name, ref node_role_vars) in node_roles.iter() {
+    let string_schedule = format!("{}", apply_task.schedule.data);
+    state.reset_unused_roles(apply_task.roles.keys());
+    for (role_name, vars) in apply_task.roles {
         let mut rlog = match dlog.role(&role_name, true) {
             Ok(l) => l,
             Err(e) => {
@@ -178,25 +152,7 @@ fn apply_schedule(hash: &String, is_new: bool,
                 return;
             }
         };
-        let node_role_vars = node_role_vars.as_object().unwrap_or(&empty);
-        let role_vars = roles.get(role_name)
-            .and_then(|x| x.as_object())
-            .unwrap_or(&empty);
-        let mut cur_vars = merge_vars(vec![
-            node_role_vars.iter(),
-            node_vars.iter(),
-            role_vars.iter(),
-            vars.iter(),
-        ].into_iter());
-        cur_vars.insert(String::from("role"),
-            Json::String(role_name.clone()));
-        cur_vars.insert(String::from("deployment_id"),
-            Json::String(id.clone()));
-        cur_vars.insert(String::from("verwalter_version"),
-            Json::String(concat!("v", env!("CARGO_PKG_VERSION")).into()));
-        cur_vars.insert(String::from("timestamp"),
-            Json::String(now_utc().rfc3339().to_string()));
-        let vars = format!("{}", Json::Object(cur_vars));
+        let vars = format!("{}", vars);
         rlog.log(format_args!("Template variables: {}\n", vars));
 
         let mut cmd = if settings.use_sudo {
@@ -246,10 +202,10 @@ fn apply_schedule(hash: &String, is_new: bool,
         match cmd.status() {
             Ok(x) if x.success() => {
                 rlog.log(format_args!("Rendered successfully\n"));
-                state.reset_role_failure(role_name);
+                state.reset_role_failure(&role_name);
             }
             Ok(status) => {
-                state.mark_role_failure(role_name);
+                state.mark_role_failure(&role_name);
                 rlog.log(format_args!(
                     "ERROR: Error rendering role. \
                     verwalter_render {}\n", status));
@@ -258,7 +214,7 @@ fn apply_schedule(hash: &String, is_new: bool,
                     decode_render_error(status)));
             }
             Err(e) => {
-                state.mark_role_failure(role_name);
+                state.mark_role_failure(&role_name);
                 rlog.log(format_args!(
                     "ERROR: Error rendering role. \
                     Can't run verwalter_render: {}\n", e));
@@ -357,21 +313,20 @@ fn maintain_backups(dir: &Path) -> Result<(), Error> {
 }
 
 pub fn run(state: SharedState, settings: Settings,
-    schedules: slot::Receiver<Arc<Schedule>>, _responder: &Responder)
+    tasks: slot::Receiver<ApplyData>)
     -> !
 {
     let _guard = watchdog::ExitOnReturn(93);
     let mut prev_schedule = String::new();
-    for schedule in schedules.wait() {
-        let schedule = schedule.unwrap_or_else(|_| exit(93));
-        if !state.read_force_render() && schedule.hash == prev_schedule {
-            continue;
-        }
+    for task in tasks.wait() {
+        let task = task.unwrap_or_else(|_| exit(93));
+        let schedule = task.schedule.clone();
         let _alarm = watchdog::Alarm::new(Duration::new(180, 0), "apply");
-        write_file(&settings.schedule_dir.join("schedule.json"), &*schedule)
+        write_file(&settings.schedule_dir.join("schedule.json"),
+            &*schedule)
             .map_err(|e| error!("Writing schedule failed: {:?}", e)).ok();
         apply_schedule(&schedule.hash, prev_schedule != schedule.hash,
-            &schedule.data, &settings,
+            task, &settings,
             state.scheduler_debug_info(), &state);
         maintain_backups(&settings.schedule_dir)
             .map_err(|e| error!("Writing backup failed: {:?}", e)).ok();

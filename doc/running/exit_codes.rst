@@ -11,6 +11,7 @@ Verwalter Daemon
 * ``5`` -- failed to add inotify watch
 * ``81`` -- internal bug: tcp listener exited
 * ``82`` -- internal bug: fetch channel is dead
+* ``83`` -- internal bug: responder thread is dead
 * ``91`` -- killed by watchdog of scheduler, which means:
 
     * scheduler has not finished it's work within one second

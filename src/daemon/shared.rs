@@ -8,7 +8,6 @@ use std::collections::btree_map::Entry::{Occupied, Vacant};
 use std::mem;
 
 use futures::sync::oneshot;
-use async_slot as slot;
 use tokio_core::reactor::Remote;
 use time::{get_time};
 use serde_json::Value as Json;
@@ -22,6 +21,7 @@ use {Options};
 use peer::{Peer, Peers};
 use metrics::{Integer, List, Counter, Metric};
 use scheduler::{Schedule, SchedulerInput, ScheduleId};
+use query::Responder;
 
 lazy_static! {
     static ref ACTIONS_EXECUTED: Counter = Counter::new();
@@ -65,7 +65,7 @@ pub struct SharedData {
     pub fetch_state: ArcCell<fetch::PublicState>,
     force_render: AtomicBool,
     peers: ArcCell<Peers>,
-    schedule_channel: slot::Sender<Arc<Schedule>>,
+    responder: Responder,
 }
 
 pub struct LeaderCookie {
@@ -116,7 +116,7 @@ impl SharedState {
     pub fn new(id: &Id, name: &str, hostname: &str,
                options: Options, sandbox: Sandbox,
                old_schedule: Option<Schedule>,
-               schedule_channel: slot::Sender<Arc<Schedule>>,
+               responder: &Responder,
                mainloop: &Remote)
         -> SharedState
     {
@@ -132,7 +132,7 @@ impl SharedState {
                 mainloop: mainloop.clone(),
                 fetch_state: ArcCell::new(
                     Arc::new(fetch::PublicState::Unstable)),
-                schedule_channel,
+                responder: responder.clone(),
             }),
             Arc::new(Mutex::new(State {
                 last_known_schedule: old_schedule.map(Arc::new),
@@ -237,8 +237,7 @@ impl SharedState {
         {
             guard.last_known_schedule = Some(schedule.clone());
             guard.stable_schedule = Some(schedule.clone());
-            self.0.schedule_channel.swap(schedule.clone())
-                .expect("apply channel is alive");
+            self.0.responder.new_schedule(schedule.clone());
         } else {
             debug!("Ingoring follower schedule {} from {}",
                 schedule.hash, schedule.origin);
@@ -270,8 +269,7 @@ impl SharedState {
             guard.owned_schedule = Some(schedule.clone());
             guard.stable_schedule = Some(schedule.clone());
             guard.last_scheduler_debug_info = Arc::new(Some((input, debug)));
-            self.0.schedule_channel.swap(schedule.clone())
-                .expect("apply channel is alive");
+            self.0.responder.new_schedule(schedule.clone());
         }
     }
     pub fn set_error(&self, domain: &'static str, value: String) {
@@ -341,9 +339,9 @@ impl SharedState {
     }
     pub fn force_render(&self) {
         self.force_render.store(true, SeqCst);
-        if let Some(x) = self.stable_schedule() {
-            self.0.schedule_channel.swap(x)
-                .expect("apply channel is alive");
+        // TODO(tailhook) is this check needed here?
+        if let Some(_) = self.stable_schedule() {
+            self.0.responder.force_rerender();
         }
     }
     pub fn push_action(&self, data: Json,

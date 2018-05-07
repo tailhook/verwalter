@@ -276,14 +276,14 @@ fn main() {
 
     let metrics = metrics::all();
     let _guard = libcantal::start(&metrics);
-    let (responder, resp_init) = query::Responder::new();
+    let (apply_tx, apply_rx) = async_slot::channel();
+    let (responder, resp_init) = query::Responder::new(apply_tx);
 
     run_forever(move || -> Result<(), Box<::std::error::Error>> {
 
 
-        let (schedule_tx, schedule_rx) = async_slot::channel();
         let state = SharedState::new(&id, &name, &hostname,
-            options.clone(), sandbox, old_schedule, schedule_tx,
+            options.clone(), sandbox, old_schedule, &responder,
             tk_easyloop::handle().remote());
 
 
@@ -297,10 +297,9 @@ fn main() {
         };
         let apply_state = state.clone();
         let m1 = meter.clone();
-        let r1 = responder.clone();
         thread::Builder::new().name(String::from("apply")).spawn(move || {
             m1.track_current_thread_by_name();
-            apply::run(apply_state, apply_settings, schedule_rx, &r1);
+            apply::run(apply_state, apply_settings, apply_rx);
         }).expect("apply thread starts");
 
         watchdog::init();
