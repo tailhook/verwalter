@@ -277,7 +277,12 @@ fn main() {
     let metrics = metrics::all();
     let _guard = libcantal::start(&metrics);
     let (apply_tx, apply_rx) = async_slot::channel();
-    let (responder, resp_init) = query::Responder::new(apply_tx);
+    let (responder, resp_init) = query::Responder::new(apply_tx,
+        query::Settings {
+            id: id.clone(),
+            hostname: hostname.clone(),
+            config_dir: options.config_dir.clone(),
+        });
 
     run_forever(move || -> Result<(), Box<::std::error::Error>> {
 
