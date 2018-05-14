@@ -29,7 +29,11 @@ impl Responder {
         let roles = self.schedule.data.as_object()
             .and_then(|x| x.get("roles"))
             .and_then(|y| y.as_object())
-            .ok_or(err_msg("no roles in schedule"))?;
+            .unwrap_or_else(|| {
+                warn!("Can't find `roles[{}]` key in schedule\n",
+                    self.hostname);
+                &empty
+            });
         let vars = self.schedule.data.as_object()
             .and_then(|x| x.get("vars"))
             .and_then(|x| x.as_object())
@@ -40,8 +44,7 @@ impl Responder {
             .and_then(|x| x.get(&self.hostname))
             .and_then(|y| y.as_object())
             .unwrap_or_else(|| {
-                warn!(
-                    "Warning: Can't find `nodes[{}]` key in schedule\n",
+                warn!("Can't find `nodes[{}]` key in schedule\n",
                     self.hostname);
                 &empty
             });
