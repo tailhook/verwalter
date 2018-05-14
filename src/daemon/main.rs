@@ -12,6 +12,7 @@ extern crate gron;
 extern crate handlebars;
 extern crate hex;
 extern crate http_file_headers;
+extern crate humantime;
 extern crate inotify;
 extern crate itertools;
 extern crate libc;

@@ -13,9 +13,7 @@ use deflate::write::GzEncoder;
 use deflate::Compression;
 use failure::{Error, err_msg};
 use time::now_utc;
-use rand::{thread_rng, Rng};
-use itertools::Itertools;
-use serde_json::{Map, Value as Json};
+use serde_json::{Value as Json};
 use indexed_log::Index;
 use futures::Stream;
 
@@ -39,60 +37,9 @@ pub struct Settings {
 }
 
 pub struct ApplyData {
+    pub id: String,
     pub schedule: Arc<Schedule>,
     pub roles: BTreeMap<String, Json>,
-}
-
-fn merge_vars<'x, I, J>(iter: I) -> Map<String, Json>
-    where I: Iterator<Item=J>, J: Iterator<Item=(&'x String, &'x Json)>
-{
-
-    struct Wrapper<'a>((&'a String, &'a Json));
-    impl<'a> PartialOrd for Wrapper<'a> {
-        fn partial_cmp(&self, other: &Wrapper)
-            -> Option<::std::cmp::Ordering>
-        {
-            (self.0).0.partial_cmp((other.0).0)
-        }
-    }
-    impl<'a> PartialEq for Wrapper<'a> {
-        fn eq(&self, other: &Wrapper) -> bool {
-            (self.0).0.eq((other.0).0)
-        }
-    }
-    impl<'a> Eq for Wrapper<'a> {};
-    impl<'a> Ord for Wrapper<'a> {
-        fn cmp(&self, other: &Wrapper) -> ::std::cmp::Ordering {
-            (self.0).0.cmp((other.0).0)
-        }
-    };
-
-    iter.map(|x| x.map(Wrapper)).kmerge().map(|x| x.0)
-    .group_by(|&(key, _)| key).into_iter()
-    .map(|(key, vals)| {
-        let x = vals.map(|(_, v)| v).coalesce(|x, y| {
-            match (x, y) {
-                // If both are objects, they are candidates to merge
-                (x@&Json::Object(_), y@&Json::Object(_)) => Err((x, y)),
-                // If first is not an object we use it value
-                // (it overrides/replaces following)
-                // If second is not an object, we just skip it, because we
-                // can't merge it anyway
-                (x, _) => Ok(x),
-            }
-        }).collect::<Vec<_>>();
-        if x.len() == 1 {
-            (key.clone(), x[0].clone())
-        } else {
-            (key.clone(), Json::Object(
-                x.iter()
-                .map(|x| x.as_object().unwrap().iter())
-                .map(|x| x.map(Wrapper)).kmerge().map(|x| x.0)
-                .group_by(|&(k, _)| k).into_iter()
-                .map(|(k, mut vv)| (k.clone(), vv.next().unwrap().1.clone()))
-                .collect()))
-        }
-    }).collect()
 }
 
 fn decode_render_error(s: ExitStatus) -> Cow<'static, str> {
@@ -119,9 +66,8 @@ fn apply_schedule(hash: &String, is_new: bool,
     apply_task: ApplyData, settings: &Settings,
     debug_info: Arc<Option<(SchedulerInput, String)>>, state: &SharedState)
 {
-    let id: String = thread_rng().gen_ascii_chars().take(24).collect();
     let mut index = Index::new(&settings.log_dir, settings.dry_run);
-    let mut dlog = index.deployment(&id, true);
+    let mut dlog = index.deployment(&apply_task.id, true);
     dlog.string("schedule-hash", &hash);
     if is_new {
         if let Some((_, ref log)) = *debug_info {

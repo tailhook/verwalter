@@ -6,6 +6,7 @@ use async_slot as slot;
 use failure::{Error, err_msg};
 use futures::sync::mpsc::{unbounded, UnboundedSender, UnboundedReceiver};
 use futures::Stream;
+use rand::{thread_rng, Rng};
 use serde_json::Value as Json;
 
 use id::Id;
@@ -94,10 +95,12 @@ pub fn run(init: ResponderInit) {
             Request::NewSchedule(schedule) => {
                 // TODO(tailhook) check if .wasm exists
                 let new = compat::Responder::new(&schedule, &init.settings);
+                let id: String = thread_rng().gen_ascii_chars().take(24).collect();
                 responder = Impl::Compat(new);
-                match responder.render_roles() {
+                match responder.render_roles(&id) {
                     Ok(data) => {
                         init.apply_tx.swap(ApplyData {
+                            id,
                             schedule: schedule.clone(),
                             roles: data,
                         }).ok();
@@ -108,9 +111,12 @@ pub fn run(init: ResponderInit) {
                 }
             }
             Request::ForceRerender => {
-                match responder.render_roles() {
+                let id: String = thread_rng().gen_ascii_chars().take(24).collect();
+                match responder.render_roles(&id) {
                     Ok(data) => {
+                        let id = thread_rng().gen_ascii_chars().take(24).collect();
                         init.apply_tx.swap(ApplyData {
+                            id,
                             schedule: responder.schedule().clone(),
                             roles: data,
                         }).ok();
@@ -125,11 +131,11 @@ pub fn run(init: ResponderInit) {
 }
 
 impl Impl {
-    fn render_roles(&self) -> Result<BTreeMap<String, Json>, Error> {
+    fn render_roles(&self, id: &str) -> Result<BTreeMap<String, Json>, Error> {
         use self::Impl::*;
         match self {
             Empty => Err(err_msg("no schedule yet")),
-            Compat(resp) => resp.render_roles(),
+            Compat(resp) => resp.render_roles(id),
         }
     }
     fn schedule(&self) -> Arc<Schedule> {
