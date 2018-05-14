@@ -1,7 +1,5 @@
 use std::ops::Deref;
 use std::sync::{Arc, Mutex, MutexGuard};
-use std::sync::atomic::Ordering::SeqCst;
-use std::sync::atomic::AtomicBool;
 use std::time::{SystemTime};
 use std::collections::{HashMap, BTreeMap, HashSet};
 use std::collections::btree_map::Entry::{Occupied, Vacant};
@@ -63,7 +61,6 @@ pub struct SharedData {
     pub sandbox: Sandbox,
     pub mainloop: Remote,
     pub fetch_state: ArcCell<fetch::PublicState>,
-    force_render: AtomicBool,
     peers: ArcCell<Peers>,
     responder: Responder,
 }
@@ -127,7 +124,6 @@ impl SharedState {
                 hostname: hostname.to_string(),
                 options,
                 sandbox,
-                force_render: AtomicBool::new(false),
                 peers: ArcCell::new(Arc::new(Peers::new())),
                 mainloop: mainloop.clone(),
                 fetch_state: ArcCell::new(
@@ -334,15 +330,8 @@ impl SharedState {
             return false;
         }
     }
-    pub fn read_force_render(&self) -> bool {
-        self.force_render.swap(false, SeqCst)
-    }
     pub fn force_render(&self) {
-        self.force_render.store(true, SeqCst);
-        // TODO(tailhook) is this check needed here?
-        if let Some(_) = self.stable_schedule() {
-            self.0.responder.force_rerender();
-        }
+        self.0.responder.force_rerender();
     }
     pub fn push_action(&self, data: Json,
         respond: oneshot::Sender<Result<Json, ActionError>>)
