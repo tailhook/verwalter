@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::path::PathBuf;
 
 use async_slot as slot;
-use failure::Error;
+use failure::{Error, err_msg};
 use futures::sync::mpsc::{unbounded, UnboundedSender, UnboundedReceiver};
 use futures::Stream;
 use serde_json::Value as Json;
@@ -126,9 +126,17 @@ pub fn run(init: ResponderInit) {
 
 impl Impl {
     fn render_roles(&self) -> Result<BTreeMap<String, Json>, Error> {
-        unimplemented!();
+        use self::Impl::*;
+        match self {
+            Empty => Err(err_msg("no schedule yet")),
+            Compat(resp) => resp.render_roles(),
+        }
     }
     fn schedule(&self) -> Arc<Schedule> {
-        unimplemented!();
+        use self::Impl::*;
+        match self {
+            Empty => unreachable!(),
+            Compat(resp) => resp.schedule(),
+        }
     }
 }
