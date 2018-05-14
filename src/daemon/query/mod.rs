@@ -111,10 +111,10 @@ pub fn run(init: ResponderInit) {
                 }
             }
             Request::ForceRerender => {
-                let id: String = thread_rng().gen_ascii_chars().take(24).collect();
+                let id: String = thread_rng().gen_ascii_chars()
+                    .take(24).collect();
                 match responder.render_roles(&id) {
                     Ok(data) => {
-                        let id = thread_rng().gen_ascii_chars().take(24).collect();
                         init.apply_tx.swap(ApplyData {
                             id,
                             schedule: responder.schedule().clone(),
