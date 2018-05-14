@@ -2,6 +2,16 @@ Verwalter Changes by Version
 ============================
 
 
+.. _changelog-0.12.0:
+
+Verwalter 0.12.0
+----------------
+
+* We're preparing for list of roles and their variables be prepared
+  by the wasm code in scheduler. This release only changes internals, preparing
+  for that (we bump version to make a signal that things should be tested
+  carefully).
+
 .. _changelog-0.11.3:
 
 Verwalter 0.11.3
