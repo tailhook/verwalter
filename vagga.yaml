@@ -245,7 +245,7 @@ commands:
     work-dir: /work/example-configs/wasm-minimal
     run: |
       cargo build --target=wasm32-unknown-unknown --release
-      wasm-gc \
+      cp \
         target/wasm32-unknown-unknown/release/verwalter-minimal-wasm-scheduler.wasm \
         scheduler/v1/scheduler.wasm
 
@@ -363,13 +363,12 @@ containers:
     - !UbuntuUniverse
     - *pkgs
     - &rust !TarInstall
-      url: https://static.rust-lang.org/dist/rust-beta-x86_64-unknown-linux-gnu.tar.gz
+      url: https://static.rust-lang.org/dist/rust-1.26.0-x86_64-unknown-linux-gnu.tar.gz
       script: "./install.sh --prefix=/usr --components=rustc,cargo \
                --components=rustc,rust-std-x86_64-unknown-linux-gnu,cargo"
     - !TarInstall
-      url: "https://static.rust-lang.org/dist/rust-std-beta-wasm32-unknown-unknown.tar.gz"
+      url: "https://static.rust-lang.org/dist/rust-std-1.26.0-wasm32-unknown-unknown.tar.gz"
       script: "./install.sh --prefix=/usr --components=rust-std-wasm32-unknown-unknown"
-    - !Sh cargo install --root=/usr --git https://github.com/alexcrichton/wasm-gc
 
   util:
     setup:
