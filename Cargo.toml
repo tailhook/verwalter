@@ -66,6 +66,7 @@ deflate = {version="0.7.17", features=["gzip"]}
 capturing-glob = "0.1.1"
 wasmi = "0.1.0"
 dir-signature = "0.2.5"
+humantime = "1.1.1"
 
 [workspace]
 exclude = ["example-configs"]

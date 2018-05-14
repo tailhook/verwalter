@@ -55,7 +55,7 @@ commands:
         container: xenial
         environ: &fake_rust_log
           # disable errors on our fake IP addresses
-          RUST_LOG: debug,tokio_core=warn,verwalter::elect::network=off,\
+          RUST_LOG: info,verwalter::elect::network=off,\
                     tokio_reactor=warn,verwalter::frontend=warn
         run:
         - ./target/debug/verwalter
@@ -220,6 +220,7 @@ commands:
         - --override-machine-id=77985419c732412ea38b94db00000000
         - --hostname=alpha
         - --debug-force-leader
+        - --dry-run
       cantal: *fake_cantal
 
   run-example-minimal: !Supervise

@@ -12,6 +12,7 @@ extern crate gron;
 extern crate handlebars;
 extern crate hex;
 extern crate http_file_headers;
+extern crate humantime;
 extern crate inotify;
 extern crate itertools;
 extern crate libc;
@@ -83,6 +84,7 @@ mod time_util;
 mod watchdog;
 mod fetch;
 mod failures;
+mod query;
 
 use argparse::{ArgumentParser, Parse, ParseOption, StoreOption, StoreTrue};
 use argparse::{Print, Store};
@@ -275,13 +277,19 @@ fn main() {
 
     let metrics = metrics::all();
     let _guard = libcantal::start(&metrics);
+    let (apply_tx, apply_rx) = async_slot::channel();
+    let (responder, resp_init) = query::Responder::new(apply_tx,
+        query::Settings {
+            id: id.clone(),
+            hostname: hostname.clone(),
+            config_dir: options.config_dir.clone(),
+        });
 
     run_forever(move || -> Result<(), Box<::std::error::Error>> {
 
 
-        let (schedule_tx, schedule_rx) = async_slot::channel();
         let state = SharedState::new(&id, &name, &hostname,
-            options.clone(), sandbox, old_schedule, schedule_tx,
+            options.clone(), sandbox, old_schedule, &responder,
             tk_easyloop::handle().remote());
 
 
@@ -297,7 +305,7 @@ fn main() {
         let m1 = meter.clone();
         thread::Builder::new().name(String::from("apply")).spawn(move || {
             m1.track_current_thread_by_name();
-            apply::run(apply_state, apply_settings, schedule_rx);
+            apply::run(apply_state, apply_settings, apply_rx);
         }).expect("apply thread starts");
 
         watchdog::init();
@@ -308,7 +316,7 @@ fn main() {
         http::spawn_listener(&ns, &listen_addr, &state,
             &options.config_dir.join("frontend"),
             &options.default_frontend,
-            &schedule_dir)?;
+            &schedule_dir, &responder)?;
         fetch::spawn_fetcher(&state, fetch_rx)?;
         cantal::spawn_fetcher(&state, udp_port)?;
         elect::spawn_election(&ns, &listen_addr, &state, fetch_tx,
@@ -325,6 +333,12 @@ fn main() {
         thread::Builder::new().name(String::from("scheduler")).spawn(move || {
             m1.track_current_thread_by_name();
             scheduler::run(s1, scheduler_settings)
+        }).expect("scheduler thread starts");
+
+        let m1 = meter.clone();
+        thread::Builder::new().name(String::from("scheduler")).spawn(move || {
+            m1.track_current_thread_by_name();
+            query::run(resp_init)
         }).expect("scheduler thread starts");
 
         Ok(())

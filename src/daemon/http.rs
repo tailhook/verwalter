@@ -13,12 +13,13 @@ use tk_listen::ListenExt;
 
 use frontend;
 use shared::SharedState;
+use query::Responder;
 
 
 pub fn spawn_listener(ns: &NsRouter, addr: &str,
     state: &SharedState, static_dir: &Path,
     default_frontend: &str,
-    schedule_dir: &Path)
+    schedule_dir: &Path, _responder: &Responder)
     -> Result<(), Box<::std::error::Error>>
 {
     let str_addr = addr.to_string();
