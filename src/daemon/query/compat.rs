@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 use humantime::format_rfc3339;
-use failure::{Error, err_msg};
+use failure::{Error};
 use itertools::Itertools;
 use query::Settings;
 use serde_json::{Value as Json, Map};

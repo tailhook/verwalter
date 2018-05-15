@@ -93,7 +93,9 @@ pub fn run(init: ResponderInit) {
         debug!("Incoming request {:?}", request);
         match request {
             Request::NewSchedule(schedule) => {
-                if responder.schedule().hash == schedule.hash {
+                let is_equal = responder.schedule()
+                    .map(|x| x.hash == schedule.hash).unwrap_or(false);
+                if is_equal {
                     debug!("Same schedule");
                     continue;
                 }
@@ -115,15 +117,19 @@ pub fn run(init: ResponderInit) {
                 }
             }
             Request::ForceRerender => {
+                let schedule = if let Some(s) = responder.schedule() {
+                    s.clone()
+                } else {
+                    // Will render anyway if schedule appears
+                    continue;
+                };
                 let id: String = thread_rng().gen_ascii_chars()
                     .take(24).collect();
                 match responder.render_roles(&id) {
-                    Ok(data) => {
-                        init.apply_tx.swap(ApplyData {
-                            id,
-                            schedule: responder.schedule().clone(),
-                            roles: data,
-                        }).ok();
+                    Ok(roles) => {
+                        init.apply_tx
+                            .swap(ApplyData { id, schedule, roles })
+                            .ok();
                     }
                     Err(e) => {
                         error!("Can't compute render roles: {}", e);
@@ -142,11 +148,11 @@ impl Impl {
             Compat(resp) => resp.render_roles(id),
         }
     }
-    fn schedule(&self) -> Arc<Schedule> {
+    fn schedule(&self) -> Option<Arc<Schedule>> {
         use self::Impl::*;
         match self {
-            Empty => unreachable!(),
-            Compat(resp) => resp.schedule(),
+            Empty => None,
+            Compat(resp) => Some(resp.schedule()),
         }
     }
 }
