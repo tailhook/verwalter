@@ -93,6 +93,10 @@ pub fn run(init: ResponderInit) {
         debug!("Incoming request {:?}", request);
         match request {
             Request::NewSchedule(schedule) => {
+                if responder.schedule().hash == schedule.hash {
+                    debug!("Same schedule");
+                    continue;
+                }
                 // TODO(tailhook) check if .wasm exists
                 let new = compat::Responder::new(&schedule, &init.settings);
                 let id: String = thread_rng().gen_ascii_chars().take(24).collect();
