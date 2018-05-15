@@ -30,8 +30,7 @@ impl Responder {
             .and_then(|x| x.get("roles"))
             .and_then(|y| y.as_object())
             .unwrap_or_else(|| {
-                warn!("Can't find `roles[{}]` key in schedule\n",
-                    self.hostname);
+                info!("Can't find `roles` key in schedule\n");
                 &empty
             });
         let vars = self.schedule.data.as_object()
