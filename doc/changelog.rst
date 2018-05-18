@@ -1,6 +1,13 @@
 Verwalter Changes by Version
 ============================
 
+.. _changelog-0.12.1:
+
+Verwalter 0.12.1
+----------------
+
+* Feature: add "node" variable to templates by default (in compatibility mode)
+
 
 .. _changelog-0.12.0:
 

@@ -68,6 +68,10 @@ impl Responder {
             ].into_iter());
             cur_vars.insert(String::from("role"),
                 Json::String(role_name.clone()));
+            if !cur_vars.contains_key("node") {
+                cur_vars.insert(String::from("node"),
+                    Json::String(self.hostname.clone()));
+            }
             cur_vars.insert(String::from("deployment_id"),
                 Json::String(id.to_string()));
             cur_vars.insert(String::from("verwalter_version"),
