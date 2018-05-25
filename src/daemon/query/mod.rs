@@ -7,6 +7,7 @@ use failure::{Error, err_msg};
 use futures::sync::mpsc::{unbounded, UnboundedSender, UnboundedReceiver};
 use futures::Stream;
 use rand::{thread_rng, Rng};
+use rand::distributions::Alphanumeric;
 use serde_json::Value as Json;
 
 use id::Id;
@@ -101,7 +102,8 @@ pub fn run(init: ResponderInit) {
                 }
                 // TODO(tailhook) check if .wasm exists
                 let new = compat::Responder::new(&schedule, &init.settings);
-                let id: String = thread_rng().gen_ascii_chars().take(24).collect();
+                let id: String = thread_rng().sample_iter(&Alphanumeric)
+                    .take(24).collect();
                 responder = Impl::Compat(new);
                 match responder.render_roles(&id) {
                     Ok(data) => {
@@ -123,7 +125,7 @@ pub fn run(init: ResponderInit) {
                     // Will render anyway if schedule appears
                     continue;
                 };
-                let id: String = thread_rng().gen_ascii_chars()
+                let id: String = thread_rng().sample_iter(&Alphanumeric)
                     .take(24).collect();
                 match responder.render_roles(&id) {
                     Ok(roles) => {
