@@ -8,7 +8,7 @@ use std::mem;
 use futures::sync::oneshot;
 use tokio_core::reactor::Remote;
 use time::{get_time};
-use serde_json::Value as Json;
+use serde_json::{Value as Json, to_string};
 use crossbeam::sync::ArcCell;
 
 use config::Sandbox;
@@ -89,7 +89,7 @@ pub struct Action {
 
 #[derive(Debug)]
 struct State {
-    last_known_schedule: Option<Arc<Schedule>>,
+    last_known_schedule: Option<(Arc<Schedule>, Arc<String>)>,
     stable_schedule: Option<Arc<Schedule>>,
     owned_schedule: Option<Arc<Schedule>>,
     last_scheduler_debug_info: Arc<Option<(SchedulerInput, String)>>,
@@ -107,6 +107,12 @@ impl Deref for SharedState {
     fn deref(&self) -> &SharedData {
         return &self.0;
     }
+}
+
+fn last_known(schedule: Arc<Schedule>) -> Option<(Arc<Schedule>, Arc<String>)>
+{
+    let s = to_string(&schedule).expect("can serialize schedule");
+    return Some((schedule, Arc::new(s)));
 }
 
 impl SharedState {
@@ -131,7 +137,8 @@ impl SharedState {
                 responder: responder.clone(),
             }),
             Arc::new(Mutex::new(State {
-                last_known_schedule: old_schedule.map(Arc::new),
+                last_known_schedule: old_schedule.map(Arc::new)
+                    .and_then(last_known),
                 last_scheduler_debug_info: Arc::new(None),
                 election: Arc::new(ElectionState::blank()),
                 actions: BTreeMap::new(),
@@ -158,7 +165,10 @@ impl SharedState {
     }
     /// Returns last known schedule
     pub fn schedule(&self) -> Option<Arc<Schedule>> {
-        self.lock().last_known_schedule.clone()
+        self.lock().last_known_schedule.as_ref().map(|x| x.0.clone())
+    }
+    pub fn serialized_schedule(&self) -> Option<Arc<String>> {
+        self.lock().last_known_schedule.as_ref().map(|x| x.1.clone())
     }
     pub fn scheduler_debug_info(&self) -> Arc<Option<(SchedulerInput, String)>>
     {
@@ -231,7 +241,7 @@ impl SharedState {
         if !guard.election.is_leader &&
             guard.election.leader.as_ref() == Some(&schedule.origin)
         {
-            guard.last_known_schedule = Some(schedule.clone());
+            guard.last_known_schedule = last_known(schedule.clone());
             guard.stable_schedule = Some(schedule.clone());
             self.0.responder.new_schedule(schedule.clone());
         } else {
@@ -261,7 +271,7 @@ impl SharedState {
                 error!("unsolicited action response {}: {:?}", aid, action);
             }
             let schedule = Arc::new(val);
-            guard.last_known_schedule = Some(schedule.clone());
+            guard.last_known_schedule = last_known(schedule.clone());
             guard.owned_schedule = Some(schedule.clone());
             guard.stable_schedule = Some(schedule.clone());
             guard.last_scheduler_debug_info = Arc::new(Some((input, debug)));

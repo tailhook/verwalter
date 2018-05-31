@@ -126,6 +126,18 @@ pub fn respond<D: Serialize, S>(mut e: Encoder<S>, format: Format, data: D)
     ok(e.done())
 }
 
+pub fn respond_cached_json<S>(mut e: Encoder<S>, data: impl AsRef<[u8]>)
+    -> FutureResult<EncoderDone<S>, Error>
+{
+    e.status(Status::Ok);
+    e.add_length(data.as_ref().len() as u64).unwrap();
+    e.add_header("Content-Type", "application/json").unwrap();
+    if e.done_headers().unwrap() {
+        e.write_body(data.as_ref());
+    }
+    ok(e.done())
+}
+
 pub fn respond_text<S>(mut e: Encoder<S>, data: &str)
     -> FutureResult<EncoderDone<S>, Error>
 {
@@ -300,14 +312,29 @@ pub fn serve<S: 'static>(state: &SharedState, config: &Arc<Config>,
             }))
         }
         Schedule => {
-            if let Some(schedule) = state.schedule() {
-                Ok(reply(move |e| {
-                    Box::new(respond(e, format, schedule))
-                }))
-            } else {
-                Ok(reply(move |e| {
-                    Box::new(error_page(NotFound, e))
-                }))
+            match format {
+                Format::Json => {
+                    if let Some(text) = state.serialized_schedule() {
+                        Ok(reply(move |e| {
+                            Box::new(respond_cached_json(e, text.as_bytes()))
+                        }))
+                    } else {
+                        Ok(reply(move |e| {
+                            Box::new(error_page(NotFound, e))
+                        }))
+                    }
+                }
+                _ => {
+                    if let Some(sched) = state.schedule() {
+                        Ok(reply(move |e| {
+                            Box::new(respond(e, format, sched))
+                        }))
+                    } else {
+                        Ok(reply(move |e| {
+                            Box::new(error_page(NotFound, e))
+                        }))
+                    }
+                }
             }
         }
         SchedulerInput => {
