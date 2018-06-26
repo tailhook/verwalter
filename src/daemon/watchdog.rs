@@ -30,7 +30,7 @@ impl Drop for ExitOnReturn {
 }
 
 pub fn init() {
-    WATCHDOG_HANDLE.clone(); // init handle
+    let _ = WATCHDOG_HANDLE.clone(); // init handle
 }
 
 fn spawn<F, R>(f: F)
