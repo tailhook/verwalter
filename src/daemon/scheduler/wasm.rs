@@ -296,8 +296,8 @@ impl Externals for Util {
             POW_INDEX => match (a1?, a2?) {
                 (I32(a), I32(b)) => I32(i32::pow(a, b as u32)),
                 (I64(a), I32(b)) => I64(i64::pow(a, b as u32)),
-                (F32(a), I32(b)) => F32(f32::powi(a, b)),
-                (F64(a), I32(b)) => F64(f64::powi(a, b)),
+                (F32(a), I32(b)) => F32(f32::powi(a.to_float(), b).into()),
+                (F64(a), I32(b)) => F64(f64::powi(a.to_float(), b).into()),
                 (a, b) => {
                     error!("Invalid args for pow: {:?} / {:?}", a, b);
                     return bad_sig();
@@ -312,26 +312,26 @@ impl Externals for Util {
                 }
             },
             EXP2_INDEX => match a1? {
-                I32(a) => F64((a as f64).exp2()),
-                I64(a) => F64((a as f64).exp2()),
-                F32(a) => F32(a.exp2()),
-                F64(a) => F64(a.exp2()),
+                I32(a) => F64((a as f64).exp2().into()),
+                I64(a) => F64((a as f64).exp2().into()),
+                F32(a) => F32(a.to_float().exp2().into()),
+                F64(a) => F64(a.to_float().exp2().into()),
             },
             LDEXP_INDEX => match (a1?, a2?) {
                 (F32(a), I32(b)) => F32(a*(b as f32).exp2()),
                 (F64(a), I32(b)) => F64(a*(b as f64).exp2()),
-                (F32(a), F32(b)) => F32(a*b.exp2()),
-                (F64(a), F64(b)) => F64(a*b.exp2()),
+                (F32(a), F32(b)) => F32((a*b).to_float().exp2().into()),
+                (F64(a), F64(b)) => F64((a*b).to_float().exp2().into()),
                 (a, b) => {
                     error!("Invalid args for ldexp: {:?} / {:?}", a, b);
                     return bad_sig();
                 }
             },
             LOG10_INDEX => match a1? {
-                I32(a) => F64((a as f64).log10()),
-                I64(a) => F64((a as f64).log10()),
-                F32(a) => F32(a.log10()),
-                F64(a) => F64(a.log10()),
+                I32(a) => F64((a as f64).log10().into()),
+                I64(a) => F64((a as f64).log10().into()),
+                F32(a) => F32(a.to_float().log10().into()),
+                F64(a) => F64(a.to_float().log10().into()),
             },
             _ => panic!("Unimplemented function at {}", index),
         };

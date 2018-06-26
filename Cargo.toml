@@ -64,7 +64,7 @@ http-file-headers = "0.1.6"
 hex = "0.3.1"
 deflate = {version="0.7.17", features=["gzip"]}
 capturing-glob = "0.1.1"
-wasmi = "0.1.0"
+wasmi = "0.2.0"
 dir-signature = "0.2.5"
 humantime = "1.1.1"
 
