@@ -140,3 +140,35 @@ fn merge_vars<'x, I, J>(iter: I) -> Map<String, Json>
     }).collect()
 }
 
+#[cfg(test)]
+mod tests {
+    use serde_json::Value as Json;
+    use serde_json::from_str;
+    use super::merge_vars;
+
+    fn parse_str(s: &str) -> Json {
+        from_str(s).unwrap()
+    }
+
+    #[test]
+    fn test_merge_simple() {
+        let a = parse_str(r#"{"lamp": "blue", "table": "green"}"#);
+        let b = parse_str(r#"{"lamp": "yellow", "chair": "black"}"#);
+        assert_eq!(Json::Object(merge_vars(vec![
+            a.as_object().unwrap().iter(),
+            b.as_object().unwrap().iter(),
+            ].into_iter())), parse_str(
+            r#"{"lamp": "yellow", "table": "green", "chair": "black"}"#));
+    }
+
+    #[test]
+    fn test_merge_nested() {
+        let a = parse_str(r#"{"a": {"lamp": "blue", "table": "green"}}"#);
+        let b = parse_str(r#"{"a": {"lamp": "yellow", "chair": "black"}}"#);
+        assert_eq!(Json::Object(merge_vars(vec![
+            a.as_object().unwrap().iter(),
+            b.as_object().unwrap().iter(),
+            ].into_iter())), parse_str(
+        r#"{"a": {"lamp": "yellow", "table": "green", "chair": "black"}}"#));
+    }
+}
