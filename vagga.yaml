@@ -245,6 +245,7 @@ commands:
     container: wasm
     work-dir: /work/example-configs/wasm-minimal
     run: |
+      set -ex
       cargo build --target=wasm32-unknown-unknown --release
       cp \
         target/wasm32-unknown-unknown/release/verwalter-minimal-wasm-scheduler.wasm \
@@ -272,6 +273,7 @@ commands:
     container: wasm
     work-dir: /work/example-configs/wasm-with-query
     run: |
+      set -ex
       cargo build --target=wasm32-unknown-unknown --release
       cp \
         target/wasm32-unknown-unknown/release/scheduler.wasm \
