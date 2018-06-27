@@ -267,6 +267,36 @@ commands:
         - --debug-force-leader
       cantal: *fake_cantal
 
+  _make-wasm-query: !Command
+    description: Compile wasm-with-query example
+    container: wasm
+    work-dir: /work/example-configs/wasm-with-query
+    run: |
+      cargo build --target=wasm32-unknown-unknown --release
+      cp \
+        target/wasm32-unknown-unknown/release/scheduler.wasm \
+        scheduler/v1/scheduler.wasm
+      cp \
+        target/wasm32-unknown-unknown/release/query.wasm \
+        scheduler/v1/query.wasm
+
+  run-example-wasm-query: !Supervise
+    description: "Same as example-wasm-minimal but with query interface"
+    prerequisites: [make-js, make, _make-wasm-query]
+    children:
+      verw: !Command
+        container: xenial
+        environ: *fake_rust_log
+        run:
+        - ./target/debug/verwalter
+        - --config-dir=/work/example-configs/wasm-with-query
+        - --storage-dir=tmp/storage3
+        - --log-dir=/tmp/logs
+        - --override-machine-id=77985419c732412ea38b94db00000000
+        - --hostname=alpha
+        - --debug-force-leader
+      cantal: *fake_cantal
+
 
 containers:
 

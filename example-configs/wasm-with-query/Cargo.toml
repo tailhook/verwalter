@@ -1,0 +1,9 @@
+[package]
+name = "verwalter-minimal-wasm-scheduler"
+description = """
+    Demo scheduler in rust+webassembly for verwalter
+"""
+version = "0.1.0"
+
+[dependencies]
+serde_json = "1.0.0"
