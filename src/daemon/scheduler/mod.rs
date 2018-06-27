@@ -33,7 +33,7 @@ pub(in scheduler) fn read(base_dir: &Path)
 {
     let ref dir = &base_dir.join("scheduler/v1");
     if dir.join("scheduler.wasm").exists() {
-        Ok(Scheduler::Wasm(self::wasm::read(dir)?))
+        Ok(Scheduler::Wasm(self::wasm::Scheduler::read(dir)?))
     } else {
         Ok(Scheduler::Lua(self::luatic::read(dir)?))
     }

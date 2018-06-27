@@ -82,6 +82,7 @@ mod scheduler;
 mod shared;
 mod time_util;
 mod watchdog;
+mod wasm;
 mod fetch;
 mod failures;
 mod query;
