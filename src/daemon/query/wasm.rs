@@ -21,6 +21,11 @@ pub struct QueryInit<'a> {
     hostname: &'a str,
 }
 
+#[derive(Debug, Serialize)]
+pub struct RolesQuery<'a> {
+    deployment_id: &'a str,
+}
+
 impl Responder {
     pub fn new(schedule: &Arc<Schedule>, settings: &Settings,
                file: &Path)
@@ -38,10 +43,14 @@ impl Responder {
         })
     }
 
-    pub fn render_roles(&self, id: &str)
+    pub fn render_roles(&mut self, id: &str)
         -> Result<BTreeMap<String, Json>, Error>
     {
-        unimplemented!();
+        let result: Result<_, String>;
+        result = self.wasm.json_call("render_roles", &RolesQuery {
+            deployment_id: id,
+        })?;
+        return result.map_err(|e| err_msg(e));
     }
 
     pub fn schedule(&self) -> Arc<Schedule> {

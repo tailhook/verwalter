@@ -1,3 +1,4 @@
+extern crate serde;
 #[macro_use] extern crate serde_json;
 
 use std::mem;
@@ -5,6 +6,7 @@ use std::slice;
 use std::panic::set_hook;
 use std::os::raw::{c_void};
 
+use serde::{Serialize, Deserialize};
 use serde_json::{Value, from_slice, to_vec};
 
 extern {
@@ -38,13 +40,31 @@ fn main() {
 #[no_mangle]
 pub extern "C" fn init(ptr: *const u8, len: usize) -> *mut c_void {
     let input = unsafe { slice::from_raw_parts(ptr, len) };
-    let mut out = _init_wrapper(input);
+    let mut out = _wrapper(input, _init);
     let out_ptr = out.as_mut_ptr();
     mem::forget(out);
     return out_ptr as *mut c_void;
 }
 
-fn _init_wrapper(data: &[u8]) -> Vec<u8> {
+#[no_mangle]
+pub extern "C" fn render_roles(ptr: *const u8, len: usize) -> *mut c_void {
+    let input = unsafe { slice::from_raw_parts(ptr, len) };
+    let mut out = _wrapper(input, _render_roles);
+    let out_ptr = out.as_mut_ptr();
+    mem::forget(out);
+    return out_ptr as *mut c_void;
+}
+
+fn _render_roles(_input: Value) -> Result<Value, String> {
+    return Ok(json!({"imaginary_role": {}}))
+}
+
+fn _wrapper<'x, F, S, D>(data: &'x [u8], f: F) -> Vec<u8>
+    where
+        F: Fn(D) -> Result<S, String>,
+        D: Deserialize<'x>,
+        S: Serialize
+{
     let input = match from_slice(data) {
         Ok(inp) => inp,
         Err(e) => {
@@ -53,7 +73,7 @@ fn _init_wrapper(data: &[u8]) -> Vec<u8> {
             })).expect("should serialize standard json");
         }
     };
-    let result = _init_inner(input);
+    let result = f(input);
     match to_vec(&result) {
         Ok(result) => result,
         Err(e) => {
@@ -65,7 +85,7 @@ fn _init_wrapper(data: &[u8]) -> Vec<u8> {
     }
 }
 
-fn _init_inner(_input: Value) -> Result<Value, String> {
+fn _init(_input: Value) -> Result<Value, String> {
     return Ok(json!(null))
 }
 

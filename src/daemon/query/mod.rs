@@ -158,7 +158,9 @@ pub fn run(init: ResponderInit) {
 }
 
 impl Impl {
-    fn render_roles(&self, id: &str) -> Result<BTreeMap<String, Json>, Error> {
+    fn render_roles(&mut self, id: &str)
+        -> Result<BTreeMap<String, Json>, Error>
+    {
         use self::Impl::*;
         match self {
             Empty => Err(err_msg("no schedule yet")),
