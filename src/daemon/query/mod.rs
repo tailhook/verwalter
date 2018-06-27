@@ -17,6 +17,7 @@ use watchdog;
 
 
 mod compat;
+mod wasm;
 
 
 #[derive(Debug)]
@@ -51,9 +52,9 @@ pub struct Settings {
 }
 
 enum Impl {
-    //Wasm(self::wasm::Responder),
     Empty,
     Compat(self::compat::Responder),
+    Wasm(self::wasm::Responder),
 }
 
 impl Responder {
@@ -88,6 +89,8 @@ pub fn run(init: ResponderInit) {
     let _guard = watchdog::ExitOnReturn(83);
     let stream = init.schedule_rx.map(Request::NewSchedule)
         .select(init.rx);
+    let query_file = init.settings.config_dir
+        .join("scheduler/v1/query.wasm");
     let mut responder = Impl::Empty;
     for request in stream.wait() {
         let request = request.expect("stream not closed");
@@ -100,11 +103,23 @@ pub fn run(init: ResponderInit) {
                     debug!("Same schedule");
                     continue;
                 }
+                responder = if query_file.exists() {
+                    let new = wasm::Responder::new(&schedule,
+                        &init.settings, &query_file);
+                    match new {
+                        Ok(new) => Impl::Wasm(new),
+                        Err(e) => {
+                            error!("Error initializing query module: {}", e);
+                            continue;
+                        }
+                    }
+                } else {
                 // TODO(tailhook) check if .wasm exists
-                let new = compat::Responder::new(&schedule, &init.settings);
+                    let new = compat::Responder::new(&schedule, &init.settings);
+                    Impl::Compat(new)
+                };
                 let id: String = thread_rng().sample_iter(&Alphanumeric)
                     .take(24).collect();
-                responder = Impl::Compat(new);
                 match responder.render_roles(&id) {
                     Ok(data) => {
                         init.apply_tx.swap(ApplyData {
@@ -148,6 +163,7 @@ impl Impl {
         match self {
             Empty => Err(err_msg("no schedule yet")),
             Compat(resp) => resp.render_roles(id),
+            Wasm(resp) => resp.render_roles(id),
         }
     }
     fn schedule(&self) -> Option<Arc<Schedule>> {
@@ -155,6 +171,7 @@ impl Impl {
         match self {
             Empty => None,
             Compat(resp) => Some(resp.schedule()),
+            Wasm(resp) => Some(resp.schedule()),
         }
     }
 }
