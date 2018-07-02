@@ -113,9 +113,10 @@ pub fn run(init: ResponderInit) {
                             continue;
                         }
                     }
+                    debug!("Initialized wasm query engine");
                 } else {
-                // TODO(tailhook) check if .wasm exists
                     let new = compat::Responder::new(&schedule, &init.settings);
+                    debug!("Initialized compatibility query engine");
                     Impl::Compat(new)
                 };
                 let id: String = thread_rng().sample_iter(&Alphanumeric)
