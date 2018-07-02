@@ -107,13 +107,15 @@ pub fn run(init: ResponderInit) {
                     let new = wasm::Responder::new(&schedule,
                         &init.settings, &query_file);
                     match new {
-                        Ok(new) => Impl::Wasm(new),
+                        Ok(new) => {
+                            debug!("Initialized wasm query engine");
+                            Impl::Wasm(new)
+                        }
                         Err(e) => {
                             error!("Error initializing query module: {}", e);
                             continue;
                         }
                     }
-                    debug!("Initialized wasm query engine");
                 } else {
                     let new = compat::Responder::new(&schedule, &init.settings);
                     debug!("Initialized compatibility query engine");
