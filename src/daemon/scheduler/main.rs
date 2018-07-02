@@ -17,7 +17,6 @@ use hash::hash;
 use id::Id;
 use peer::Peer;
 use scheduler::{self, Schedule};
-use scheduler::state::num_roles;
 use shared::{SharedState};
 use time_util::ToMsec;
 use watchdog::{self, Alarm};
@@ -240,7 +239,6 @@ pub fn main(state: SharedState, settings: Settings) -> !
             info!("New schedule {}, done in {} ms", hash,
                 SCHEDULING_TIME.get());
             state.set_schedule_by_leader(cookie, Schedule {
-                num_roles: num_roles(&result.schedule),
                 timestamp: timestamp.to_msec(),
                 hash: hash,
                 data: result.schedule,

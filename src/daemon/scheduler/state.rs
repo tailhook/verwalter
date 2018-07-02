@@ -2,7 +2,6 @@ use serde_json::Value as Json;
 
 use hash::hash;
 use id::Id;
-use itertools::Itertools;
 
 pub type ScheduleId = String; // temporarily
 
@@ -12,23 +11,6 @@ pub struct Schedule {
     pub hash: ScheduleId,
     pub data: Json,
     pub origin: Id,
-    pub num_roles: usize,
-}
-
-pub fn num_roles(json: &Json) -> usize {
-    (
-        json.get("roles")
-        .and_then(|x| x.as_object())
-        .map(|x| x.keys())
-    ).into_iter().chain(
-        json.get("nodes")
-        .and_then(|x| x.as_object())
-        .map(|x| x.values().filter_map(|x|
-            x.get("roles")
-             .and_then(|x| x.as_object())
-             .map(|x| x.keys())))
-        .into_iter().flat_map(|x| x)
-    ).kmerge().dedup().count()
 }
 
 pub fn from_json(json: Json) -> Result<Schedule, String> {
@@ -50,7 +32,6 @@ pub fn from_json(json: Json) -> Result<Schedule, String> {
                 Err(format!("Invalid hash {:?} data {}", h, d))
             } else {
                 Ok(Schedule {
-                    num_roles: num_roles(&d),
                     timestamp: t,
                     hash: h.to_string(),
                     data: d,
