@@ -9,6 +9,8 @@ use query::Settings;
 use serde_json::{Value as Json, Map};
 use scheduler::{Schedule};
 
+use super::RolesResult;
+
 
 pub struct Responder {
     schedule: Arc<Schedule>,
@@ -22,8 +24,8 @@ impl Responder {
             hostname: settings.hostname.clone(),
         }
     }
-    pub fn render_roles(&self, id: &str)
-        -> Result<BTreeMap<String, Json>, Error>
+    pub fn render_roles(&self, id: &str, _prev: Option<&Schedule>)
+        -> Result<RolesResult, Error>
     {
         let empty = Map::new();
         let roles = self.schedule.data.as_object()
@@ -80,7 +82,10 @@ impl Responder {
                 Json::String(format_rfc3339(SystemTime::now()).to_string()));
             result.insert(role_name.clone(), Json::Object(cur_vars));
         }
-        Ok(result)
+        Ok(RolesResult {
+            all_roles: result.keys().cloned().collect(),
+            to_render: result,
+        })
     }
     pub fn schedule(&self) -> Arc<Schedule> {
         self.schedule.clone()

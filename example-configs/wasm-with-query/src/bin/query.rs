@@ -2,6 +2,7 @@ extern crate serde;
 #[macro_use] extern crate serde_derive;
 #[macro_use] extern crate serde_json;
 
+use std::collections::{BTreeMap, HashSet};
 use std::mem;
 use std::slice;
 use std::panic::set_hook;
@@ -19,6 +20,7 @@ extern {
 enum ErrorKind {
     Serialize,
     Deserialize,
+    #[allow(dead_code)]
     Internal,
 }
 
@@ -28,6 +30,12 @@ struct QueryError {
     message: String,
     causes: Option<Vec<String>>,
     backtrace: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct RolesResult {
+    to_render: BTreeMap<String, Value>,
+    all_roles: HashSet<String>,
 }
 
 fn main() {
@@ -71,8 +79,12 @@ pub extern "C" fn render_roles(ptr: *const u8, len: usize) -> *mut c_void {
     return out_ptr as *mut c_void;
 }
 
-fn _render_roles(_input: Value) -> Result<Value, String> {
-    return Ok(json!({"imaginary_role": {}}))
+fn _render_roles(_input: Value) -> Result<RolesResult, String> {
+    return Ok(RolesResult {
+        to_render: vec![("imaginary_role".to_string(), json!({}))]
+            .into_iter().collect(),
+        all_roles: vec!["imaginary_role".to_string()].into_iter().collect(),
+    })
 }
 
 fn _wrapper<'x, F, S, D>(data: &'x [u8], f: F) -> Vec<u8>

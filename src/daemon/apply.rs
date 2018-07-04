@@ -89,7 +89,6 @@ fn apply_schedule(hash: &String, is_new: bool,
     }
 
     let string_schedule = format!("{}", apply_task.schedule.data);
-    state.reset_unused_roles(apply_task.roles.keys());
     for (role_name, vars) in apply_task.roles {
         let mut rlog = match dlog.role(&role_name, true) {
             Ok(l) => l,

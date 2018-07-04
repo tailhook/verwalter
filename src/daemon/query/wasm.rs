@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::path::Path;
 
@@ -8,6 +7,7 @@ use serde_json::{Value as Json};
 
 use scheduler::{Schedule};
 use wasm::Program;
+use super::RolesResult;
 
 
 pub struct Responder {
@@ -24,6 +24,7 @@ pub struct QueryInit<'a> {
 #[derive(Debug, Serialize)]
 pub struct RolesQuery<'a> {
     deployment_id: &'a str,
+    previous_schedule: Option<&'a Schedule>,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
@@ -70,12 +71,13 @@ impl Responder {
         })
     }
 
-    pub fn render_roles(&mut self, id: &str)
-        -> Result<BTreeMap<String, Json>, Error>
+    pub fn render_roles(&mut self, id: &str, prev: Option<&Schedule>)
+        -> Result<RolesResult, Error>
     {
         let result: Result<_, CatchAllError>;
         result = self.wasm.json_call("render_roles", &RolesQuery {
             deployment_id: id,
+            previous_schedule: prev,
         })?;
         return Ok(result?);
     }

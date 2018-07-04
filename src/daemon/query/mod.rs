@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 use std::path::PathBuf;
 
@@ -13,6 +13,7 @@ use serde_json::Value as Json;
 use id::Id;
 use apply::ApplyData;
 use scheduler::Schedule;
+use shared::SharedState;
 use watchdog;
 
 
@@ -30,6 +31,16 @@ pub enum Request {
 
 #[derive(Debug, Clone)]
 pub struct Responder(Arc<Internal>);
+
+
+#[derive(Debug, Deserialize)]
+pub struct RolesResult {
+    to_render: BTreeMap<String, Json>,
+    all_roles: HashSet<String>,
+    // TODO(tailhook)
+    //#[serde(with="::serde_millis")]
+    //next_render: Option<SystemTime>,
+}
 
 #[derive(Debug)]
 struct Internal {
@@ -85,7 +96,7 @@ impl Responder {
     }
 }
 
-pub fn run(init: ResponderInit) {
+pub fn run(init: ResponderInit, shared: SharedState) {
     let _guard = watchdog::ExitOnReturn(83);
     let stream = init.schedule_rx.map(Request::NewSchedule)
         .select(init.rx);
@@ -97,7 +108,8 @@ pub fn run(init: ResponderInit) {
         debug!("Incoming request {:?}", request);
         match request {
             Request::NewSchedule(schedule) => {
-                let is_equal = responder.schedule()
+                let prev = responder.schedule();
+                let is_equal = prev.as_ref()
                     .map(|x| x.hash == schedule.hash).unwrap_or(false);
                 if is_equal {
                     debug!("Same schedule");
@@ -123,12 +135,14 @@ pub fn run(init: ResponderInit) {
                 };
                 let id: String = thread_rng().sample_iter(&Alphanumeric)
                     .take(24).collect();
-                match responder.render_roles(&id) {
+                let prev_ref = prev.as_ref().map(|x| &**x);
+                match responder.render_roles(&id, prev_ref) {
                     Ok(data) => {
+                        shared.update_role_list(&data.all_roles);
                         init.apply_tx.swap(ApplyData {
                             id,
                             schedule: schedule.clone(),
-                            roles: data,
+                            roles: data.to_render,
                         }).ok();
                     }
                     Err(e) => {
@@ -145,10 +159,15 @@ pub fn run(init: ResponderInit) {
                 };
                 let id: String = thread_rng().sample_iter(&Alphanumeric)
                     .take(24).collect();
-                match responder.render_roles(&id) {
-                    Ok(roles) => {
+                match responder.render_roles(&id, None) {
+                    Ok(data) => {
+                        shared.update_role_list(&data.all_roles);
                         init.apply_tx
-                            .swap(ApplyData { id, schedule, roles })
+                            .swap(ApplyData {
+                                id,
+                                schedule,
+                                roles: data.to_render,
+                            })
                             .ok();
                     }
                     Err(e) => {
@@ -161,14 +180,14 @@ pub fn run(init: ResponderInit) {
 }
 
 impl Impl {
-    fn render_roles(&mut self, id: &str)
-        -> Result<BTreeMap<String, Json>, Error>
+    fn render_roles(&mut self, id: &str, prev: Option<&Schedule>)
+        -> Result<RolesResult, Error>
     {
         use self::Impl::*;
         match self {
             Empty => Err(err_msg("no schedule yet")),
-            Compat(resp) => resp.render_roles(id),
-            Wasm(resp) => resp.render_roles(id),
+            Compat(resp) => resp.render_roles(id, prev),
+            Wasm(resp) => resp.render_roles(id, prev),
         }
     }
     fn schedule(&self) -> Option<Arc<Schedule>> {

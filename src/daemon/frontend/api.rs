@@ -205,7 +205,6 @@ pub fn serve<S: 'static>(state: &SharedState, config: &Arc<Config>,
                 }
                 let peers = state.peers();
                 let election = state.election();
-                let schedule = state.schedule();
                 let stable_schedule = state.stable_schedule();
                 let owned_schedule;
                 let leader_peer;
@@ -266,8 +265,7 @@ pub fn serve<S: 'static>(state: &SharedState, config: &Arc<Config>,
                     peers: peers.peers.len(),
                     peers_timestamp: Some(peers.timestamp),
                     leader: leader,
-                    // TODO(tailhook)
-                    roles: 0,
+                    roles: state.num_roles(),
                     last_stable_timestamp: election.last_stable_timestamp,
                     num_errors: errors.len() + failed_roles.len(),
                     errors: &*errors,

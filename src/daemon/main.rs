@@ -337,9 +337,10 @@ fn main() {
         }).expect("scheduler thread starts");
 
         let m1 = meter.clone();
+        let s1 = state.clone();
         thread::Builder::new().name(String::from("scheduler")).spawn(move || {
             m1.track_current_thread_by_name();
-            query::run(resp_init)
+            query::run(resp_init, s1)
         }).expect("scheduler thread starts");
 
         Ok(())

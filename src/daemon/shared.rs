@@ -1,5 +1,6 @@
 use std::ops::Deref;
 use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{SystemTime};
 use std::collections::{HashMap, BTreeMap, HashSet};
 use std::collections::btree_map::Entry::{Occupied, Vacant};
@@ -61,6 +62,7 @@ pub struct SharedData {
     pub sandbox: Sandbox,
     pub mainloop: Remote,
     pub fetch_state: ArcCell<fetch::PublicState>,
+    num_roles: AtomicUsize,
     peers: ArcCell<Peers>,
     responder: Responder,
 }
@@ -131,6 +133,7 @@ impl SharedState {
                 options,
                 sandbox,
                 peers: ArcCell::new(Arc::new(Peers::new())),
+                num_roles: 0.into(),
                 mainloop: mainloop.clone(),
                 fetch_state: ArcCell::new(
                     Arc::new(fetch::PublicState::Unstable)),
@@ -391,17 +394,23 @@ impl SharedState {
         role_errors.remove(role_name);
         FAILING_ROLES.set(role_errors.len() as i64);
     }
-    pub fn reset_unused_roles<T, I>(&self, roles: I)
-        where T: AsRef<str>, I: Iterator<Item=T>
+    pub fn num_roles(&self) -> usize {
+        self.num_roles.load(Ordering::SeqCst)
+    }
+    pub fn update_role_list<T, I>(&self, roles: I)
+        where T: AsRef<str>, I: IntoIterator<Item=T>
     {
         let mut lock = self.lock();
         let role_errors = Arc::make_mut(&mut lock.failed_roles);
         let old_errors = mem::replace(role_errors, Default::default());
+        let mut n = 0;
         for name in roles {
+            n += 1;
             if old_errors.contains(name.as_ref()) {
                 role_errors.insert(name.as_ref().into());
             }
         }
+        self.num_roles.store(n, Ordering::SeqCst);
         FAILING_ROLES.set(role_errors.len() as i64);
     }
 }
