@@ -1,4 +1,5 @@
 extern crate serde;
+#[macro_use] extern crate serde_derive;
 #[macro_use] extern crate serde_json;
 
 use std::mem;
@@ -12,6 +13,21 @@ use serde_json::{Value, from_slice, to_vec};
 extern {
     fn log_panic(payload_ptr: *const u8, payload_len: usize,
                  file_ptr: *const u8, file_len: usize, line: u32);
+}
+
+#[derive(Debug, Serialize)]
+enum ErrorKind {
+    Serialize,
+    Deserialize,
+    Internal,
+}
+
+#[derive(Debug, Serialize)]
+struct QueryError {
+    kind: ErrorKind,
+    message: String,
+    causes: Option<Vec<String>>,
+    backtrace: Option<String>,
 }
 
 fn main() {
@@ -68,19 +84,28 @@ fn _wrapper<'x, F, S, D>(data: &'x [u8], f: F) -> Vec<u8>
     let input = match from_slice(data) {
         Ok(inp) => inp,
         Err(e) => {
-            return to_vec(&json!({
-                "Err": format!("Error deserializing input: {}", e),
-            })).expect("should serialize standard json");
+            return to_vec(
+                &Err::<(), _>(QueryError {
+                    kind: ErrorKind::Deserialize,
+                    message: e.to_string(),
+                    causes: None,
+                    backtrace: None,
+                })
+            ).expect("should serialize standard json");
         }
     };
     let result = f(input);
     match to_vec(&result) {
         Ok(result) => result,
         Err(e) => {
-            // TODO(pc) log error
-            return to_vec(&json!({
-                "Err": format!("Error serializing output: {}", e),
-            })).expect("should serialize standard json");
+            return to_vec(
+                &Err::<(), _>(QueryError {
+                    kind: ErrorKind::Serialize,
+                    message: e.to_string(),
+                    causes: None,
+                    backtrace: None,
+                })
+            ).expect("should serialize standard json");
         }
     }
 }
