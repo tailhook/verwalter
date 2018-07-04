@@ -22,6 +22,8 @@ enum ErrorKind {
     Deserialize,
     #[allow(dead_code)]
     Internal,
+    #[allow(dead_code)]
+    Uninitialized,
 }
 
 #[derive(Debug, Serialize)]

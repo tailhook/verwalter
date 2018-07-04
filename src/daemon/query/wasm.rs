@@ -32,6 +32,7 @@ enum ErrorKind {
     Serialize,
     Deserialize,
     Internal,
+    Unitialized,
     Other(String)
 }
 
