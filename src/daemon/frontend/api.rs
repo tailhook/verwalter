@@ -12,7 +12,7 @@ use serde_json::{Value, to_writer, to_writer_pretty, to_value};
 use serde_millis;
 use tk_easyloop::timeout;
 use tk_http::Status::{self, NotFound, PermanentRedirect};
-use tk_http::Status::{TooManyRequests, ServiceUnavailable};
+use tk_http::Status::{TooManyRequests, ServiceUnavailable, InternalServerError};
 use tk_http::server::{Codec as CodecTrait};
 use tk_http::server::{Encoder, EncoderDone, Error};
 
@@ -492,6 +492,24 @@ pub fn serve<S: 'static>(state: &SharedState, config: &Arc<Config>,
                         ok(e.done())
                     }
                 }))
+            }))
+        }
+        RolesData => {
+            Ok(reply(move |e| {
+                Box::new(state.get_responder().get_roles_data()
+                    .then(move |res| match res {
+                        Ok(Ok(v)) => {
+                            respond(e, format, v)
+                        }
+                        Ok(Err(err)) => {
+                            error!("Error receiving roles_data: {}", err);
+                            error_page(InternalServerError, e)
+                        }
+                        Err(err) => {
+                            error!("Error receiving roles_data: {}", err);
+                            error_page(ServiceUnavailable, e)
+                        }
+                    }))
             }))
         }
     }

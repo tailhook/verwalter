@@ -343,6 +343,9 @@ impl SharedState {
             return false;
         }
     }
+    pub fn get_responder(&self) -> Responder {
+        self.0.responder.clone()
+    }
     pub fn force_render(&self) {
         self.0.responder.force_rerender();
     }

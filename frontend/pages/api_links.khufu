@@ -33,7 +33,8 @@ view main():
       ["schedule", "Schedule"],
       ["scheduler_input", "Scheduler Input"],
       ["election", "Election"],
-      ["pending actions", "Pending Actions"],
+      ["pending_actions", "Pending Actions"],
+      ["roles_data", "Roles Data"],
     ]
     for [uri, title, pretty] of items key uri:
       <li.api-line>

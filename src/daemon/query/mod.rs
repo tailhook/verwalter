@@ -5,10 +5,12 @@ use std::path::PathBuf;
 use async_slot as slot;
 use failure::{Error, err_msg};
 use futures::sync::mpsc::{unbounded, UnboundedSender, UnboundedReceiver};
-use futures::Stream;
+use futures::sync::oneshot;
+use futures::{Future, Stream};
 use rand::{thread_rng, Rng};
 use rand::distributions::Alphanumeric;
 use serde_json::Value as Json;
+use void::Void;
 
 use id::Id;
 use apply::ApplyData;
@@ -26,6 +28,7 @@ pub enum Request {
     // this one isn't actually send over channel, but we're using it for
     // simplifying interface
     NewSchedule(Arc<Schedule>),
+    RolesData(oneshot::Sender<Result<RolesResult, Error>>),
     ForceRerender,
 }
 
@@ -33,7 +36,7 @@ pub enum Request {
 pub struct Responder(Arc<Internal>);
 
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RolesResult {
     to_render: BTreeMap<String, Json>,
     all_roles: HashSet<String>,
@@ -93,6 +96,17 @@ impl Responder {
     pub fn force_rerender(&self) {
         self.0.tx.unbounded_send(Request::ForceRerender)
             .expect("responder channel works");
+    }
+    pub fn get_roles_data(&self)
+        -> impl Future<Item=Result<RolesResult, Error>, Error=Void>+Send
+    {
+        let (tx, rx) = oneshot::channel();
+        self.0.tx.unbounded_send(Request::RolesData(tx))
+            .expect("responder channel works");
+        return rx.map_err(|e| {
+            error!("responder lost the channel: {}", e);
+            unreachable!("responder lost the channel");
+        });
     }
 }
 
@@ -177,6 +191,15 @@ pub fn run(init: ResponderInit, shared: SharedState) {
                         error!("Can't compute render roles: {}", e);
                     }
                 }
+            }
+            Request::RolesData(chan) => {
+                debug!("Incoming request RolesData");
+                // maybe store previous id?
+                let id: String = thread_rng().sample_iter(&Alphanumeric)
+                    .take(24).collect();
+                chan.send(responder.render_roles(&id, None))
+                    .map_err(|_| debug!("no receiver for RolesData"))
+                    .ok();
             }
         }
     }

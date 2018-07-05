@@ -18,6 +18,7 @@ pub enum ApiRoute {
     WaitAction,
     ActionIsPending(u64),
     PendingActions,
+    RolesData,
     ForceRenderAll,
     RedirectByNodeName,
 }
@@ -139,6 +140,7 @@ fn parse_api(path: &str) -> Option<Route> {
             }).ok()
         }
         ("pending_actions", "") => Some(Api(PendingActions, api_suffix(path))),
+        ("roles_data", "") => Some(Api(RolesData, api_suffix(path))),
         ("log", tail) => parse_log_route(tail).map(Log),
         _ => None,
     }
