@@ -105,14 +105,14 @@ pub fn run(init: ResponderInit, shared: SharedState) {
     let mut responder = Impl::Empty;
     for request in stream.wait() {
         let request = request.expect("stream not closed");
-        debug!("Incoming request {:?}", request);
         match request {
             Request::NewSchedule(schedule) => {
                 let prev = responder.schedule();
                 let is_equal = prev.as_ref()
                     .map(|x| x.hash == schedule.hash).unwrap_or(false);
+                debug!("Incoming request NewSchedule: {} {}",
+                    schedule.hash, if is_equal { "old" } else { "new" });
                 if is_equal {
-                    debug!("Same schedule");
                     continue;
                 }
                 responder = if query_file.exists() {
@@ -139,6 +139,8 @@ pub fn run(init: ResponderInit, shared: SharedState) {
                 match responder.render_roles(&id, prev_ref) {
                     Ok(data) => {
                         shared.update_role_list(&data.all_roles);
+                        debug!("Got {} roles to render, {} total",
+                            data.to_render.len(), data.all_roles.len());
                         init.apply_tx.swap(ApplyData {
                             id,
                             schedule: schedule.clone(),
@@ -151,6 +153,7 @@ pub fn run(init: ResponderInit, shared: SharedState) {
                 }
             }
             Request::ForceRerender => {
+                debug!("Incoming request ForceRerender");
                 let schedule = if let Some(s) = responder.schedule() {
                     s.clone()
                 } else {
