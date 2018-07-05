@@ -32,7 +32,7 @@ enum ErrorKind {
     Serialize,
     Deserialize,
     Internal,
-    Unitialized,
+    Uninitialized,
     Other(String)
 }
 
@@ -103,6 +103,7 @@ mod serde {
                 "Serialize" => Serialize,
                 "Deserialize" => Deserialize,
                 "Internal" => Internal,
+                "Uninitialized" => Uninitialized,
                 _ => Other(s),
             })
         }
