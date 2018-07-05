@@ -56,7 +56,7 @@ impl Responder {
             .and_then(|x| x.as_object())
             .unwrap_or(&empty);
 
-        let mut result = BTreeMap::new();
+        let mut to_render = BTreeMap::new();
         for (role_name, ref node_role_vars) in node_roles.iter() {
             let node_role_vars = node_role_vars.as_object().unwrap_or(&empty);
             let role_vars = roles.get(role_name)
@@ -80,11 +80,16 @@ impl Responder {
                 Json::String(concat!("v", env!("CARGO_PKG_VERSION")).into()));
             cur_vars.insert(String::from("timestamp"),
                 Json::String(format_rfc3339(SystemTime::now()).to_string()));
-            result.insert(role_name.clone(), Json::Object(cur_vars));
+            to_render.insert(role_name.clone(), Json::Object(cur_vars));
         }
+        let all_roles = roles.keys().cloned()
+            .chain(node_roles.values()
+                .flat_map(|x| x.as_object())
+                .flat_map(|x| x.keys().cloned()))
+            .collect();
         Ok(RolesResult {
-            all_roles: result.keys().cloned().collect(),
-            to_render: result,
+            all_roles,
+            to_render,
         })
     }
     pub fn schedule(&self) -> Arc<Schedule> {
