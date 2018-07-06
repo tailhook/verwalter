@@ -74,10 +74,6 @@ impl Responder {
                 cur_vars.insert(String::from("node"),
                     Json::String(self.hostname.clone()));
             }
-            cur_vars.insert(String::from("deployment_id"),
-                Json::String(id.to_string()));
-            cur_vars.insert(String::from("verwalter_version"),
-                Json::String(concat!("v", env!("CARGO_PKG_VERSION")).into()));
             cur_vars.insert(String::from("timestamp"),
                 Json::String(format_rfc3339(SystemTime::now()).to_string()));
             to_render.insert(role_name.clone(), Json::Object(cur_vars));
