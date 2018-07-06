@@ -19,7 +19,6 @@ commands:
   make: !Command
     description: Build binaries and frontend
     container: xenial
-    prerequisites: [make-js]
     run: [cargo, build]
 
   bulk: !Command
