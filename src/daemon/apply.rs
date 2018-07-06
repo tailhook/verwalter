@@ -88,8 +88,15 @@ fn apply_schedule(hash: &String, is_new: bool,
         }).map_err(|e| error!("Can't create changes log: {}", e)).ok();
     }
 
+    let ref id = apply_task.id;
     let string_schedule = format!("{}", apply_task.schedule.data);
-    for (role_name, vars) in apply_task.roles {
+    for (role_name, mut vars) in apply_task.roles {
+        vars.as_object_mut().map(|obj| {
+            obj.insert("deployment_id".into(), id.clone().into());
+            obj.insert("role".into(), role_name.clone().into());
+            obj.insert("verwalter_version".into(),
+                concat!("v", env!("CARGO_PKG_VERSION")).into());
+        });
         let mut rlog = match dlog.role(&role_name, true) {
             Ok(l) => l,
             Err(e) => {

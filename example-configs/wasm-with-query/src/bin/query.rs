@@ -83,7 +83,8 @@ pub extern "C" fn render_roles(ptr: *const u8, len: usize) -> *mut c_void {
 
 fn _render_roles(_input: Value) -> Result<RolesResult, String> {
     return Ok(RolesResult {
-        to_render: vec![("imaginary_role".to_string(), json!({}))]
+        to_render: vec![("imaginary_role".to_string(),
+                        json!({"template": "non-existent"}))]
             .into_iter().collect(),
         all_roles: vec!["imaginary_role".to_string()].into_iter().collect(),
     })
