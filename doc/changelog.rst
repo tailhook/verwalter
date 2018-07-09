@@ -11,6 +11,8 @@ Verwalter 0.13.0
   ``Content-Type: application/json``
 * feature: add support for ``query.wasm`` which might be used for
   overriding rendered roles and for custom queries
+* feature: you can fetch current scheduler (and query) via API
+  ``/v1/wasm/scheduler.wasm`` (only wasm scheduler though)
 
 
 .. _changelog-0.12.1:

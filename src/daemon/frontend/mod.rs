@@ -71,6 +71,16 @@ impl<S: AsyncWrite + Send + 'static> DispatcherTrait<S> for Dispatcher {
             Log(ref route) => {
                 log::serve(headers, &self.state, route)
             }
+            WasmScheduler => {
+                let path = self.state.options.config_dir
+                    .join("scheduler/v1/scheduler.wasm");
+                disk::serve_wasm(headers, path)
+            }
+            WasmQuery => {
+                let path = self.state.options.config_dir
+                    .join("scheduler/v1/query.wasm");
+                disk::serve_wasm(headers, path)
+            }
             NotFound => {
                 serve_error_page(Status::NotFound)
             }

@@ -28,6 +28,9 @@ lazy_static! {
         .no_encodings()       // always encoded
         .content_type(false)  // we replace content type
         .done();
+    static ref WASM: Arc<Config> = Config::new()
+        .no_encodings()       // never encode, so never out of sync
+        .done();
 }
 
 type ResponseFuture<S> = Box<Future<Item=server::EncoderDone<S>,
@@ -296,6 +299,23 @@ pub fn serve_backup<S>(name: String, head: &server::Head, schedule_dir: &Path)
     let fut = POOL.spawn_fn(move || {
         inp.probe_file(&path).map_err(|e| {
             error!("Error reading file {:?}: {}", path, e);
+            Status::InternalServerError
+        })
+    });
+    Ok(Box::new(Codec {
+        fut: Some(fut),
+        kind: Kind::Backup,
+    }) as Request<S>)
+}
+
+pub fn serve_wasm<S>(head: &server::Head, file: PathBuf)
+    -> Result<Request<S>, server::Error>
+    where S: AsyncWrite + Send + 'static
+{
+    let inp = Input::from_headers(&*CONFIG, head.method(), head.headers());
+    let fut = POOL.spawn_fn(move || {
+        inp.probe_file(&file).map_err(|e| {
+            error!("Error reading wasm {:?}: {}", file, e);
             Status::InternalServerError
         })
     });

@@ -52,6 +52,8 @@ pub enum Route {
     AlterStatic(String),
     Api(ApiRoute, Format),
     Log(LogRoute),
+    WasmScheduler,
+    WasmQuery,
     NotFound,
     BadContentType,
 }
@@ -162,6 +164,8 @@ fn parse_api(path: &str, content_type: Option<&[u8]>) -> Option<Route> {
             }
         ("query", _) => Some(Route::BadContentType),
         ("log", tail) => parse_log_route(tail).map(Log),
+        ("wasm", "scheduler.wasm") => Some(Route::WasmScheduler),
+        ("wasm", "query.wasm") => Some(Route::WasmQuery),
         _ => None,
     }
 }
