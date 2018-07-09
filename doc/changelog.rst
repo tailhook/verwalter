@@ -1,6 +1,18 @@
 Verwalter Changes by Version
 ============================
 
+
+.. _changelog-0.13.0:
+
+Verwalter 0.13.0
+----------------
+
+* breaking: all requests to ``/action`` and ``/wait_action`` now require
+  ``Content-Type: application/json``
+* feature: add support for ``query.wasm`` which might be used for
+  overriding rendered roles and for custom queries
+
+
 .. _changelog-0.12.1:
 
 Verwalter 0.12.1
