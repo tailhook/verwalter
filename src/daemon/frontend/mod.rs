@@ -74,6 +74,9 @@ impl<S: AsyncWrite + Send + 'static> DispatcherTrait<S> for Dispatcher {
             NotFound => {
                 serve_error_page(Status::NotFound)
             }
+            BadContentType => {
+                serve_error_page(Status::UnsupportedMediaType)
+            }
         }
     }
 }
