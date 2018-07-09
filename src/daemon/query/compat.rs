@@ -24,7 +24,7 @@ impl Responder {
             hostname: settings.hostname.clone(),
         }
     }
-    pub fn render_roles(&self, id: &str, _prev: Option<&Schedule>)
+    pub fn render_roles(&self, _id: &str, _prev: Option<&Schedule>)
         -> Result<RolesResult, Error>
     {
         let empty = Map::new();
