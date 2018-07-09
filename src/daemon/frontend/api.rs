@@ -23,6 +23,7 @@ use frontend::routing::{ApiRoute, Format};
 use frontend::to_json::ToJson;
 use frontend::{Config, reply, read_json};
 use id::Id;
+use query::QueryData;
 use shared::{SharedState, PushActionError};
 
 
@@ -507,6 +508,27 @@ pub fn serve<S: 'static>(state: &SharedState, config: &Arc<Config>,
                         }
                         Err(err) => {
                             error!("Error receiving roles_data: {}", err);
+                            error_page(ServiceUnavailable, e)
+                        }
+                    }))
+            }))
+        }
+        Query(ref query) => {
+            let query = query.clone();
+            Ok(read_json(move |input: Value, e| {
+                Box::new(state.get_responder().query(QueryData {
+                        path: query.path,
+                        body: input,
+                    }).then(move |res| match res {
+                        Ok(Ok(v)) => {
+                            respond(e, format, v)
+                        }
+                        Ok(Err(err)) => {
+                            error!("Error in query: {}", err);
+                            error_page(InternalServerError, e)
+                        }
+                        Err(err) => {
+                            error!("Error in query: {}", err);
                             error_page(ServiceUnavailable, e)
                         }
                     }))

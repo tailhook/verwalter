@@ -3,13 +3,13 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 use humantime::format_rfc3339;
-use failure::{Error};
+use failure::{Error, err_msg};
 use itertools::Itertools;
 use query::Settings;
 use serde_json::{Value as Json, Map};
 use scheduler::{Schedule};
 
-use super::RolesResult;
+use query::{RolesResult, QueryData};
 
 
 pub struct Responder {
@@ -90,6 +90,9 @@ impl Responder {
     }
     pub fn schedule(&self) -> Arc<Schedule> {
         self.schedule.clone()
+    }
+    pub fn query(&self, _data: QueryData) -> Result<Json, Error> {
+        return Err(err_msg("no query interface supported"));
     }
 }
 

@@ -7,7 +7,7 @@ use serde_json::{Value as Json};
 
 use scheduler::{Schedule};
 use wasm::Program;
-use super::RolesResult;
+use query::{QueryData, RolesResult};
 
 
 pub struct Responder {
@@ -80,6 +80,12 @@ impl Responder {
             deployment_id: id,
             previous_schedule: prev,
         })?;
+        return Ok(result?);
+    }
+
+    pub fn query(&mut self, data: QueryData) -> Result<Json, Error> {
+        let result: Result<_, CatchAllError>;
+        result = self.wasm.json_call("query", &data)?;
         return Ok(result?);
     }
 

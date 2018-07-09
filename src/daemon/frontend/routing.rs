@@ -3,6 +3,10 @@ use std::path::Component::Normal;
 
 use tk_http::server::Head;
 
+#[derive(Clone, Debug)]
+pub struct Query {
+    pub path: String,
+}
 
 #[derive(Clone, Debug)]
 pub enum ApiRoute {
@@ -19,6 +23,7 @@ pub enum ApiRoute {
     ActionIsPending(u64),
     PendingActions,
     RolesData,
+    Query(Query),
     ForceRenderAll,
     RedirectByNodeName,
 }
@@ -141,6 +146,11 @@ fn parse_api(path: &str) -> Option<Route> {
         }
         ("pending_actions", "") => Some(Api(PendingActions, api_suffix(path))),
         ("roles_data", "") => Some(Api(RolesData, api_suffix(path))),
+        ("query", tail) => {
+            Some(Api(Query(self::Query {
+                path: tail.to_string(),
+            }), api_suffix(path)))
+        }
         ("log", tail) => parse_log_route(tail).map(Log),
         _ => None,
     }

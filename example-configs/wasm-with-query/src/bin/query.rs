@@ -81,6 +81,15 @@ pub extern "C" fn render_roles(ptr: *const u8, len: usize) -> *mut c_void {
     return out_ptr as *mut c_void;
 }
 
+#[no_mangle]
+pub extern "C" fn query(ptr: *const u8, len: usize) -> *mut c_void {
+    let input = unsafe { slice::from_raw_parts(ptr, len) };
+    let mut out = _wrapper(input, _query);
+    let out_ptr = out.as_mut_ptr();
+    mem::forget(out);
+    return out_ptr as *mut c_void;
+}
+
 fn _render_roles(_input: Value) -> Result<RolesResult, String> {
     return Ok(RolesResult {
         to_render: vec![("imaginary_role".to_string(),
@@ -88,6 +97,10 @@ fn _render_roles(_input: Value) -> Result<RolesResult, String> {
             .into_iter().collect(),
         all_roles: vec!["imaginary_role".to_string()].into_iter().collect(),
     })
+}
+
+fn _query(_input: Value) -> Result<Value, String> {
+    return Ok(json!({"hello": "world"}))
 }
 
 fn _wrapper<'x, F, S, D>(data: &'x [u8], f: F) -> Vec<u8>

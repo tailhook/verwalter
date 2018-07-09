@@ -29,12 +29,18 @@ pub enum Request {
     // simplifying interface
     NewSchedule(Arc<Schedule>),
     RolesData(oneshot::Sender<Result<RolesResult, Error>>),
+    Query(QueryData, oneshot::Sender<Result<Json, Error>>),
     ForceRerender,
 }
 
 #[derive(Debug, Clone)]
 pub struct Responder(Arc<Internal>);
 
+#[derive(Debug, Clone, Serialize)]
+pub struct QueryData {
+    pub path: String,
+    pub body: Json,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RolesResult {
@@ -102,6 +108,17 @@ impl Responder {
     {
         let (tx, rx) = oneshot::channel();
         self.0.tx.unbounded_send(Request::RolesData(tx))
+            .expect("responder channel works");
+        return rx.map_err(|e| {
+            error!("responder lost the channel: {}", e);
+            unreachable!("responder lost the channel");
+        });
+    }
+    pub fn query(&self, query: QueryData)
+        -> impl Future<Item=Result<Json, Error>, Error=Void>+Send
+    {
+        let (tx, rx) = oneshot::channel();
+        self.0.tx.unbounded_send(Request::Query(query, tx))
             .expect("responder channel works");
         return rx.map_err(|e| {
             error!("responder lost the channel: {}", e);
@@ -201,6 +218,12 @@ pub fn run(init: ResponderInit, shared: SharedState) {
                     .map_err(|_| debug!("no receiver for RolesData"))
                     .ok();
             }
+            Request::Query(query_data, chan) => {
+                debug!("Incoming request Query");
+                chan.send(responder.query(query_data))
+                    .map_err(|_| debug!("no receiver for RolesData"))
+                    .ok();
+            }
         }
     }
 }
@@ -214,6 +237,16 @@ impl Impl {
             Empty => Err(err_msg("no schedule yet")),
             Compat(resp) => resp.render_roles(id, prev),
             Wasm(resp) => resp.render_roles(id, prev),
+        }
+    }
+    fn query(&mut self, query: QueryData)
+        -> Result<Json, Error>
+    {
+        use self::Impl::*;
+        match self {
+            Empty => Err(err_msg("no schedule yet")),
+            Compat(resp) => resp.query(query),
+            Wasm(resp) => resp.query(query),
         }
     }
     fn schedule(&self) -> Option<Arc<Schedule>> {
