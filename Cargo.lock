@@ -508,7 +508,7 @@ dependencies = [
 
 [[package]]
 name = "indexed_log"
-version = "0.12.1"
+version = "0.13.0"
 dependencies = [
  "failure 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "gron 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1584,7 +1584,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "verwalter"
-version = "0.12.1"
+version = "0.13.0"
 dependencies = [
  "abstract-ns 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "argparse 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1604,7 +1604,7 @@ dependencies = [
  "hex 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "http-file-headers 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "humantime 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "indexed_log 0.12.1",
+ "indexed_log 0.13.0",
  "inotify 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "itertools 0.7.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1640,7 +1640,7 @@ dependencies = [
  "tokio-io 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "trimmer 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "valuable_futures 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "verwalter_config 0.12.1",
+ "verwalter_config 0.13.0",
  "void 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "wasmi 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "yaml-rust 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1648,7 +1648,7 @@ dependencies = [
 
 [[package]]
 name = "verwalter_config"
-version = "0.12.1"
+version = "0.13.0"
 dependencies = [
  "log 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "quick-error 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
