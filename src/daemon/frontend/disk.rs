@@ -312,7 +312,7 @@ pub fn serve_wasm<S>(head: &server::Head, file: PathBuf)
     -> Result<Request<S>, server::Error>
     where S: AsyncWrite + Send + 'static
 {
-    let inp = Input::from_headers(&*CONFIG, head.method(), head.headers());
+    let inp = Input::from_headers(&*WASM, head.method(), head.headers());
     let fut = POOL.spawn_fn(move || {
         inp.probe_file(&file).map_err(|e| {
             error!("Error reading wasm {:?}: {}", file, e);
