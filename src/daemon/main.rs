@@ -20,7 +20,6 @@ extern crate libcantal;
 extern crate nix;
 extern crate ns_router;
 extern crate ns_std_threaded;
-extern crate quire;
 extern crate rand;
 extern crate regex;
 extern crate scan_dir;
