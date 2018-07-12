@@ -27,7 +27,7 @@ async def make_peers(request):
             ip = "192.168.255.{}:22682".format(idx)
         peers.append({
             'id': "77985419c732412ea38b94db{:08d}".format(idx),
-            'hostname': hostname,
+            'hostname': hostname.split('.')[0],
             'name': hostname,
             'primary_addr': ip,
             'addresses': [ip],
