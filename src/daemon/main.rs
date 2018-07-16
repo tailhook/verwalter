@@ -42,6 +42,7 @@ extern crate wasmi;
 extern crate yaml_rust;
 
 #[macro_use] extern crate failure;
+#[macro_use] extern crate juniper;
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate log;
 #[macro_use] extern crate lua;
@@ -337,10 +338,10 @@ fn main() {
 
         let m1 = meter.clone();
         let s1 = state.clone();
-        thread::Builder::new().name(String::from("scheduler")).spawn(move || {
+        thread::Builder::new().name(String::from("query")).spawn(move || {
             m1.track_current_thread_by_name();
             query::run(resp_init, s1)
-        }).expect("scheduler thread starts");
+        }).expect("query thread starts");
 
         Ok(())
     }).expect("loop starts");
