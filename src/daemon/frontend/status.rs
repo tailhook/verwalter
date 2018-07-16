@@ -20,13 +20,13 @@ graphql_object!(<'a> GData<'a>: () as "Status" |&self| {
         env!("CARGO_PKG_VERSION")
     }
     field name() -> &str {
-        self.ctx.state.name
+        &self.ctx.state.name
     }
     field hostname() -> &str {
-        self.ctx.state.hostname
+        &self.ctx.state.hostname
     }
     field default_frontend() -> &str {
-        self.ctx.config.deafault_frontend
+        &self.ctx.config.default_frontend
     }
     field roles() -> i32 {
         self.ctx.state.num_roles() as i32
@@ -36,7 +36,7 @@ graphql_object!(<'a> GData<'a>: () as "Status" |&self| {
         as i32
     }
     field debug_force_leader() -> bool {
-        state.debug_force_leader()
+        self.ctx.state.debug_force_leader()
     }
     field self_report() -> GProcessReport {
         GProcessReport(self.ctx.state.meter.clone())
@@ -76,7 +76,7 @@ graphql_scalar!(GProcessReport as "ProcessReport" {
     description: "process perfromance information"
     resolve(&self) -> Value {
         convert(serde_json::to_value(self.0.process_report())
-            .expect("serialize ProcessReport"));
+            .expect("serialize ProcessReport"))
     }
     from_input_value(_val: &InputValue) -> Option<GProcessReport> {
         unimplemented!();
