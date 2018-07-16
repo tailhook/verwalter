@@ -288,10 +288,11 @@ fn main() {
 
     run_forever(move || -> Result<(), Box<::std::error::Error>> {
 
+        meter.spawn_scanner(&tk_easyloop::handle());
 
         let state = SharedState::new(&id, &name, &hostname,
             options.clone(), sandbox, old_schedule, &responder,
-            tk_easyloop::handle().remote());
+            tk_easyloop::handle().remote(), &meter);
 
 
         let apply_settings = apply::Settings {
@@ -317,7 +318,7 @@ fn main() {
         http::spawn_listener(&ns, &listen_addr, &state,
             &options.config_dir.join("frontend"),
             &options.default_frontend,
-            &schedule_dir, &responder)?;
+            &schedule_dir)?;
         fetch::spawn_fetcher(&state, fetch_rx)?;
         cantal::spawn_fetcher(&state, udp_port)?;
         elect::spawn_election(&ns, &listen_addr, &state, fetch_tx,

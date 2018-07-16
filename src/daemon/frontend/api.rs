@@ -7,6 +7,7 @@ use futures::future::{FutureResult, ok, Future};
 use futures::future::{loop_fn, Loop::{Break, Continue}};
 use futures::sync::oneshot;
 use gron::json_to_gron;
+use juniper;
 use serde::Serialize;
 use serde_json::{Value, to_writer, to_writer_pretty, to_value};
 use serde_millis;
@@ -29,6 +30,11 @@ use shared::{SharedState, PushActionError};
 
 pub type Request<S> = Box<CodecTrait<S, ResponseFuture=Reply<S>>>;
 pub type Reply<S> = Box<Future<Item=EncoderDone<S>, Error=Error>>;
+
+lazy_static! {
+    static ref GRAPHIQL: String = juniper::http::graphiql::graphiql_source(
+                    "/v1/graphql");
+}
 
 
 fn get_metrics() -> HashMap<&'static str, Value>
@@ -146,6 +152,19 @@ pub fn respond_text<S>(mut e: Encoder<S>, data: &str)
     e.add_chunked().unwrap();
     e.add_header("Content-Type",
                  "text/plain; charset=utf-8".as_bytes()).unwrap();
+    if e.done_headers().unwrap() {
+        e.write_body(data.as_bytes());
+    }
+    ok(e.done())
+}
+
+pub fn respond_html<S>(mut e: Encoder<S>, data: &str)
+    -> FutureResult<EncoderDone<S>, Error>
+{
+    e.status(Status::Ok);
+    e.add_chunked().unwrap();
+    e.add_header("Content-Type",
+                 "text/html; charset=utf-8".as_bytes()).unwrap();
     if e.done_headers().unwrap() {
         e.write_body(data.as_bytes());
     }
@@ -439,7 +458,12 @@ pub fn serve<S: 'static>(state: &SharedState, config: &Arc<Config>,
                 }))
             }))
         }
-        Backup(..) | Backups => unreachable!(),
+        Graphiql => {
+            Ok(reply(move |e| {
+                Box::new(respond_html(e, &*GRAPHIQL))
+            }))
+        }
+        Backup(..) | Backups | Graphql => unreachable!(),
         RedirectByNodeName => {
             Ok(reply(move |mut e| {
                 Box::new(loop_fn(0, move |iter| {

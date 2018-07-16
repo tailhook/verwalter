@@ -11,6 +11,7 @@ use tokio_core::reactor::Remote;
 use time::{get_time};
 use serde_json::{Value as Json, to_string};
 use crossbeam::sync::ArcCell;
+use self_meter_http::Meter;
 
 use config::Sandbox;
 use elect::{ElectionState, Epoch};
@@ -62,6 +63,7 @@ pub struct SharedData {
     pub sandbox: Sandbox,
     pub mainloop: Remote,
     pub fetch_state: ArcCell<fetch::PublicState>,
+    pub meter: Meter,
     num_roles: AtomicUsize,
     peers: ArcCell<Peers>,
     responder: Responder,
@@ -122,7 +124,8 @@ impl SharedState {
                options: Options, sandbox: Sandbox,
                old_schedule: Option<Schedule>,
                responder: &Responder,
-               mainloop: &Remote)
+               mainloop: &Remote,
+               meter: &Meter)
         -> SharedState
     {
         SharedState(
@@ -132,6 +135,7 @@ impl SharedState {
                 hostname: hostname.to_string(),
                 options,
                 sandbox,
+                meter: meter.clone(),
                 peers: ArcCell::new(Arc::new(Peers::new())),
                 num_roles: 0.into(),
                 mainloop: mainloop.clone(),

@@ -10,6 +10,8 @@ pub struct Query {
 
 #[derive(Clone, Debug)]
 pub enum ApiRoute {
+    Graphql,
+    Graphiql,
     Status,
     Peers,
     Schedule,
@@ -123,6 +125,8 @@ fn parse_api(path: &str, content_type: Option<&[u8]>) -> Option<Route> {
     use self::Format::Plain;
     match path_component(path) {
         ("status", "") => Some(Api(Status, api_suffix(path))),
+        ("graphql", "") => Some(Api(Graphql, api_suffix(path))),
+        ("graphiql", "") => Some(Api(Graphiql, api_suffix(path))),
         ("leader-redirect-by-node-name", "") => {
             Some(Api(RedirectByNodeName, Plain))
         }

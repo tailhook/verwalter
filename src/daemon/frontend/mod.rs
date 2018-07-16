@@ -17,6 +17,9 @@ mod quick_reply;
 mod routing;
 pub mod serialize;
 mod to_json;
+mod graphql;
+
+mod status;
 
 use frontend::routing::{route, Route};
 pub use frontend::quick_reply::{reply, read_json};
@@ -44,7 +47,7 @@ impl<S: AsyncWrite + Send + 'static> DispatcherTrait<S> for Dispatcher {
         -> Result<Self::Codec, Error>
     {
         use self::Route::*;
-        use frontend::routing::ApiRoute::{Backup, Backups};
+        use frontend::routing::ApiRoute::{Backup, Backups, Graphql};
         match route(headers) {
             CommonIndex => {
                 disk::index_response(headers, &self.config.dir,
@@ -64,6 +67,9 @@ impl<S: AsyncWrite + Send + 'static> DispatcherTrait<S> for Dispatcher {
             }
             Api(Backup(name), _) => {
                 disk::serve_backup(name, headers, &self.config.schedule_dir)
+            }
+            Api(Graphql, fmt) => {
+                graphql::serve(&self.state, &self.config, fmt)
             }
             Api(ref route, fmt) => {
                 api::serve(&self.state, &self.config, route, fmt)

@@ -67,6 +67,8 @@ capturing-glob = "0.1.1"
 wasmi = "0.3.0"
 dir-signature = "0.2.5"
 humantime = "1.1.1"
+juniper = { git="https://github.com/graphql-rust/juniper", rev="2e9408e" }
+graphql-parser = "0.2.0"
 
 [workspace]
 exclude = ["example-configs"]
