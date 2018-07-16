@@ -2,6 +2,15 @@ Verwalter Changes by Version
 ============================
 
 
+.. _changelog-0.13.1:
+
+Verwalter 0.13.1
+----------------
+
+* feature: add ``/v1/graphql`` endpoint with GraphQL API
+* feature: add ``/v1/graphiql`` for poking with GraphQL API
+
+
 .. _changelog-0.13.0:
 
 Verwalter 0.13.0
