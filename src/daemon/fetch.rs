@@ -74,6 +74,16 @@ pub enum PublicState {
     Replicating { leader: Id, schedule: Option<ScheduleId> },
 }
 
+#[derive(Clone, PartialEq, Eq, Serialize)]
+#[derive(GraphQLEnum)]
+#[graphql(name="FetchState", description="Status of schedule fetch routine")]
+pub enum GraphqlState {
+    Unstable,
+    StableLeader,
+    Prefetching,
+    Replicating,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum PrefetchState {
     Graceful,
@@ -646,5 +656,18 @@ impl Codec<TcpStream> for ReplicaCodec {
                     .map_err(ReplicaError::ScheduleError)
             })).ok();
         Ok(Async::Ready(data.len()))
+    }
+}
+
+impl PublicState {
+    pub fn to_graphql_state(&self) -> GraphqlState {
+        use self::PublicState as P;
+        use self::GraphqlState as G;
+        match *self {
+            P::Unstable => G::Unstable,
+            P::StableLeader => G::StableLeader,
+            P::Prefetching(..) => G::Prefetching,
+            P::Replicating {..} => G::Replicating,
+        }
     }
 }

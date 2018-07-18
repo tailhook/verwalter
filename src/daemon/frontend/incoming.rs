@@ -37,6 +37,7 @@ pub struct Token {
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub enum Subscription {
+    Status,
 }
 
 #[derive(Debug)]

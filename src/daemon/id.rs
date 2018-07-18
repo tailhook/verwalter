@@ -18,7 +18,7 @@ graphql_scalar!(Id {
         Value::string(self.to_string())
     }
 
-    from_input_value(v: &InputValue) -> Option<Id> {
+    from_input_value(_v: &InputValue) -> Option<Id> {
         unimplemented!();
     }
 });

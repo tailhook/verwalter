@@ -83,7 +83,7 @@ graphql_scalar!(Timestamp {
         Value::float(self.0.to_msec() as f64)
     }
 
-    from_input_value(v: &InputValue) -> Option<Timestamp> {
+    from_input_value(_v: &InputValue) -> Option<Timestamp> {
         unimplemented!();
     }
 });

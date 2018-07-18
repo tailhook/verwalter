@@ -1,5 +1,6 @@
 use std::i32;
 use std::sync::Arc;
+use std::time::{Duration, UNIX_EPOCH};
 
 use juniper::{FieldError};
 use self_meter_http::Meter;
@@ -8,6 +9,8 @@ use serde_json;
 use id::Id;
 use peer;
 use elect::ElectionState;
+use scheduler;
+use fetch;
 use frontend::graphql::Timestamp;
 use frontend::graphql::ContextRef;
 
@@ -16,10 +19,22 @@ pub struct GData<'a> {
     ctx: &'a ContextRef<'a>,
 }
 
+struct LeaderInfo {
+    id: Id,
+    name: String,
+    hostname: String,
+    addr: Option<String>,
+    schedule: Option<String>,
+    debug_forced: bool,
+}
+
 pub struct GProcessReport(Meter);
 pub struct GThreadsReport(Meter);
 pub struct Peers(Arc<peer::Peers>);
 pub struct Election(Arc<ElectionState>);
+pub struct Schedule(Arc<scheduler::Schedule>);
+pub struct ScheduleData(Arc<scheduler::Schedule>);
+pub struct FetchState(Arc<fetch::PublicState>);
 
 graphql_object!(<'a> GData<'a>: () as "Status" |&self| {
     description: "Status data for the verwalter itself"
@@ -44,18 +59,81 @@ graphql_object!(<'a> GData<'a>: () as "Status" |&self| {
     field election() -> Election {
         Election(self.ctx.state.election())
     }
+    field schedule() -> Option<Schedule> {
+        self.ctx.state.schedule().map(Schedule)
+    }
+    field fetch() -> FetchState {
+        FetchState(self.ctx.state.fetch_state.get())
+    }
     field num_errors() -> i32 {
         (self.ctx.state.errors().len() + self.ctx.state.failed_roles().len())
         as i32
     }
-    field debug_force_leader() -> bool {
-        self.ctx.state.debug_force_leader()
+    field leader() -> Option<LeaderInfo> {
+        let election = self.ctx.state.election();
+        if election.is_leader {
+            let owned_schedule = self.ctx.state.owned_schedule();
+            Some(LeaderInfo {
+                id: self.ctx.state.id().clone(),
+                name: self.ctx.state.name.clone(),
+                hostname: self.ctx.state.hostname.clone(),
+                // TODO(tailhook) resolve listening address and show
+                addr: None,
+                schedule: owned_schedule.as_ref().map(|x| x.hash.clone()),
+                debug_forced: self.ctx.state.debug_force_leader(),
+            })
+        } else {
+            let peers = self.ctx.state.peers();
+            match election.leader.as_ref()
+                .and_then(|id| peers.peers.get(id).map(|p| (id, p)))
+            {
+                Some((id, peer)) => {
+                    let leader_peer = peer.get();
+                    let schedule_hash = leader_peer.schedule.as_ref()
+                                        .map(|x| &x.hash);
+                    Some(LeaderInfo {
+                        id: id.clone(),
+                        name: leader_peer.name.clone(),
+                        hostname: leader_peer.hostname.clone(),
+                        addr: leader_peer.addr
+                            .map(|x| x.to_string()),
+                        schedule: schedule_hash.cloned(),
+                        debug_forced: false,
+                    })
+                }
+                None => None,
+            }
+        }
     }
     field self_report() -> GProcessReport {
         GProcessReport(self.ctx.state.meter.clone())
     }
     field threads_report() -> GThreadsReport {
         GThreadsReport(self.ctx.state.meter.clone())
+    }
+    field schedule_status() -> &'static str {
+        let election = self.ctx.state.election();
+        if election.is_leader {
+            "ok"
+        } else {
+            let peers = self.ctx.state.peers();
+            let stable_schedule = self.ctx.state.schedule();
+            match election.leader.as_ref()
+                .and_then(|id| peers.peers.get(id).map(|p| (id, p)))
+            {
+                Some((id, peer)) => {
+                    let leader_peer = peer.get();
+                    let schedule_hash = leader_peer.schedule.as_ref()
+                                        .map(|x| &x.hash);
+                    match (schedule_hash, &stable_schedule) {
+                        (Some(h), &Some(ref s)) if h == &s.hash => "ok",
+                        (Some(_), _) => "fetching",
+                        (None, _) => "waiting",
+                    }
+                }
+                None => "unstable",
+            }
+        }
     }
 });
 
@@ -66,6 +144,15 @@ graphql_object!(Peers: () as "Peers" |&self| {
     field timestamp() -> Timestamp {
         Timestamp(self.0.timestamp)
     }
+});
+
+graphql_object!(LeaderInfo: () as "Leader" |&self| {
+    field id() -> &Id { &self.id }
+    field name() -> &String { &self.name }
+    field hostname() -> &String { &self.hostname }
+    field addr() -> &Option<String> { &self.addr }
+    field schedule() -> &Option<String> { &self.schedule }
+    field debug_forced() -> bool { self.debug_forced }
 });
 
 graphql_object!(Election: () as "Election" |&self| {
@@ -95,6 +182,27 @@ graphql_object!(Election: () as "Election" |&self| {
     }
 });
 
+graphql_object!(Schedule: () as "Schedule" |&self| {
+    field timestamp() -> Timestamp {
+        Timestamp(UNIX_EPOCH + Duration::from_millis(self.0.timestamp))
+    }
+    field hash() -> &String {
+        &self.0.hash
+    }
+    field data() -> ScheduleData {
+        ScheduleData(self.0.clone())
+    }
+    field origin() -> &Id {
+        &self.0.origin
+    }
+});
+
+graphql_object!(FetchState: () as "Fetch" |&self| {
+    field state() -> fetch::GraphqlState {
+        self.0.to_graphql_state()
+    }
+});
+
 // TODO(tailhook) rather make a serializer
 fn convert(val: serde_json::Value) -> ::juniper::Value {
     use serde_json::Value as I;
@@ -121,6 +229,31 @@ fn convert(val: serde_json::Value) -> ::juniper::Value {
     }
 }
 
+fn convert_ref(val: &serde_json::Value) -> ::juniper::Value {
+    use serde_json::Value as I;
+    use juniper::Value as O;
+    match val {
+        I::Null => O::Null,
+        I::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                if i <= i32::MAX as i64 && i >= i32::MIN as i64 {
+                    O::Int(i as i32)
+                } else {
+                    O::Float(i as f64)
+                }
+            } else {
+                O::Float(n.as_f64().expect("can alwasy be float"))
+            }
+        }
+        I::String(s) => O::String(s.clone()),
+        I::Bool(v) => O::Boolean(*v),
+        I::Array(items) => O::List(items.iter().map(convert_ref).collect()),
+        I::Object(map) => {
+            O::Object(map.iter().map(|(k, v)| (k.clone(), convert_ref(v))).collect())
+        }
+    }
+}
+
 graphql_scalar!(GProcessReport as "ProcessReport" {
     description: "process perfromance information"
     resolve(&self) -> Value {
@@ -139,6 +272,16 @@ graphql_scalar!(GThreadsReport as "ThreadsReport" {
             .expect("serialize ThreadReport"))
     }
     from_input_value(_val: &InputValue) -> Option<GThreadsReport> {
+        unimplemented!();
+    }
+});
+
+graphql_scalar!(ScheduleData as "ScheduleData" {
+    description: "dump of schedule data"
+    resolve(&self) -> Value {
+        convert_ref(&self.0.data)
+    }
+    from_input_value(_val: &InputValue) -> Option<ScheduleData> {
         unimplemented!();
     }
 });

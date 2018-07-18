@@ -2,10 +2,10 @@ use futures::future::{FutureResult, ok, err};
 use tk_http::websocket::{self, Frame, Packet};
 use serde_json::{from_str, to_string};
 use graphql_parser::parse_query;
-use graphql_parser::query::OperationDefinition::{Subscription};
-use graphql_parser::query::{Definition, Document};
+use graphql_parser::query::OperationDefinition as Op;
+use graphql_parser::query::{Definition, Document, Selection};
 
-use frontend::incoming::{Connection, Incoming};
+use frontend::incoming::{Connection, Incoming, Subscription};
 use frontend::incoming::{subscription_to_query};
 use frontend::graphql;
 
@@ -83,7 +83,7 @@ impl websocket::Dispatcher for Dispatcher {
 fn has_subscription(doc: &Document) -> bool {
     for d in &doc.definitions {
         match *d {
-            Definition::Operation(Subscription(_)) => {
+            Definition::Operation(Op::Subscription(_)) => {
                 return true;
             }
             _ => {}
@@ -94,7 +94,7 @@ fn has_subscription(doc: &Document) -> bool {
 
 
 fn start_query(id: String, payload: graphql::Input,
-    conn: &Connection, context: &graphql::Context, _incoming: &Incoming)
+    conn: &Connection, context: &graphql::Context, incoming: &Incoming)
 {
     let q = parse_query(&payload.query)
         .expect("Request is good"); // TODO(tailhook)
@@ -107,15 +107,13 @@ fn start_query(id: String, payload: graphql::Input,
         };
         for d in &q.definitions {
             match *d {
-                Definition::Operation(Subscription(ref sub)) => {
+                Definition::Operation(Op::Subscription(ref sub)) => {
                     for item in &sub.selection_set.items {
                         match *item {
-                            /*
                             Selection::Field(ref f) if f.name == "status" => {
-                                incoming.subscribe_status(conn,
-                                    &id, &input);
+                                incoming.subscribe(conn,
+                                    Subscription::Status, &id, &input);
                             }
-                            */
                             // TODO(tailhook) maybe validate?
                             // For now invalid fields will error in juniper
                             // executor.
