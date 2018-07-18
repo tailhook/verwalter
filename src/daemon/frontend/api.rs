@@ -463,7 +463,7 @@ pub fn serve<S: 'static>(state: &SharedState, config: &Arc<Config>,
                 Box::new(respond_html(e, &*GRAPHIQL))
             }))
         }
-        Backup(..) | Backups | Graphql => unreachable!(),
+        Backup(..) | Backups | Graphql | GraphqlWs(..) => unreachable!(),
         RedirectByNodeName => {
             Ok(reply(move |mut e| {
                 Box::new(loop_fn(0, move |iter| {

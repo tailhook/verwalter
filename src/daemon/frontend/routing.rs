@@ -1,16 +1,17 @@
 use std::path::Path;
 use std::path::Component::Normal;
 
-use tk_http::server::Head;
+use tk_http::server::{Head, WebsocketHandshake};
 
 #[derive(Clone, Debug)]
 pub struct Query {
     pub path: String,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum ApiRoute {
     Graphql,
+    GraphqlWs(WebsocketHandshake),
     Graphiql,
     Status,
     Peers,
@@ -46,7 +47,7 @@ pub enum Format {
     Plain,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum Route {
     CommonIndex,
     CommonStatic(String),
@@ -58,6 +59,7 @@ pub enum Route {
     WasmQuery,
     NotFound,
     BadContentType,
+    BadRequest,
 }
 
 pub fn path_component(path: &str) -> (&str, &str) {
@@ -119,13 +121,19 @@ fn parse_log_route(path: &str) -> Option<LogRoute> {
     }
 }
 
-fn parse_api(path: &str, content_type: Option<&[u8]>) -> Option<Route> {
+fn parse_api(path: &str, content_type: Option<&[u8]>,
+    ws: Option<WebsocketHandshake>)
+    -> Option<Route>
+{
     use self::Route::*;
     use self::ApiRoute::*;
     use self::Format::Plain;
     match path_component(path) {
         ("status", "") => Some(Api(Status, api_suffix(path))),
-        ("graphql", "") => Some(Api(Graphql, api_suffix(path))),
+        ("graphql", "") => match ws {
+            Some(ws) => Some(Api(GraphqlWs(ws), api_suffix(path))),
+            None => Some(Api(Graphql, api_suffix(path))),
+        }
         ("graphiql", "") => Some(Api(Graphiql, api_suffix(path))),
         ("leader-redirect-by-node-name", "") => {
             Some(Api(RedirectByNodeName, Plain))
@@ -188,6 +196,13 @@ pub fn route(head: &Head) -> Route {
     let route = match path_component(&path[..]) {
         ("", _) => Some(CommonIndex),
         ("v1", suffix) => {
+            let up = match head.get_websocket_upgrade() {
+                Ok(up) => up,
+                Err(()) => {
+                    info!("Invalid websocket handshake");
+                    return Route::BadRequest
+                }
+            };
             let mut content_type = None;
             for (name, value) in head.headers() {
                 if name.eq_ignore_ascii_case("Content-Type") {
@@ -195,7 +210,7 @@ pub fn route(head: &Head) -> Route {
                     break;
                 }
             }
-            parse_api(suffix, content_type)
+            parse_api(suffix, content_type, up)
         }
         (dir, suffix) if dir.starts_with("~") => {
             if !validate_path(&path[2..]) {

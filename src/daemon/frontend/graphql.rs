@@ -1,4 +1,5 @@
 use std::sync::{Arc};
+use std::time::SystemTime;
 use std::collections::HashMap;
 
 use juniper::{self, InputValue, RootNode, FieldError, execute};
@@ -7,6 +8,7 @@ use serde_json::{Value as Json, to_value};
 use tk_http::Status;
 use tk_http::server::{Error};
 
+use time_util::ToMsec;
 use frontend::{Request};
 use frontend::{Config, read_json};
 use frontend::routing::Format;
@@ -21,10 +23,17 @@ pub struct ContextRef<'a> {
     pub config: &'a Config,
 }
 
+#[derive(Clone)]
+pub struct Context {
+    pub state: SharedState,
+    pub config: Arc<Config>,
+}
+
 pub type Schema<'a> = RootNode<'a, &'a Query, &'a Mutation>;
 
 pub struct Query;
 pub struct Mutation;
+pub struct Timestamp(pub SystemTime);
 
 #[derive(Deserialize, Clone, Debug)]
 pub struct Input {
@@ -67,6 +76,18 @@ graphql_object!(<'a> &'a Mutation: ContextRef<'a> as "Mutation" |&self| {
     }
 });
 
+graphql_scalar!(Timestamp {
+    description: "A timestamp transferred as a number of milliseconds"
+
+    resolve(&self) -> Value {
+        Value::float(self.0.to_msec() as f64)
+    }
+
+    from_input_value(v: &InputValue) -> Option<Timestamp> {
+        unimplemented!();
+    }
+});
+
 pub fn serve<S: 'static>(state: &SharedState, config: &Arc<Config>, format: Format)
     -> Result<Request<S>, Error>
 {
@@ -104,6 +125,38 @@ pub fn serve<S: 'static>(state: &SharedState, config: &Arc<Config>, format: Form
             Box::new(error_page(Status::BadRequest, e))
         }
     }))
+}
+
+pub fn ws_response<'a>(context: &Context, input: &'a Input) -> Output {
+    let context = ContextRef {
+        state: &context.state,
+        config: &*context.config,
+    };
+
+    let empty = HashMap::new();
+    let variables = input.variables.as_ref().unwrap_or(&empty);
+
+    let result = execute(&input.query,
+        input.operation_name.as_ref().map(|x| &x[..]),
+        &Schema::new(&Query, &Mutation),
+        &variables,
+        &context);
+
+    match result {
+        Ok((data, errors)) => {
+            Output {
+                data: Some(data),
+                errors: ErrorWrapper::Execution(errors),
+            }
+        }
+        Err(e) => {
+            Output {
+                data: None,
+                errors: ErrorWrapper::Fatal(
+                    to_value(&e).expect("can serialize error")),
+            }
+        }
+    }
 }
 
 impl ErrorWrapper {

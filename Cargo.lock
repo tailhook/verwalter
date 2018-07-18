@@ -1728,6 +1728,7 @@ dependencies = [
  "tempfile 3.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "tera 0.10.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.40 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tk-bufstream 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tk-cantal 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "tk-easyloop 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "tk-http 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",

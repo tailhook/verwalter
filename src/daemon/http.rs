@@ -12,6 +12,7 @@ use tokio_core::net::TcpListener;
 use tk_listen::ListenExt;
 
 use frontend;
+use frontend::graphql;
 use shared::SharedState;
 
 
@@ -28,6 +29,11 @@ pub fn spawn_listener(ns: &NsRouter, addr: &str,
         default_frontend: default_frontend.to_string(),
         schedule_dir: schedule_dir.to_path_buf(),
     });
+    let ctx = graphql::Context {
+        state: state.clone(),
+        config: config.clone(),
+    };
+    let incoming = frontend::incoming::Incoming::new(&ctx);
     let hcfg = tk_http::server::Config::new()
         .inflight_request_limit(2)
         .inflight_request_prealoc(0)
@@ -53,11 +59,13 @@ pub fn spawn_listener(ns: &NsRouter, addr: &str,
             let hcfg = hcfg.clone();
             let state = state.clone();
             let config = config.clone();
+            let incoming = incoming.clone();
             spawn(listener.incoming()
                 .sleep_on_error(Duration::from_millis(100), &handle())
                 .map(move |(socket, saddr)| {
                     Proto::new(socket, &hcfg,
                         frontend::Dispatcher {
+                            incoming: incoming.clone(),
                             state: state.clone(),
                             config: config.clone(),
                         },

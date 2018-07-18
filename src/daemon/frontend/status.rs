@@ -1,9 +1,12 @@
 use std::i32;
+use std::sync::Arc;
 
 use juniper::{FieldError};
 use self_meter_http::Meter;
 use serde_json;
 
+use peer;
+use frontend::graphql::Timestamp;
 use frontend::graphql::ContextRef;
 
 
@@ -13,6 +16,7 @@ pub struct GData<'a> {
 
 pub struct GProcessReport(Meter);
 pub struct GThreadsReport(Meter);
+pub struct Peers(Arc<peer::Peers>);
 
 graphql_object!(<'a> GData<'a>: () as "Status" |&self| {
     description: "Status data for the verwalter itself"
@@ -31,6 +35,9 @@ graphql_object!(<'a> GData<'a>: () as "Status" |&self| {
     field roles() -> i32 {
         self.ctx.state.num_roles() as i32
     }
+    field peers() -> Peers {
+        Peers(self.ctx.state.peers())
+    }
     field num_errors() -> i32 {
         (self.ctx.state.errors().len() + self.ctx.state.failed_roles().len())
         as i32
@@ -43,6 +50,15 @@ graphql_object!(<'a> GData<'a>: () as "Status" |&self| {
     }
     field threads_report() -> GThreadsReport {
         GThreadsReport(self.ctx.state.meter.clone())
+    }
+});
+
+graphql_object!(Peers: () as "Peers" |&self| {
+    field number() -> i32 {
+        self.0.peers.len() as i32
+    }
+    field timestamp() -> Timestamp {
+        Timestamp(self.0.timestamp)
     }
 });
 

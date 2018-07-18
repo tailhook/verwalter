@@ -5,7 +5,7 @@ use futures::{Future};
 use tk_http::Status;
 use tk_http::server::{Codec as CodecTrait, Dispatcher as DispatcherTrait};
 use tk_http::server::{Head, EncoderDone, Error};
-use tokio_io::AsyncWrite;
+use tokio_io::{AsyncRead, AsyncWrite};
 
 use shared::{SharedState};
 
@@ -17,7 +17,10 @@ mod quick_reply;
 mod routing;
 pub mod serialize;
 mod to_json;
-mod graphql;
+pub mod graphql;
+mod websocket;
+pub mod incoming;
+mod dispatcher;
 
 mod status;
 
@@ -39,15 +42,18 @@ pub struct Config {
 pub struct Dispatcher {
     pub state: SharedState,
     pub config: Arc<Config>,
+    pub incoming: incoming::Incoming,
 }
 
-impl<S: AsyncWrite + Send + 'static> DispatcherTrait<S> for Dispatcher {
+impl<S> DispatcherTrait<S> for Dispatcher
+    where S: AsyncRead + AsyncWrite + Send + 'static
+{
     type Codec = Request<S>;
     fn headers_received(&mut self, headers: &Head)
         -> Result<Self::Codec, Error>
     {
         use self::Route::*;
-        use frontend::routing::ApiRoute::{Backup, Backups, Graphql};
+        use frontend::routing::ApiRoute::{Backup, Backups, Graphql, GraphqlWs};
         match route(headers) {
             CommonIndex => {
                 disk::index_response(headers, &self.config.dir,
@@ -71,6 +77,10 @@ impl<S: AsyncWrite + Send + 'static> DispatcherTrait<S> for Dispatcher {
             Api(Graphql, fmt) => {
                 graphql::serve(&self.state, &self.config, fmt)
             }
+            Api(GraphqlWs(ws), _fmt) => {
+                Ok(websocket::serve(ws,
+                    &self.incoming, &self.state, &self.config))
+            }
             Api(ref route, fmt) => {
                 api::serve(&self.state, &self.config, route, fmt)
             }
@@ -92,6 +102,9 @@ impl<S: AsyncWrite + Send + 'static> DispatcherTrait<S> for Dispatcher {
             }
             BadContentType => {
                 serve_error_page(Status::UnsupportedMediaType)
+            }
+            BadRequest => {
+                serve_error_page(Status::BadRequest)
             }
         }
     }
