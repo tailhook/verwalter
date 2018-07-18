@@ -8,6 +8,7 @@ import {is_leader} from './util/status'
 import {format_error_hint, format_error_badge} from './util/format_err'
 import * as self_meter from './blocks/self_meter.khufu'
 import * as metrics from './blocks/metrics.khufu'
+import {status} from './graphql'
 
 import {main as roles} from './pages/roles.khufu'
 import {main as api_links} from './pages/api_links.khufu'
@@ -33,9 +34,9 @@ view _navbar(status, frontend_version, @expert_mode, router):
   <nav.navbar.navbar-default>
     <div.container-fluid>
       <div.navbar-header>
-        <a.navbar-brand.red?(status.debug_force_leader) href=router.rel('/')>
+        <a.navbar-brand.red?(status.leader.debugForced) href=router.rel('/')>
           "Verwalter"
-          if status.debug_force_leader:
+          if status.leader.debugForced:
             <div.subtext.red>
               "Debugging Version With A Forced Leader"
           else:
@@ -56,7 +57,7 @@ view _navbar(status, frontend_version, @expert_mode, router):
               link {click} go(event) -> @router
               "Servers"
               if status:
-                ` [${status.peers}]`
+                ` [${status.peers.number}]`
           <li.active?(router.at('services'))>
             <a href=router.rel("/services")>
               link {click} go(event) -> @router
@@ -130,11 +131,10 @@ view _navbar(status, frontend_version, @expert_mode, router):
             <li>
               <a href=`/~${status.default_frontend}/`>
                 <span.glyphicon.glyphicon-new-window>
-          if status and status.errors:
-            <li.text-danger
-              title=format_error_hint(status)>
+          if status.errors:
+            <li.text-danger>
               <a.error-status href="/v1/status.pretty">
-                format_error_badge(status)
+                `${ status.errors } errors`
           if status and status.leader:
             <li>
               let url = (set_port(status.leader.name, status.leader.addr)
@@ -142,15 +142,15 @@ view _navbar(status, frontend_version, @expert_mode, router):
               <a.navbar-brand href=url>
                 status.leader.name
                 <div.subtext.text-muted>
-                  status.fetch_state.state
+                  status.fetch.state.toLowerCase()
                   ": "
-                  status.schedule_status
+                  status.scheduleStatus
           elif status:
             <li.muted>
               <a.navbar-brand href="/v1/election">
                 "No leader"
                 <div.subtext.text-muted>
-                  status.scheduler_state
+                  status.scheduleStatus
           else:
             <li.muted>
               <a.navbar-brand href="/v1/election">
@@ -158,23 +158,22 @@ view _navbar(status, frontend_version, @expert_mode, router):
 
 view main(router, version):
   <div>
-    store @status = json_store | refresher | fast_refresh_json('/v1/status')
     store @expert_mode = bool | init(false)
-    _navbar(@status or {}, version, expert_mode, router)
+    _navbar(status, version, expert_mode, router)
     <div class="container-fluid">
       if let sub = router.at('roles'):
-        roles(@status, @expert_mode, sub)
+        roles(status, @expert_mode, sub)
       elif let sub = router.at('role'):
-        roles(@status, @expert_mode, sub)
+        roles(status, @expert_mode, sub)
       elif let sub = router.at('api_links'):
-        api_links(@status, @expert_mode, sub)
+        api_links(status, @expert_mode, sub)
       elif let sub = router.at('peers'):
-        peers(@status, @expert_mode, sub)
+        peers(status, @expert_mode, sub)
       elif let sub = router.at('services'):
-        services(@status, @expert_mode, sub)
+        services(status, @expert_mode, sub)
       elif let sub = router.at('logs'):
-        logs(@status, @expert_mode, sub)
+        logs(status, @expert_mode, sub)
       elif let sub = router.at('backups'):
-        backups(@status, @expert_mode, sub)
+        backups(status, @expert_mode, sub)
       elif let sub = router.at('tail'):
-        tail(@status, @expert_mode, sub)
+        tail(status, @expert_mode, sub)
