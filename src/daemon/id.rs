@@ -3,6 +3,7 @@ use std::fmt;
 use std::str::FromStr;
 use std::sync::Arc;
 
+use juniper::Value;
 use cbor::{Encoder, EncodeResult, Decoder, DecodeResult};
 use hex::{FromHex, ToHex, encode as hexlify, FromHexError};
 use serde::{Serialize, Serializer};
@@ -10,6 +11,17 @@ use serde::{Serialize, Serializer};
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Id(InternalId);
+
+graphql_scalar!(Id {
+    description: "Node id"
+    resolve(&self) -> Value {
+        Value::string(self.to_string())
+    }
+
+    from_input_value(v: &InputValue) -> Option<Id> {
+        unimplemented!();
+    }
+});
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum InternalId {

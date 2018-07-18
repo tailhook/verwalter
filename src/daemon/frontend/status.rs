@@ -5,7 +5,9 @@ use juniper::{FieldError};
 use self_meter_http::Meter;
 use serde_json;
 
+use id::Id;
 use peer;
+use elect::ElectionState;
 use frontend::graphql::Timestamp;
 use frontend::graphql::ContextRef;
 
@@ -17,6 +19,7 @@ pub struct GData<'a> {
 pub struct GProcessReport(Meter);
 pub struct GThreadsReport(Meter);
 pub struct Peers(Arc<peer::Peers>);
+pub struct Election(Arc<ElectionState>);
 
 graphql_object!(<'a> GData<'a>: () as "Status" |&self| {
     description: "Status data for the verwalter itself"
@@ -37,6 +40,9 @@ graphql_object!(<'a> GData<'a>: () as "Status" |&self| {
     }
     field peers() -> Peers {
         Peers(self.ctx.state.peers())
+    }
+    field election() -> Election {
+        Election(self.ctx.state.election())
     }
     field num_errors() -> i32 {
         (self.ctx.state.errors().len() + self.ctx.state.failed_roles().len())
@@ -59,6 +65,33 @@ graphql_object!(Peers: () as "Peers" |&self| {
     }
     field timestamp() -> Timestamp {
         Timestamp(self.0.timestamp)
+    }
+});
+
+graphql_object!(Election: () as "Election" |&self| {
+    field is_leader() -> bool {
+        self.0.is_leader
+    }
+    field is_stable() -> bool {
+        self.0.is_stable
+    }
+    field promoting() -> &Option<Id> {
+        &self.0.promoting
+    }
+    field num_votes_for_me() -> Option<i32> {
+        self.0.num_votes_for_me.map(|x| x as i32)
+    }
+    field needed_votes() -> Option<i32> {
+        self.0.num_votes_for_me.map(|x| x as i32)
+    }
+    field epoch() -> f64 {
+        self.0.epoch as f64
+    }
+    field deadline() -> Timestamp {
+        Timestamp(self.0.deadline)
+    }
+    field last_stable_timestamp() -> Option<Timestamp> {
+        self.0.last_stable_timestamp.map(Timestamp)
     }
 });
 
