@@ -16,6 +16,8 @@ use self_meter_http::Meter;
 use config::Sandbox;
 use elect::{ElectionState, Epoch};
 use fetch;
+use frontend;
+use frontend::Subscription;
 use id::Id;
 use {Options};
 use peer::{Peer, Peers};
@@ -64,6 +66,7 @@ pub struct SharedData {
     pub mainloop: Remote,
     pub fetch_state: ArcCell<fetch::PublicState>,
     pub meter: Meter,
+    graphql: frontend::channel::Sender,
     num_roles: AtomicUsize,
     peers: ArcCell<Peers>,
     responder: Responder,
@@ -125,7 +128,8 @@ impl SharedState {
                old_schedule: Option<Schedule>,
                responder: &Responder,
                mainloop: &Remote,
-               meter: &Meter)
+               meter: &Meter,
+               graphql: &frontend::channel::Sender)
         -> SharedState
     {
         SharedState(
@@ -142,6 +146,7 @@ impl SharedState {
                 fetch_state: ArcCell::new(
                     Arc::new(fetch::PublicState::Unstable)),
                 responder: responder.clone(),
+                graphql: graphql.clone(),
             }),
             Arc::new(Mutex::new(State {
                 last_known_schedule: old_schedule.map(Arc::new)
@@ -159,6 +164,9 @@ impl SharedState {
     }
     fn lock(&self) -> MutexGuard<State> {
         self.1.lock().expect("shared state lock")
+    }
+    fn trigger(&self, sub: Subscription) {
+        self.graphql.trigger(sub);
     }
     // Accessors
     pub fn id(&self) -> &Id {
@@ -236,6 +244,7 @@ impl SharedState {
             timestamp: time,
             peers: new_peers,
         }));
+        self.trigger(Subscription::Status);
     }
     pub fn set_schedule_debug_info(&self, input: SchedulerInput, debug: String)
     {
@@ -255,10 +264,12 @@ impl SharedState {
             debug!("Ingoring follower schedule {} from {}",
                 schedule.hash, schedule.origin);
         }
+        self.trigger(Subscription::Status);
     }
     pub fn reset_stable_schedule(&self) {
         // owned schedule is reset in update_election handler
-        self.lock().stable_schedule = None
+        self.lock().stable_schedule = None;
+        self.trigger(Subscription::Status);
     }
     pub fn set_schedule_by_leader(&self, cookie: LeaderCookie,
         val: Schedule, input: SchedulerInput, debug: String,
@@ -284,6 +295,7 @@ impl SharedState {
             guard.last_scheduler_debug_info = Arc::new(Some((input, debug)));
             self.0.responder.new_schedule(schedule.clone());
         }
+        self.trigger(Subscription::Status);
     }
     pub fn set_error(&self, domain: &'static str, value: String) {
         let mut lock = self.lock();
@@ -291,12 +303,14 @@ impl SharedState {
         errs.insert(domain, value);
         ERRORS.set(errs.len() as i64);
         ERRORED.incr(1);
+        self.trigger(Subscription::Status);
     }
     pub fn clear_error(&self, domain: &'static str) {
         let mut lock = self.lock();
         let errs = Arc::make_mut(&mut lock.errors);
         errs.remove(domain);
         ERRORS.set(errs.len() as i64);
+        self.trigger(Subscription::Status);
     }
     pub fn update_election(&self, elect: ElectionState) {
         let mut guard = self.lock();
@@ -316,6 +330,7 @@ impl SharedState {
             .or(dest_elect.last_stable_timestamp);
         *dest_elect = elect;
         dest_elect.last_stable_timestamp = tstamp;
+        self.trigger(Subscription::Status);
     }
     pub fn set_parents(&self, parents: Vec<Arc<Schedule>>) {
         self.lock().parent_schedules = Some(parents);
@@ -394,12 +409,14 @@ impl SharedState {
             FAILING_ROLES.set(role_errors.len() as i64);
         }
         FAILED_ROLES.incr(1);
+        self.trigger(Subscription::Status);
     }
     pub fn reset_role_failure(&self, role_name: &str) {
         let mut lock = self.lock();
         let role_errors = Arc::make_mut(&mut lock.failed_roles);
         role_errors.remove(role_name);
         FAILING_ROLES.set(role_errors.len() as i64);
+        self.trigger(Subscription::Status);
     }
     pub fn num_roles(&self) -> usize {
         self.num_roles.load(Ordering::SeqCst)
@@ -419,6 +436,7 @@ impl SharedState {
         }
         self.num_roles.store(n, Ordering::SeqCst);
         FAILING_ROLES.set(role_errors.len() as i64);
+        self.trigger(Subscription::Status);
     }
 }
 

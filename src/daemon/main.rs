@@ -292,10 +292,10 @@ fn main() {
 
         meter.spawn_scanner(&tk_easyloop::handle());
 
+        let (front_tx, front_rx) = frontend::channel::new();
         let state = SharedState::new(&id, &name, &hostname,
             options.clone(), sandbox, old_schedule, &responder,
-            tk_easyloop::handle().remote(), &meter);
-
+            tk_easyloop::handle().remote(), &meter, &front_tx);
 
         let apply_settings = apply::Settings {
             dry_run: options.dry_run,
@@ -317,7 +317,7 @@ fn main() {
         let ns = name::init(&meter);
         let (fetch_tx, fetch_rx) = unbounded();
 
-        http::spawn_listener(&ns, &listen_addr, &state,
+        http::spawn_listener(&ns, &listen_addr, &state, front_rx,
             &options.config_dir.join("frontend"),
             &options.default_frontend,
             &schedule_dir)?;

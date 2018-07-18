@@ -17,7 +17,7 @@ use shared::SharedState;
 
 
 pub fn spawn_listener(ns: &NsRouter, addr: &str,
-    state: &SharedState, static_dir: &Path,
+    state: &SharedState, rx: frontend::channel::Receiver, static_dir: &Path,
     default_frontend: &str,
     schedule_dir: &Path)
     -> Result<(), Box<::std::error::Error>>
@@ -34,6 +34,7 @@ pub fn spawn_listener(ns: &NsRouter, addr: &str,
         config: config.clone(),
     };
     let incoming = frontend::incoming::Incoming::new(&ctx);
+    rx.start(&incoming);
     let hcfg = tk_http::server::Config::new()
         .inflight_request_limit(2)
         .inflight_request_prealoc(0)

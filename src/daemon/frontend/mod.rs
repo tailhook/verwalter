@@ -21,10 +21,12 @@ pub mod graphql;
 mod websocket;
 pub mod incoming;
 mod dispatcher;
+pub mod channel;
 
 mod status;
 
 use frontend::routing::{route, Route};
+pub use frontend::incoming::Subscription;
 pub use frontend::quick_reply::{reply, read_json};
 pub use frontend::error_page::serve_error_page;
 
