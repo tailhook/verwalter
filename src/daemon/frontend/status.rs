@@ -35,6 +35,7 @@ pub struct Election(Arc<ElectionState>);
 pub struct Schedule(Arc<scheduler::Schedule>);
 pub struct ScheduleData(Arc<scheduler::Schedule>);
 pub struct FetchState(Arc<fetch::PublicState>);
+pub struct Roles<'a>(&'a ContextRef<'a>);
 
 graphql_object!(<'a> GData<'a>: () as "Status" |&self| {
     description: "Status data for the verwalter itself"
@@ -50,8 +51,8 @@ graphql_object!(<'a> GData<'a>: () as "Status" |&self| {
     field default_frontend() -> &str {
         &self.ctx.config.default_frontend
     }
-    field roles() -> i32 {
-        self.ctx.state.num_roles() as i32
+    field roles() -> Roles {
+        Roles(self.ctx)
     }
     field peers() -> Peers {
         Peers(self.ctx.state.peers())
@@ -143,6 +144,16 @@ graphql_object!(Peers: () as "Peers" |&self| {
     }
     field timestamp() -> Timestamp {
         Timestamp(self.0.timestamp)
+    }
+});
+
+graphql_object!(<'a> Roles<'a>: () as "Roles" |&self| {
+    field number() -> i32 {
+        self.0.state.num_roles() as i32
+    }
+    // TODO(tailhook) remove clone once juniper supports it
+    field failed() -> Vec<String> {
+        self.0.state.failed_roles().iter().cloned().collect()
     }
 });
 

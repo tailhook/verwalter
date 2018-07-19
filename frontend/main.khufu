@@ -51,7 +51,7 @@ view _navbar(status, frontend_version, @expert_mode, router):
               link {click} go(event) -> @router
               "Roles"
               if status:
-                ` [${status.roles}]`
+                ` [${status.roles.number}]`
           <li.active?(router.at('peers'))>
             <a href=router.rel("/peers")>
               link {click} go(event) -> @router
@@ -134,7 +134,10 @@ view _navbar(status, frontend_version, @expert_mode, router):
           if status.errors:
             <li.text-danger>
               <a.error-status href="/v1/status.pretty">
-                `${ status.errors } errors`
+                if status.roles.failed:
+                  status.roles.failed[0]
+                else:
+                  `${ status.errors } errors`
           if status and status.leader:
             <li>
               let url = (set_port(status.leader.name, status.leader.addr)

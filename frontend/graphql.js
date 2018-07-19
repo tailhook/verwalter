@@ -25,7 +25,10 @@ export function start(render) {
             subscription {
                 status {
                     version
-                    roles
+                    roles {
+                        number
+                        failed
+                    }
                     peers {
                         number
                     }
