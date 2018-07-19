@@ -134,7 +134,7 @@ view _navbar(status, frontend_version, @expert_mode, router):
           if status.errors:
             <li.text-danger>
               <a.error-status href="/v1/status.pretty">
-                if status.roles.failed:
+                if status.roles.failed.length > 0:
                   status.roles.failed[0]
                 else:
                   `${ status.errors } errors`
