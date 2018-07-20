@@ -53,6 +53,7 @@ impl Environ {
         let n = NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
         let id: Id = format!("e0beef{:02x}", n).parse().unwrap();
         self.all_hosts.insert(id.clone(), ArcCell::new(Arc::new(Peer {
+            id: id.clone(),
             addr: Some(net::SocketAddr::V4(net::SocketAddrV4::new(
                 net::Ipv4Addr::new(127, 0, (n >> 8) as u8, (n & 0xFF) as u8),
                 12345))),
@@ -61,6 +62,7 @@ impl Environ {
             schedule: None,
             last_report_direct: Some(SystemTime::now()),
             known_since: SystemTime::now(),
+            errors: 0,
         })));
         id
     }
