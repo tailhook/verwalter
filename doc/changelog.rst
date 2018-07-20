@@ -9,6 +9,9 @@ Verwalter 0.13.1
 
 * feature: add ``/v1/graphql`` endpoint with GraphQL API
 * feature: add ``/v1/graphiql`` for poking with GraphQL API
+* feature: default frontend now shows peers having errors
+* feature: default frontend now shows full list of failing roles with the
+  links to logs under the navigation bar
 
 
 .. _changelog-0.13.0:
