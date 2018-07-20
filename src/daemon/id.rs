@@ -7,6 +7,7 @@ use juniper::Value;
 use cbor::{Encoder, EncodeResult, Decoder, DecodeResult};
 use hex::{FromHex, ToHex, encode as hexlify, FromHexError};
 use serde::{Serialize, Serializer};
+use serde::de::{self, Visitor, Deserialize, Deserializer};
 
 
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -28,6 +29,8 @@ pub enum InternalId {
     Good([u8; 16]),
     Bad(Arc<Box<[u8]>>),
 }
+
+struct IdVisitor;
 
 impl Id {
     pub fn new<S:AsRef<[u8]>>(id: S) -> Id {
@@ -61,8 +64,45 @@ impl Serialize for Id {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where S: Serializer
     {
+        use self::InternalId::*;
         // TODO(tailhook) bytes on is_human_readable() == false
-        self.to_hex().serialize(serializer)
+        if serializer.is_human_readable() {
+            self.to_hex().serialize(serializer)
+        } else {
+            match self.0 {
+                Good(ar) => serializer.serialize_bytes(&ar),
+                Bad(ref vec) => serializer.serialize_bytes(&vec[..]),
+            }
+        }
+    }
+}
+
+impl<'de> Visitor<'de> for IdVisitor {
+    type Value = Id;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("bytes or string")
+    }
+
+    fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        s.parse().map_err(|e| E::custom(e))
+    }
+    fn visit_bytes<E>(self, bytes: &[u8]) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        Ok(Id::new(bytes))
+    }
+}
+
+impl<'de> Deserialize<'de> for Id {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where D: Deserializer<'de>
+    {
+        deserializer.deserialize_bytes(IdVisitor)
     }
 }
 

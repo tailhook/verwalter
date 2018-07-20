@@ -12,8 +12,8 @@ use libcantal::{Counter, Integer};
 use tk_easyloop::{handle, spawn, timeout_at};
 
 use elect::action::Action;
-use elect::{Info};
-use elect::{encode};
+use elect::{Info, ScheduleStamp};
+use elect::encode::{self, Packet};
 use elect::machine::{Epoch, Machine};
 use elect::settings::MAX_PACKET_SIZE;
 use elect::state::ElectionState;
@@ -72,7 +72,7 @@ fn send_all(msg: &[u8], info: &Info, sockets: &[UdpSocket]) {
         }
         let peer = peer.get();
         if let Some(ref addr) = peer.addr {
-            debug!("Sending Ping to {} ({})", addr, id);
+            debug!("Sending message to {} ({})", addr, id);
             sockets_send(sockets, &msg, addr)
                 .map(|()| BROADCASTS_SENT.incr(1))
                 .map_err(|()| BROADCASTS_ERRORED.incr(1))
@@ -105,7 +105,11 @@ fn execute_action(action: Action, info: &Info, epoch: Epoch,
                         epoch, opt_schedule.as_ref().map(|x| &x.hash));
                 }
             };
-            let msg = encode::ping(&info.id, epoch, &opt_schedule);
+            let msg = Packet::Ping {
+                id: info.id.clone(),
+                epoch: epoch,
+                schedule: opt_schedule.as_ref().map(ScheduleStamp::from),
+            }.to_vec();
             send_all(&msg, info, sockets);
             LAST_PING_ALL.set(now.to_msec() as i64);
             *last_sent_hash = opt_schedule.as_ref().map(|x| &x.hash[..])
@@ -113,13 +117,23 @@ fn execute_action(action: Action, info: &Info, epoch: Epoch,
         }
         Vote(id) => {
             info!("[{}] Vote for {}", epoch, id);
-            let msg = encode::vote(&info.id, epoch, &id, &state.schedule());
+            let msg = Packet::Vote {
+                id: info.id.clone(),
+                epoch,
+                target: id.clone(),
+                schedule: state.schedule().as_ref().map(ScheduleStamp::from),
+            }.to_vec();
             send_all(&msg, info, sockets);
             LAST_VOTE.set(now.to_msec() as i64);
         }
         ConfirmVote(id) => {
             info!("[{}] Confirm vote {}", epoch, id);
-            let msg = encode::vote(&info.id, epoch, &id, &state.schedule());
+            let msg = Packet::Vote {
+                id: info.id.clone(),
+                epoch,
+                target: id.clone(),
+                schedule: state.schedule().as_ref().map(ScheduleStamp::from),
+            }.to_vec();
             let dest = info.all_hosts.get(&id).and_then(|p| p.get().addr);
             if let Some(ref addr) = dest {
                 debug!("Sending (confirm) vote to {} ({:?})", addr, id);
@@ -141,7 +155,12 @@ fn execute_action(action: Action, info: &Info, epoch: Epoch,
                     info!("[{}] Pong to a leader {}", epoch, id);
                 }
             }
-            let msg = encode::pong(&info.id, epoch, &state.schedule());
+            let msg = Packet::Pong {
+                id: info.id.clone(),
+                epoch,
+                errors: state.errors().len() + state.failed_roles().len(),
+                schedule: state.schedule().as_ref().map(ScheduleStamp::from),
+            }.to_vec();
             let dest = info.all_hosts.get(&id).and_then(|p| p.get().addr);
             if let Some(ref addr) = dest {
                 debug!("Sending pong to {} ({:?})", addr, id);

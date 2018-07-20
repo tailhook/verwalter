@@ -1144,6 +1144,15 @@ version = "1.0.70"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "serde_cbor"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "byteorder 1.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.70 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "serde_derive"
 version = "1.0.70"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1720,6 +1729,7 @@ dependencies = [
  "self-meter 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "self-meter-http 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.70 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_cbor 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.70 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.22 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_millis 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1969,6 +1979,7 @@ dependencies = [
 "checksum self-meter 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)" = "7f5db5de2ab21bed9d4cde060886b4fdbee58a9d8a95c8becc7ea549a7ba8bc8"
 "checksum self-meter-http 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)" = "58446b7fef2f533f949b7f94d87bbc6f80ce412fe48987308d55d13dfc42fcd5"
 "checksum serde 1.0.70 (registry+https://github.com/rust-lang/crates.io-index)" = "0c3adf19c07af6d186d91dae8927b83b0553d07ca56cbf7f2f32560455c91920"
+"checksum serde_cbor 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)" = "b4ad7872ff6e6c2a9221f4c1abe681e7eefc56ca5b3e87196afbfc717d141dc8"
 "checksum serde_derive 1.0.70 (registry+https://github.com/rust-lang/crates.io-index)" = "3525a779832b08693031b8ecfb0de81cd71cfd3812088fafe9a7496789572124"
 "checksum serde_json 1.0.22 (registry+https://github.com/rust-lang/crates.io-index)" = "84b8035cabe9b35878adec8ac5fe03d5f6bc97ff6edd7ccb96b44c1276ba390e"
 "checksum serde_millis 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "e6e2dc780ca5ee2c369d1d01d100270203c4ff923d2a4264812d723766434d00"

@@ -1,108 +1,71 @@
-use std::io::{Cursor, Write};
 use std::sync::Arc;
 
-use cbor::{Encoder, Decoder, Config, DecodeResult};
-use cbor::{DecodeError, EncodeResult, opt};
-use cbor::types::Type;
+use serde_cbor::{to_vec, from_slice};
 
+use failure::Error;
 use id::{Id};
-use elect::{Capsule, Message, ScheduleStamp};
+use elect::{Capsule, ScheduleStamp};
 use elect::machine::Epoch;
 use scheduler::Schedule;
 use frontend::serialize::ms_to_system_time;
 
-const PING: u8 = 1;
-const PONG: u8 = 2;
-const VOTE: u8 = 3;
 
-fn write_metadata<W: Write>(enc: &mut Encoder<W>,
-    schedule: &Option<Arc<Schedule>>)
-    -> EncodeResult
-{
-    if let &Some(ref schedule) = schedule {
-        try!(enc.array(4));
-        try!(enc.text("schedule"));
-        try!(enc.u64(schedule.timestamp));
-        try!(enc.text(&schedule.hash));
-        try!(schedule.origin.encode_cbor(enc));
-    } else {
-        try!(enc.null());
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag="type")]
+pub enum Packet {
+    Ping {
+        id: Id,
+        epoch: Epoch,
+        schedule: Option<ScheduleStamp>,
+    },
+    Pong {
+        id: Id,
+        epoch: Epoch,
+        schedule: Option<ScheduleStamp>,
+        errors: usize,
+    },
+    Vote {
+        id: Id,
+        epoch: Epoch,
+        target: Id,
+        schedule: Option<ScheduleStamp>,
+    },
+}
+
+impl Packet {
+    pub fn to_vec(&self) -> Vec<u8> {
+        to_vec(self).expect("can serialize packet")
     }
-    Ok(())
 }
 
-pub fn ping(id: &Id, epoch: Epoch, schedule: &Option<Arc<Schedule>>)
-    -> Vec<u8>
-{
-    let mut buf = Encoder::new(Cursor::new(Vec::new()));
-    id.encode_cbor(&mut buf).unwrap();
-    buf.u64(epoch).unwrap();
-    buf.u8(PING).unwrap();
-    write_metadata(&mut buf, schedule).unwrap();
-    return buf.into_writer().into_inner();
-}
-
-pub fn pong(id: &Id, epoch: Epoch, schedule: &Option<Arc<Schedule>>) -> Vec<u8> {
-    let mut buf = Encoder::new(Cursor::new(Vec::new()));
-    id.encode_cbor(&mut buf).unwrap();
-    buf.u64(epoch).unwrap();
-    buf.u8(PONG).unwrap();
-    write_metadata(&mut buf, schedule).unwrap();
-    return buf.into_writer().into_inner();
-}
-
-pub fn vote(id: &Id, epoch: Epoch, peer: &Id, schedule: &Option<Arc<Schedule>>)
-    -> Vec<u8>
-{
-    let mut buf = Encoder::new(Cursor::new(Vec::new()));
-    id.encode_cbor(&mut buf).unwrap();
-    buf.u64(epoch).unwrap();
-    buf.u8(VOTE).unwrap();
-    peer.encode_cbor(&mut buf).unwrap();
-    write_metadata(&mut buf, schedule).unwrap();
-    return buf.into_writer().into_inner();
-}
-
-pub fn read_packet(buf: &[u8]) -> DecodeResult<Capsule> {
-    let mut dec = Decoder::new(Config::default(), Cursor::new(buf));
-    let source = try!(Id::decode(&mut dec));
-    let epoch = try!(dec.u64());
-    let (src, epoch, msg)  = match try!(dec.u8()) {
-        x if x == PING => (source, epoch, Message::Ping),
-        x if x == PONG => (source, epoch, Message::Pong),
-        x if x == VOTE => {
-            let peer = try!(Id::decode(&mut dec));
-            (source, epoch, Message::Vote(peer))
+impl ScheduleStamp {
+    pub fn from(schedule: &Arc<Schedule>) -> ScheduleStamp {
+        ScheduleStamp {
+            timestamp: ms_to_system_time(schedule.timestamp),
+            hash: schedule.hash.clone(),
+            origin: schedule.origin.clone(),
         }
-        x => return Err(DecodeError::UnexpectedType {
-            datatype: Type::UInt32,
-            info: x,
-        }),
-    };
-    let sstamp = match try!(opt(dec.array())) {
-        Some(4) => {
-            match try!(dec.text_borrow()) {
-                "schedule" => {
-                    let tstamp = try!(dec.u64());
-                    let hash = try!(dec.text());
-                    let origin = try!(Id::decode(&mut dec));
-                    Some(ScheduleStamp {
-                        timestamp: ms_to_system_time(tstamp),
-                        hash: hash,
-                        origin: origin,
-                    })
-                }
-                _ => {
-                    None
-                }
-            }
+    }
+}
+
+pub fn read_packet(buf: &[u8]) -> Result<Capsule, Error> {
+    use elect::Message::*;
+    let pkt: Packet = from_slice(buf)?;
+    let result = match pkt {
+        Packet::Ping { id, epoch, schedule } => {
+            let source = id;
+            Capsule { source, epoch, schedule, message: Ping, errors: None }
         }
-        _ => None,
+        Packet::Pong { id, epoch, schedule, errors } => {
+            let source = id;
+            let errors = Some(errors);
+            Capsule { source, epoch, schedule, message: Pong, errors }
+        }
+        Packet::Vote { id, epoch, target, schedule } => {
+            let source = id;
+            let message = Vote(target);
+            Capsule { source, epoch, schedule, message, errors: None }
+        }
     };
-    Ok(Capsule {
-        source: src,
-        epoch: epoch,
-        message: msg,
-        schedule: sstamp,
-    })
+    return Ok(result);
 }

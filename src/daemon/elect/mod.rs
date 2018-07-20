@@ -26,7 +26,7 @@ mod encode;
 #[cfg(test)] mod test_split_brain;
 
 
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ScheduleStamp {
     #[serde(with="serde_millis")]
     pub timestamp: SystemTime,
@@ -40,6 +40,7 @@ pub struct Capsule {
     epoch: Epoch,
     message: Message,
     schedule: Option<ScheduleStamp>,
+    errors: Option<usize>,
 }
 
 #[derive(Clone, Debug)]
