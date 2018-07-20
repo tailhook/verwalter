@@ -11,6 +11,7 @@ use tokio_core::reactor::Timeout;
 use libcantal::{Counter, Integer};
 use tk_easyloop::{handle, spawn, timeout_at};
 
+use peer::Peer;
 use elect::action::Action;
 use elect::{Info, ScheduleStamp};
 use elect::encode::{self, Packet};
@@ -206,6 +207,7 @@ impl ElectionMachine {
             debug_force_leader: self.shared.debug_force_leader(),
             allow_minority: self.allow_minority,
         };
+        let was_leader = matches!(self.machine, Some(Leader {..}));
         let (dline, mut me) = match self.machine.take() {
             Some(me) => (me.current_deadline(), me),
             // Create machine and ensure that timer is called if called for
@@ -235,6 +237,10 @@ impl ElectionMachine {
                 }
             }
         }
+        let is_leader = matches!(self.machine, Some(Leader {..}));
+        if was_leader && !is_leader {
+            self.clean_peer_errors();
+        }
         self.shared.update_election(ElectionState::from(&me));
         // TODO(tailhook) send on change only
         match me {
@@ -251,9 +257,25 @@ impl ElectionMachine {
         }.expect("fetcher always work");
         self.machine = Some(me);
     }
+    /// Cleans errors field from all the peers
+    ///
+    /// We track errors number only on leader, so clean them in other states
+    fn clean_peer_errors(&self) {
+        let peers = self.shared.peers();
+        for peer in peers.peers.values() {
+            if peer.get().errors != 0 {
+                peer.set(Arc::new(Peer {
+                    errors: 0,
+                    ..(*peer.get()).clone()
+                }));
+            }
+        }
+    }
     fn process_input_messages(&mut self, mut me: Machine, info: &Info)
         -> Machine
     {
+        use elect::machine::Machine::Leader;
+
         let mut buf = [0u8; MAX_PACKET_SIZE];
 
         let ref shared = self.shared;
@@ -291,9 +313,11 @@ impl ElectionMachine {
                                 {
                                     let val = Arc::make_mut(&mut peerdata);
                                     val.schedule = msg.schedule;
-                                    msg.errors.map(|errs| {
-                                        val.errors = errs;
-                                    });
+                                    if matches!(me, Leader {..}) {
+                                        msg.errors.map(|errs| {
+                                            val.errors = errs;
+                                        });
+                                    }
                                 }
                                 peer.set(peerdata);
                             }

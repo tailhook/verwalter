@@ -51,7 +51,7 @@ extern crate yaml_rust;
 #[macro_use] extern crate lua;
 #[macro_use] extern crate quick_error;
 #[macro_use] extern crate serde_derive;
-#[cfg(test)] #[macro_use] extern crate matches;
+#[macro_use] extern crate matches;
 
 extern crate indexed_log;
 extern crate verwalter_config as config;
