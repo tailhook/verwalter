@@ -165,17 +165,17 @@ view main(router, version):
     _navbar(status, version, expert_mode, router)
     if status.roles.failed.length > 0 or status.peers.errorneous.length > 0:
       <div>
-        if status.roles.failed:
+        if status.roles.failed and status.roles.failed.length > 0:
           <p>
-            "Failing local roles:"
+            "Failing local roles: "
             for role of status.roles.failed:
               <a.btn.btn-danger
                   href=router.rel('/logs?filter='+role)>
                 link {click} go(event) -> @router
                 role
-        if status.roles.failed:
+        if status.peers.errorneous and status.peers.errorneous.length > 0:
           <p>
-            "Failing nodes:"
+            "Failing nodes: "
             for node of status.peers.errorneous:
               <a.btn.btn-danger
                   href=`http://${node.name}:8379/`>
