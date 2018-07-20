@@ -19,7 +19,6 @@ use elect::settings::MAX_PACKET_SIZE;
 use elect::state::ElectionState;
 use fetch;
 use id::Id;
-use peer::Peer;
 use shared::{SharedState};
 use time_util::ToMsec;
 
@@ -278,17 +277,25 @@ impl ElectionMachine {
                             me.current_epoch(), &sockets,
                             shared, hash));
                         if let Some(peer) = shared.peers().peers.get(&src) {
-                            if peer.get().schedule != msg.schedule {
+                            let mut peerdata = peer.get();
+                            if peerdata.schedule != msg.schedule ||
+                                msg.errors.map(|x| peerdata.errors != x)
+                                    .unwrap_or(false)
+                            {
                                 if let Some(ref stamp) = msg.schedule {
                                     self.fetcher.unbounded_send(
                                         fetch::Message::PeerSchedule(
                                             src.clone(), stamp.clone(),
                                         )).expect("fetcher always work");
                                 }
-                                peer.set(Arc::new(Peer {
-                                    schedule: msg.schedule,
-                                    .. (*peer.get()).clone()
-                                }));
+                                {
+                                    let val = Arc::make_mut(&mut peerdata);
+                                    val.schedule = msg.schedule;
+                                    msg.errors.map(|errs| {
+                                        val.errors = errs;
+                                    });
+                                }
+                                peer.set(peerdata);
                             }
                         }
                     }

@@ -31,6 +31,7 @@ struct LeaderInfo {
 pub struct GProcessReport(Meter);
 pub struct GThreadsReport(Meter);
 pub struct Peers(Arc<peer::Peers>);
+pub struct Peer(Arc<peer::Peer>);
 pub struct Election(Arc<ElectionState>);
 pub struct Schedule(Arc<scheduler::Schedule>);
 pub struct ScheduleData(Arc<scheduler::Schedule>);
@@ -142,9 +143,21 @@ graphql_object!(Peers: () as "Peers" |&self| {
     field number() -> i32 {
         self.0.peers.len() as i32
     }
+    field errorneous() -> Vec<Peer> {
+        self.0.peers.values()
+            .map(|p| p.get())
+            .filter(|p| p.errors > 0)
+            .map(Peer).collect()
+    }
     field timestamp() -> Timestamp {
         Timestamp(self.0.timestamp)
     }
+});
+
+graphql_object!(Peer: () as "Peer" |&self| {
+    field id() -> &Id { &self.0.id }
+    field name() -> &String { &self.0.name }
+    field hostname() -> &String { &self.0.hostname }
 });
 
 graphql_object!(<'a> Roles<'a>: () as "Roles" |&self| {

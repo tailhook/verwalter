@@ -131,13 +131,13 @@ view _navbar(status, frontend_version, @expert_mode, router):
             <li>
               <a href=`/~${status.default_frontend}/`>
                 <span.glyphicon.glyphicon-new-window>
-          if status.errors:
+          if status.errors or status.peers.errorneous.length:
             <li.text-danger>
               <a.error-status href="/v1/status.pretty">
                 if status.roles.failed.length > 0:
                   status.roles.failed[0]
                 else:
-                  `${ status.errors } errors`
+                  `${ status.errors + status.peers.errorneous.length } errors`
           if status and status.leader:
             <li>
               let url = (set_port(status.leader.name, status.leader.addr)
@@ -163,6 +163,23 @@ view main(router, version):
   <div>
     store @expert_mode = bool | init(false)
     _navbar(status, version, expert_mode, router)
+    if status.roles.failed.length > 0 or status.peers.errorneous.length > 0:
+      <div>
+        if status.roles.failed:
+          <p>
+            "Failing local roles:"
+            for role of status.roles.failed:
+              <a.btn.btn-danger
+                  href=router.rel('/logs?filter='+role)>
+                link {click} go(event) -> @router
+                role
+        if status.roles.failed:
+          <p>
+            "Failing nodes:"
+            for node of status.peers.errorneous:
+              <a.btn.btn-danger
+                  href=`http://${node.name}:8379/`>
+                node.hostname
     <div class="container-fluid">
       if let sub = router.at('roles'):
         roles(status, @expert_mode, sub)

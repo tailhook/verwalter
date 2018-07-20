@@ -30,7 +30,8 @@ pub fn spawn_fetcher(state: &SharedState, port: u16)
                         state.set_peers(peers.requested, peers.peers.into_iter()
                             .filter_map(|p| {
                                 let id = Id::from_str(&p.id);
-                                id.ok().map(move |id| (id, Peer {
+                                id.ok().map(move |id| (id.clone(), Peer {
+                                    id,
                                     addr: p.primary_addr
                                         .and_then(|x| x.parse::<SocketAddr>().ok())
                                         .map(|x| SocketAddr::new(x.ip(), port)),
@@ -39,6 +40,7 @@ pub fn spawn_fetcher(state: &SharedState, port: u16)
                                     schedule: None,
                                     known_since: p.known_since,
                                     last_report_direct: p.last_report_direct,
+                                    errors: 0,
                                 }))
                             }).collect());
                     }

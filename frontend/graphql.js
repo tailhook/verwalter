@@ -31,6 +31,10 @@ export function start(render) {
                     }
                     peers {
                         number
+                        errorneous {
+                            hostname
+                            name
+                        }
                     }
                     leader {
                         name
