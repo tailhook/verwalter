@@ -18,7 +18,7 @@ const client = new ApolloClient({
 });
 
 export var status = {peers: {errorneous: []}, leader: {},
-                     fetch: {}, roles: {failed: []}}
+                     fetch: {state:'<connecting>'}, roles: {failed: []}}
 
 export function start(render) {
     let q = client.subscribe({
