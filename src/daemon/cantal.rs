@@ -26,7 +26,6 @@ pub fn spawn_fetcher(state: &SharedState, port: u16)
             conn.get_peers().then(move |res| {
                 match res {
                     Ok(peers) => {
-                        // TODO(tailhook) check existing peers!
                         state.set_peers(peers.requested, peers.peers.into_iter()
                             .filter_map(|p| {
                                 let id = Id::from_str(&p.id);

@@ -221,7 +221,9 @@ impl SharedState {
                 let oldp = old.get();
                 if oldp.needs_refresh(&peer) {
                     let new = Peer {
+                        id: oldp.id.clone(),
                         schedule: oldp.schedule.clone(),
+                        errors: oldp.errors,
                         .. peer.clone()
                     };
                     old.set(Arc::new(new));

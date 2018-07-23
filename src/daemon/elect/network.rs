@@ -237,7 +237,7 @@ impl ElectionMachine {
                 }
             }
         }
-        let is_leader = matches!(self.machine, Some(Leader {..}));
+        let is_leader = matches!(me, Leader {..});
         if was_leader && !is_leader {
             self.clean_peer_errors();
         }

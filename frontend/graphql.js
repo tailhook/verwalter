@@ -17,7 +17,8 @@ const client = new ApolloClient({
     cache: new InMemoryCache(),
 });
 
-export var status = {peers: {}, leader: {}, fetch: {}, roles: {}}
+export var status = {peers: {errorneous: []}, leader: {},
+                     fetch: {}, roles: {failed: []}}
 
 export function start(render) {
     let q = client.subscribe({
@@ -25,6 +26,7 @@ export function start(render) {
             subscription {
                 status {
                     version
+                    numErrors
                     roles {
                         number
                         failed

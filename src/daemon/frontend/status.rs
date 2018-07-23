@@ -144,10 +144,12 @@ graphql_object!(Peers: () as "Peers" |&self| {
         self.0.peers.len() as i32
     }
     field errorneous() -> Vec<Peer> {
-        self.0.peers.values()
+        let mut arr = self.0.peers.values()
             .map(|p| p.get())
             .filter(|p| p.errors > 0)
-            .map(Peer).collect()
+            .map(Peer).collect::<Vec<_>>();
+        arr.sort_unstable_by(|a, b| a.0.name.cmp(&b.0.name));
+        return arr;
     }
     field timestamp() -> Timestamp {
         Timestamp(self.0.timestamp)
@@ -166,7 +168,10 @@ graphql_object!(<'a> Roles<'a>: () as "Roles" |&self| {
     }
     // TODO(tailhook) remove clone once juniper supports it
     field failed() -> Vec<String> {
-        self.0.state.failed_roles().iter().cloned().collect()
+        let mut vec = self.0.state.failed_roles().iter().cloned()
+            .collect::<Vec<_>>();
+        vec.sort_unstable();
+        return vec;
     }
 });
 
