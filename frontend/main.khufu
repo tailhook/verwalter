@@ -127,9 +127,9 @@ view _navbar(status, frontend_version, @expert_mode, router):
                <div.dropdown-menu>
                 metrics.expanded(status)
 
-          if status.default_frontend != 'common':
+          if status.defaultFrontend != 'common':
             <li>
-              <a href=`/~${status.default_frontend}/`>
+              <a href=`/~${status.defaultFrontend}/`>
                 <span.glyphicon.glyphicon-new-window>
           let errs = status.numErrors + status.peers.errorneous.length
           if errs:

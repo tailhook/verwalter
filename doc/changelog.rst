@@ -2,6 +2,14 @@ Verwalter Changes by Version
 ============================
 
 
+.. _changelog-0.13.2:
+
+Verwalter 0.13.2
+----------------
+
+* bugfix: Fix link to alternate frontend in default frontend
+
+
 .. _changelog-0.13.1:
 
 Verwalter 0.13.1

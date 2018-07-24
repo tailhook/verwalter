@@ -27,6 +27,7 @@ export function start(render) {
                 status {
                     version
                     numErrors
+                    defaultFrontend
                     roles {
                         number
                         failed
