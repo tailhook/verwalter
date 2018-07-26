@@ -8,6 +8,8 @@ Verwalter 0.13.2
 ----------------
 
 * bugfix: Fix link to alternate frontend in default frontend
+* feature: add ``id`` field to graphql status
+* bugfix: fix server list display in api frontend
 
 
 .. _changelog-0.13.1:

@@ -25,6 +25,8 @@ export function start(render) {
       query: gql`
             subscription {
                 status {
+                    id
+                    hostname
                     version
                     numErrors
                     defaultFrontend

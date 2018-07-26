@@ -43,6 +43,9 @@ graphql_object!(<'a> GData<'a>: () as "Status" |&self| {
     field version() -> &'static str {
         env!("CARGO_PKG_VERSION")
     }
+    field id() -> &Id {
+        &self.ctx.state.id
+    }
     field name() -> &str {
         &self.ctx.state.name
     }
