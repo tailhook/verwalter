@@ -43,11 +43,15 @@ export function start(render) {
                     }
                     leader {
                         name
+                        hostname
                         addr
                         debugForced
                     }
                     fetch {
                         state
+                    }
+                    election {
+                        isLeader
                     }
                     scheduleStatus
                 }

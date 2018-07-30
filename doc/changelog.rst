@@ -2,6 +2,14 @@ Verwalter Changes by Version
 ============================
 
 
+.. _changelog-0.13.3:
+
+Verwalter 0.13.3
+----------------
+
+* bugfix: fix displaying actions on leader using default frontend
+
+
 .. _changelog-0.13.2:
 
 Verwalter 0.13.2
