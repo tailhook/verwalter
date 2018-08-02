@@ -10,7 +10,7 @@ use futures::sync::oneshot;
 use tokio_core::reactor::Remote;
 use time::{get_time};
 use serde_json::{Value as Json, to_string};
-use crossbeam::sync::ArcCell;
+use crossbeam::atomic::ArcCell;
 use self_meter_http::Meter;
 
 use config::Sandbox;

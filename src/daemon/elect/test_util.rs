@@ -4,7 +4,7 @@ use std::net;
 use std::time::{Duration, SystemTime, Instant};
 use std::collections::HashMap;
 
-use crossbeam::sync::ArcCell;
+use crossbeam::atomic::ArcCell;
 use super::{Info};
 use id::Id;
 use peer::Peer;

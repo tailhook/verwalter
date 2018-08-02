@@ -2,7 +2,7 @@ use std::net::SocketAddr;
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crossbeam::sync::ArcCell;
+use crossbeam::atomic::ArcCell;
 use elect::ScheduleStamp;
 use id::Id;
 use serde_millis;

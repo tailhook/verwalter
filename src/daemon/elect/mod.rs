@@ -1,7 +1,7 @@
 use std::time::SystemTime;
 use std::collections::{HashMap};
 
-use crossbeam::sync::ArcCell;
+use crossbeam::atomic::ArcCell;
 use serde_millis;
 
 pub use self::machine::Epoch;
