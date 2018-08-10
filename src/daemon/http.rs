@@ -66,6 +66,7 @@ pub fn spawn_listener(ns: &NsRouter, addr: &str,
                 .map(move |(socket, saddr)| {
                     Proto::new(socket, &hcfg,
                         frontend::Dispatcher {
+                            ip: saddr,
                             incoming: incoming.clone(),
                             state: state.clone(),
                             config: config.clone(),

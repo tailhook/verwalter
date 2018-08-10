@@ -55,7 +55,9 @@ commands:
         environ: &fake_rust_log
           # disable errors on our fake IP addresses
           RUST_LOG: info,verwalter::elect::network=off,\
-                    tokio_reactor=warn,verwalter::frontend=warn
+                    tokio_reactor=warn,\
+                    verwalter::frontend::api::actions=info,\
+                    verwalter::frontend=warn
         run:
         - ./target/debug/verwalter
         - --config-dir=/work/example-configs/pyapp

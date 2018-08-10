@@ -1,5 +1,6 @@
 use std::path::{PathBuf};
 use std::sync::Arc;
+use std::net::SocketAddr;
 
 use futures::{Future};
 use tk_http::Status;
@@ -42,6 +43,7 @@ pub struct Config {
 }
 
 pub struct Dispatcher {
+    pub ip: SocketAddr,
     pub state: SharedState,
     pub config: Arc<Config>,
     pub incoming: incoming::Incoming,
@@ -84,7 +86,7 @@ impl<S> DispatcherTrait<S> for Dispatcher
                     &self.incoming, &self.state, &self.config))
             }
             Api(ref route, fmt) => {
-                api::serve(&self.state, &self.config, route, fmt)
+                api::serve(&self.state, &self.config, route, fmt, self.ip)
             }
             Log(ref route) => {
                 log::serve(headers, &self.state, route)

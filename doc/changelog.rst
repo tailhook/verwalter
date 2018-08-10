@@ -2,6 +2,15 @@ Verwalter Changes by Version
 ============================
 
 
+.. _changelog-0.13.4:
+
+Verwalter 0.13.4
+----------------
+
+* Feature: log of invoked actions added
+  with logger ``verwalter::frontend::api::actions``
+
+
 .. _changelog-0.13.3:
 
 Verwalter 0.13.3

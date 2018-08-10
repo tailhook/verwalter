@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::io::{Write, BufWriter};
+use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{SystemTime, Duration};
 
@@ -180,7 +181,7 @@ pub fn respond_204<S>(mut e: Encoder<S>)
 }
 
 pub fn serve<S: 'static>(state: &SharedState, config: &Arc<Config>,
-    route: &ApiRoute, format: Format)
+    route: &ApiRoute, format: Format, source: SocketAddr)
     -> Result<Request<S>, Error>
 {
     use self::ApiRoute::*;
@@ -396,6 +397,7 @@ pub fn serve<S: 'static>(state: &SharedState, config: &Arc<Config>,
         }
         PushAction => {
             Ok(read_json(move |input: Value, e| {
+                actions::log(source, &input);
                 let (tx, _) = oneshot::channel();
                 match state.push_action(input, tx) {
                     Ok(id) => {
@@ -420,6 +422,7 @@ pub fn serve<S: 'static>(state: &SharedState, config: &Arc<Config>,
         }
         WaitAction => {
             Ok(read_json(move |input: Value, e| {
+                actions::log(source, &input);
                 let (tx, rx) = oneshot::channel();
                 match state.push_action(input, tx) {
                     Ok(_id) => {
@@ -560,5 +563,14 @@ pub fn serve<S: 'static>(state: &SharedState, config: &Arc<Config>,
                     }))
             }))
         }
+    }
+}
+
+mod actions {
+    use std::net::SocketAddr;
+    use serde_json::Value as Json;
+
+    pub fn log(source: SocketAddr, input: &Json) {
+        info!("Received action from {}: {}", source, input);
     }
 }
