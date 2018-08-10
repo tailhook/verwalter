@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 use std::path::PathBuf;
+use std::time::Instant;
 
 use async_slot as slot;
 use failure::{Error, err_msg};
@@ -167,11 +168,15 @@ pub fn run(init: ResponderInit, shared: SharedState) {
                 let id: String = thread_rng().sample_iter(&Alphanumeric)
                     .take(24).collect();
                 let prev_ref = prev.as_ref().map(|x| &**x);
+                let start = Instant::now();
                 match responder.render_roles(&id, prev_ref) {
                     Ok(data) => {
+                        let elapsed = start.elapsed();
                         shared.update_role_list(&data.all_roles);
-                        debug!("Got {} roles to render, {} total",
-                            data.to_render.len(), data.all_roles.len());
+                        info!("Roles data: {} roles to render, \
+                            {} total, in {:?}",
+                            data.to_render.len(), data.all_roles.len(),
+                            elapsed);
                         init.apply_tx.swap(ApplyData {
                             id,
                             schedule: schedule.clone(),
